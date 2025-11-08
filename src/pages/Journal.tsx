@@ -1,16 +1,23 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { storage, JournalEntry } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 const Journal = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentEntry, setCurrentEntry] = useState("");
   const { toast } = useToast();
+
+  const { isListening, isSupported, startListening } = useSpeechRecognition({
+    onResult: (transcript) => {
+      setCurrentEntry((prev) => (prev ? prev + " " + transcript : transcript));
+    },
+  });
 
   useEffect(() => {
     setEntries(storage.getJournalEntries());
@@ -120,17 +127,40 @@ const Journal = () => {
             </Button>
           </div>
 
-          <Textarea
-            placeholder="What's on your mind today? Write your thoughts, experiences, or reflections..."
-            value={currentEntry}
-            onChange={(e) => setCurrentEntry(e.target.value)}
-            className="min-h-[300px] bg-background/50 border-border/50 focus:border-success resize-none"
-          />
+          <div className="relative">
+            <Textarea
+              placeholder="What's on your mind today? Write your thoughts, experiences, or reflections..."
+              value={currentEntry}
+              onChange={(e) => setCurrentEntry(e.target.value)}
+              className="min-h-[300px] bg-background/50 border-border/50 focus:border-success resize-none pr-14"
+            />
+            {isSupported && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={startListening}
+                disabled={isListening}
+                className={`absolute top-3 right-3 ${
+                  isListening ? "animate-pulse-glow text-success" : "text-muted-foreground hover:text-success"
+                }`}
+              >
+                <Mic className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
 
           <div className="flex justify-between items-center mt-4">
-            <span className="text-xs text-muted-foreground">
-              {currentEntry.length} characters
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-muted-foreground">
+                {currentEntry.length} characters
+              </span>
+              {isListening && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-success/20 rounded-lg animate-pulse-glow">
+                  <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
+                  <span className="text-xs text-success font-medium">Recording...</span>
+                </div>
+              )}
+            </div>
             <Button onClick={saveEntry} disabled={!currentEntry.trim()} className="glow">
               Save Entry
             </Button>

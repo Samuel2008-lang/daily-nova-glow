@@ -1,16 +1,23 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { storage, Habit } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 const Habits = () => {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [newHabit, setNewHabit] = useState("");
   const { toast } = useToast();
+
+  const { isListening, isSupported, startListening } = useSpeechRecognition({
+    onResult: (transcript) => {
+      setNewHabit(transcript);
+    },
+  });
 
   useEffect(() => {
     setHabits(storage.getHabits());
@@ -129,18 +136,39 @@ const Habits = () => {
 
         {/* Add Habit */}
         <Card className="glass glow-pink p-6 mb-8">
-          <div className="flex gap-4">
-            <Input
-              placeholder="Add a new habit..."
-              value={newHabit}
-              onChange={(e) => setNewHabit(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && addHabit()}
-              className="bg-background/50 border-border/50 focus:border-accent"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                placeholder="Add a new habit or use voice..."
+                value={newHabit}
+                onChange={(e) => setNewHabit(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && addHabit()}
+                className="bg-background/50 border-border/50 focus:border-accent pr-12"
+              />
+              {isSupported && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={startListening}
+                  disabled={isListening}
+                  className={`absolute top-1/2 -translate-y-1/2 right-1 ${
+                    isListening ? "animate-pulse-glow text-accent" : "text-muted-foreground hover:text-accent"
+                  }`}
+                >
+                  <Mic className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
             <Button onClick={addHabit} className="glow-pink">
               <Plus className="w-4 h-4" />
             </Button>
           </div>
+          {isListening && (
+            <div className="flex items-center gap-2 mt-3 px-4 py-2 bg-accent/20 rounded-lg animate-pulse-glow">
+              <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+              <span className="text-sm text-accent font-medium">Listening for habit...</span>
+            </div>
+          )}
         </Card>
 
         {/* Habits List */}

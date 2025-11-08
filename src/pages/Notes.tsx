@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Trash2, Edit2 } from "lucide-react";
+import { Plus, Search, Trash2, Edit2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { storage, Note } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -13,6 +14,12 @@ const Notes = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const { isListening, isSupported, startListening } = useSpeechRecognition({
+    onResult: (transcript) => {
+      setNewNote((prev) => (prev ? prev + " " + transcript : transcript));
+    },
+  });
 
   useEffect(() => {
     setNotes(storage.getNotes());
@@ -75,16 +82,39 @@ const Notes = () => {
 
         {/* Add Note */}
         <Card className="glass glow p-6 mb-8">
-          <Textarea
-            placeholder="Write your note here..."
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            className="mb-4 min-h-[120px] bg-background/50 border-border/50 focus:border-primary"
-          />
-          <Button onClick={addNote} className="w-full glow">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Note
-          </Button>
+          <div className="relative">
+            <Textarea
+              placeholder="Write your note here or use voice input..."
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              className="mb-4 min-h-[120px] bg-background/50 border-border/50 focus:border-primary pr-14"
+            />
+            {isSupported && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={startListening}
+                disabled={isListening}
+                className={`absolute top-3 right-3 ${
+                  isListening ? "animate-pulse-glow text-primary" : "text-muted-foreground hover:text-primary"
+                }`}
+              >
+                <Mic className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={addNote} className="flex-1 glow">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Note
+            </Button>
+            {isListening && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-primary/20 rounded-lg animate-pulse-glow">
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                <span className="text-sm text-primary font-medium">Listening...</span>
+              </div>
+            )}
+          </div>
         </Card>
 
         {/* Search */}

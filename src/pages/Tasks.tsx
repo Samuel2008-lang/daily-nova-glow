@@ -1,16 +1,23 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { storage, Task } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 const Tasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState("");
   const { toast } = useToast();
+
+  const { isListening, isSupported, startListening } = useSpeechRecognition({
+    onResult: (transcript) => {
+      setNewTask(transcript);
+    },
+  });
 
   useEffect(() => {
     setTasks(storage.getTasks());
@@ -74,18 +81,39 @@ const Tasks = () => {
 
         {/* Add Task */}
         <Card className="glass glow-purple p-6 mb-8">
-          <div className="flex gap-4">
-            <Input
-              placeholder="Add a new task..."
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && addTask()}
-              className="bg-background/50 border-border/50 focus:border-secondary"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                placeholder="Add a new task or use voice..."
+                value={newTask}
+                onChange={(e) => setNewTask(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && addTask()}
+                className="bg-background/50 border-border/50 focus:border-secondary pr-12"
+              />
+              {isSupported && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={startListening}
+                  disabled={isListening}
+                  className={`absolute top-1/2 -translate-y-1/2 right-1 ${
+                    isListening ? "animate-pulse-glow text-secondary" : "text-muted-foreground hover:text-secondary"
+                  }`}
+                >
+                  <Mic className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
             <Button onClick={addTask} className="glow-purple">
               <Plus className="w-4 h-4" />
             </Button>
           </div>
+          {isListening && (
+            <div className="flex items-center gap-2 mt-3 px-4 py-2 bg-secondary/20 rounded-lg animate-pulse-glow">
+              <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
+              <span className="text-sm text-secondary font-medium">Listening for task...</span>
+            </div>
+          )}
         </Card>
 
         {/* Active Tasks */}
