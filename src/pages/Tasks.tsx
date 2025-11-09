@@ -94,7 +94,7 @@ const Tasks = () => {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={startListening}
+                  onClick={() => startListening(true, "task")}
                   disabled={isListening}
                   className={`absolute top-1/2 -translate-y-1/2 right-1 ${
                     isListening ? "animate-pulse-glow text-secondary" : "text-muted-foreground hover:text-secondary"

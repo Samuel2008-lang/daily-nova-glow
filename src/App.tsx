@@ -7,7 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Notes from "./pages/Notes";
 import Tasks from "./pages/Tasks";
 import Habits from "./pages/Habits";
-import Journal from "./pages/Journal";
+import Diary from "./pages/Diary";
 import Quotes from "./pages/Quotes";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
@@ -26,7 +26,7 @@ const App = () => (
           <Route path="/notes" element={<Notes />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/habits" element={<Habits />} />
-          <Route path="/journal" element={<Journal />} />
+          <Route path="/diary" element={<Diary />} />
           <Route path="/quotes" element={<Quotes />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

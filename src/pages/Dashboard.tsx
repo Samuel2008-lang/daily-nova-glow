@@ -42,7 +42,7 @@ const Dashboard = () => {
     { to: "/notes", icon: FileText, label: "Add Note", color: "primary" },
     { to: "/tasks", icon: CheckSquare, label: "New Task", color: "secondary" },
     { to: "/habits", icon: Target, label: "Track Habit", color: "accent" },
-    { to: "/journal", icon: BookOpen, label: "Write Journal", color: "success" },
+    { to: "/diary", icon: BookOpen, label: "Write Diary", color: "success" },
   ];
 
   return (

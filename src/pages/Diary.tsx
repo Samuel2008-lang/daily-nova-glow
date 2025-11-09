@@ -7,7 +7,7 @@ import { storage, JournalEntry } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
-const Journal = () => {
+const Diary = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentEntry, setCurrentEntry] = useState("");
@@ -59,7 +59,7 @@ const Journal = () => {
 
     toast({
       title: "Entry saved",
-      description: "Your journal entry has been saved.",
+      description: "Your diary entry has been saved.",
     });
   };
 
@@ -84,7 +84,7 @@ const Journal = () => {
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
       <div className="max-w-4xl mx-auto animate-fade-in">
-        <h1 className="text-4xl font-bold mb-8 text-success">Daily Journal</h1>
+        <h1 className="text-4xl font-bold mb-8 text-success">Daily Diary</h1>
 
         {/* Date Navigation */}
         <Card className="glass glow p-6 mb-8">
@@ -138,7 +138,7 @@ const Journal = () => {
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={startListening}
+                onClick={() => startListening(true, "diary")}
                 disabled={isListening}
                 className={`absolute top-3 right-3 ${
                   isListening ? "animate-pulse-glow text-success" : "text-muted-foreground hover:text-success"
@@ -169,7 +169,7 @@ const Journal = () => {
 
         {/* Entry Stats */}
         <Card className="glass p-6">
-          <h3 className="text-lg font-semibold mb-4 text-success">Journal Stats</h3>
+          <h3 className="text-lg font-semibold mb-4 text-success">Diary Stats</h3>
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
               <p className="text-3xl font-bold text-success">{entries.length}</p>
@@ -188,4 +188,4 @@ const Journal = () => {
   );
 };
 
-export default Journal;
+export default Diary;

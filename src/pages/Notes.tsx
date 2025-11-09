@@ -93,7 +93,7 @@ const Notes = () => {
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={startListening}
+                onClick={() => startListening(true, "note")}
                 disabled={isListening}
                 className={`absolute top-3 right-3 ${
                   isListening ? "animate-pulse-glow text-primary" : "text-muted-foreground hover:text-primary"

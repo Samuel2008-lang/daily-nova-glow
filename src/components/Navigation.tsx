@@ -7,7 +7,7 @@ const Navigation = () => {
     { to: "/notes", icon: FileText, label: "Notes" },
     { to: "/tasks", icon: CheckSquare, label: "Tasks" },
     { to: "/habits", icon: Target, label: "Habits" },
-    { to: "/journal", icon: BookOpen, label: "Journal" },
+    { to: "/diary", icon: BookOpen, label: "Diary" },
     { to: "/quotes", icon: Sparkles, label: "Quotes" },
   ];
 

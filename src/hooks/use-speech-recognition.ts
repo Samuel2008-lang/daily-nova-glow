@@ -4,6 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 interface UseSpeechRecognitionProps {
   onResult: (transcript: string) => void;
   continuous?: boolean;
+  autoEnhance?: boolean;
+  context?: string;
 }
 
 export const useSpeechRecognition = ({
@@ -22,7 +24,7 @@ export const useSpeechRecognition = ({
     }
   }, []);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async (autoEnhance: boolean = false, context?: string) => {
     if (!isSupported) {
       toast({
         title: "Not supported",
@@ -44,14 +46,49 @@ export const useSpeechRecognition = ({
       setIsListening(true);
     };
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = async (event: any) => {
       const transcript = event.results[0][0].transcript;
-      onResult(transcript);
       
-      toast({
-        title: "Speech captured",
-        description: "Your speech has been converted to text.",
-      });
+      if (autoEnhance) {
+        toast({
+          title: "Processing...",
+          description: "Enhancing your speech with AI...",
+        });
+
+        try {
+          const { supabase } = await import("@/integrations/supabase/client");
+          const { data, error } = await supabase.functions.invoke('enhance-text', {
+            body: { text: transcript, context }
+          });
+
+          if (!error && data?.enhanced) {
+            onResult(data.enhanced);
+            toast({
+              title: "Speech enhanced",
+              description: "Your speech has been corrected and saved.",
+            });
+          } else {
+            onResult(transcript);
+            toast({
+              title: "Speech captured",
+              description: "Could not enhance. Using original text.",
+            });
+          }
+        } catch (error) {
+          console.error("Enhancement error:", error);
+          onResult(transcript);
+          toast({
+            title: "Speech captured",
+            description: "Enhancement failed. Using original text.",
+          });
+        }
+      } else {
+        onResult(transcript);
+        toast({
+          title: "Speech captured",
+          description: "Your speech has been converted to text.",
+        });
+      }
     };
 
     recognition.onerror = (event: any) => {

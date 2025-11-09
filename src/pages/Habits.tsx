@@ -149,7 +149,7 @@ const Habits = () => {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={startListening}
+                  onClick={() => startListening(true, "habit")}
                   disabled={isListening}
                   className={`absolute top-1/2 -translate-y-1/2 right-1 ${
                     isListening ? "animate-pulse-glow text-accent" : "text-muted-foreground hover:text-accent"
