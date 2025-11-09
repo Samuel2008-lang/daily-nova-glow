@@ -1,4 +1,4 @@
-import { Home, FileText, CheckSquare, Target, BookOpen, Sparkles } from "lucide-react";
+import { Home, FileText, CheckSquare, Target, BookOpen, Sparkles, BookMarked } from "lucide-react";
 import { NavLink } from "./NavLink";
 
 const Navigation = () => {
@@ -8,6 +8,7 @@ const Navigation = () => {
     { to: "/tasks", icon: CheckSquare, label: "Tasks" },
     { to: "/habits", icon: Target, label: "Habits" },
     { to: "/diary", icon: BookOpen, label: "Diary" },
+    { to: "/journal", icon: BookMarked, label: "Journal" },
     { to: "/quotes", icon: Sparkles, label: "Quotes" },
   ];
 

@@ -27,6 +27,13 @@ export interface Habit {
 
 export interface JournalEntry {
   id: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DiaryEntry {
+  id: string;
   date: string;
   content: string;
   createdAt: string;
@@ -38,6 +45,7 @@ const STORAGE_KEYS = {
   TASKS: 'dailynova_tasks',
   HABITS: 'dailynova_habits',
   JOURNAL: 'dailynova_journal',
+  DIARY: 'dailynova_diary',
 };
 
 export const storage = {
@@ -66,4 +74,8 @@ export const storage = {
   // Journal
   getJournalEntries: (): JournalEntry[] => storage.get<JournalEntry>(STORAGE_KEYS.JOURNAL),
   saveJournalEntries: (entries: JournalEntry[]): void => storage.set(STORAGE_KEYS.JOURNAL, entries),
+
+  // Diary
+  getDiaryEntries: (): DiaryEntry[] => storage.get<DiaryEntry>(STORAGE_KEYS.DIARY),
+  saveDiaryEntries: (entries: DiaryEntry[]): void => storage.set(STORAGE_KEYS.DIARY, entries),
 };

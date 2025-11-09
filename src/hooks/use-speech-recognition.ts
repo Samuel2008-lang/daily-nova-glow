@@ -38,7 +38,7 @@ export const useSpeechRecognition = ({
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
 
-    recognition.continuous = continuous;
+    recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = "en-US";
 
@@ -46,44 +46,56 @@ export const useSpeechRecognition = ({
       setIsListening(true);
     };
 
+    let fullTranscript = "";
+    
     recognition.onresult = async (event: any) => {
-      const transcript = event.results[0][0].transcript;
+      for (let i = 0; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          fullTranscript += event.results[i][0].transcript + " ";
+        }
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
       
-      if (autoEnhance) {
+      if (fullTranscript.trim() && autoEnhance) {
         toast({
           title: "Processing...",
           description: "Enhancing your speech with AI...",
         });
 
-        try {
-          const { supabase } = await import("@/integrations/supabase/client");
-          const { data, error } = await supabase.functions.invoke('enhance-text', {
-            body: { text: transcript, context }
-          });
-
-          if (!error && data?.enhanced) {
-            onResult(data.enhanced);
-            toast({
-              title: "Speech enhanced",
-              description: "Your speech has been corrected and saved.",
+        (async () => {
+          try {
+            const { supabase } = await import("@/integrations/supabase/client");
+            const { data, error } = await supabase.functions.invoke('enhance-text', {
+              body: { text: fullTranscript.trim(), context }
             });
-          } else {
-            onResult(transcript);
+
+            if (!error && data?.enhanced) {
+              onResult(data.enhanced);
+              toast({
+                title: "Speech enhanced",
+                description: "Your speech has been corrected and saved.",
+              });
+            } else {
+              onResult(fullTranscript.trim());
+              toast({
+                title: "Speech captured",
+                description: "Could not enhance. Using original text.",
+              });
+            }
+          } catch (error) {
+            console.error("Enhancement error:", error);
+            onResult(fullTranscript.trim());
             toast({
               title: "Speech captured",
-              description: "Could not enhance. Using original text.",
+              description: "Enhancement failed. Using original text.",
             });
           }
-        } catch (error) {
-          console.error("Enhancement error:", error);
-          onResult(transcript);
-          toast({
-            title: "Speech captured",
-            description: "Enhancement failed. Using original text.",
-          });
-        }
-      } else {
-        onResult(transcript);
+        })();
+      } else if (fullTranscript.trim()) {
+        onResult(fullTranscript.trim());
         toast({
           title: "Speech captured",
           description: "Your speech has been converted to text.",
@@ -116,12 +128,9 @@ export const useSpeechRecognition = ({
       }
     };
 
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
     try {
       recognition.start();
+      return recognition;
     } catch (error) {
       console.error("Error starting recognition:", error);
       setIsListening(false);
@@ -133,9 +142,16 @@ export const useSpeechRecognition = ({
     }
   }, [isSupported, continuous, onResult, toast]);
 
+  const stopListening = useCallback((recognitionInstance: any) => {
+    if (recognitionInstance) {
+      recognitionInstance.stop();
+    }
+  }, []);
+
   return {
     isListening,
     isSupported,
     startListening,
+    stopListening,
   };
 };

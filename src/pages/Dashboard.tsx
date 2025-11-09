@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FileText, CheckSquare, Target, BookOpen, Sparkles, Plus } from "lucide-react";
+import { FileText, CheckSquare, Target, BookOpen, Sparkles, Plus, BookMarked, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { storage } from "@/lib/storage";
@@ -43,6 +43,12 @@ const Dashboard = () => {
     { to: "/tasks", icon: CheckSquare, label: "New Task", color: "secondary" },
     { to: "/habits", icon: Target, label: "Track Habit", color: "accent" },
     { to: "/diary", icon: BookOpen, label: "Write Diary", color: "success" },
+    { to: "/journal", icon: BookMarked, label: "Journal", color: "secondary" },
+  ];
+
+  const aiActions = [
+    { to: "/diary", icon: BookOpen, label: "Diary AI" },
+    { to: "/journal", icon: BookMarked, label: "Journal AI" },
   ];
 
   return (
@@ -97,7 +103,7 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <Card className="glass glow p-6 mb-8">
           <h2 className="text-2xl font-bold mb-6 text-primary">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {quickActions.map((action) => {
               const Icon = action.icon;
               return (
@@ -107,6 +113,30 @@ const Dashboard = () => {
                     className="w-full h-24 flex flex-col gap-2 glass border-border/50 hover:border-primary/50 transition-all duration-300 hover:scale-105"
                   >
                     <Icon className="w-6 h-6" />
+                    <span className="text-sm">{action.label}</span>
+                  </Button>
+                </Link>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* AI Assistant */}
+        <Card className="glass glow-purple p-6 mb-8">
+          <h2 className="text-2xl font-bold mb-6 text-secondary flex items-center gap-2">
+            <Bot className="w-6 h-6" />
+            AI Assistant
+          </h2>
+          <div className="grid grid-cols-2 gap-4">
+            {aiActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Link key={action.to} to={action.to}>
+                  <Button
+                    variant="outline"
+                    className="w-full h-20 flex flex-col gap-2 glass border-border/50 hover:border-secondary/50 transition-all duration-300 hover:scale-105"
+                  >
+                    <Icon className="w-5 h-5" />
                     <span className="text-sm">{action.label}</span>
                   </Button>
                 </Link>
