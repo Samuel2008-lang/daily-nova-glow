@@ -67,6 +67,40 @@ const Journal = () => {
     setAiInput("");
     setIsAiLoading(true);
 
+    // Command: Add/Upload text to journal
+    try {
+      const lower = aiInput.toLowerCase();
+      const isAddCmd = /(add|upload|save)/.test(lower) && /(journal|entry|this)/.test(lower);
+      if (isAddCmd || aiInput.length > 400) {
+        const quoted = aiInput.match(/"([\s\S]*?)"/g);
+        let contentToAdd = quoted
+          ? quoted.map(q => q.replace(/^"|"$/g, "")).join("\n\n").trim()
+          : aiInput
+              .replace(/\b(add|upload|save)\b/gi, "")
+              .replace(/\b(to|into|my|the|journal|entry|this)\b/gi, "")
+              .trim();
+        if (!contentToAdd || contentToAdd.length < 20) {
+          contentToAdd = aiInput.trim();
+        }
+
+        const newEntry: JournalEntry = {
+          id: Date.now().toString(),
+          content: contentToAdd,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        const updated = [...entries, newEntry];
+        setEntries(updated);
+        storage.saveJournalEntries(updated);
+        setCurrentEntry("");
+
+        setAiMessages([...updatedMessages, { role: "assistant", content: "Added to your journal." }]);
+        return;
+      }
+    } catch (e) {
+      console.error("Journal command handling error:", e);
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('enhance-text', {
         body: { 
@@ -87,7 +121,7 @@ Provide sophisticated, creative responses that:
 - Help them overcome writer's block with targeted questions
 - Encourage vulnerability and authentic self-expression
 - Suggest ways to turn their reflections into actionable insights
-- Celebrate their commitment to self-discovery
+- Be decisive and focused with clear next steps
 
 Be inspiring, thought-provoking, and help them unlock deeper layers of self-understanding through their writing.`,
           context: "journal mentoring"

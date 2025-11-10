@@ -103,6 +103,55 @@ const Diary = () => {
     setAiInput("");
     setIsAiLoading(true);
 
+    // Command: Add/Upload text to today's diary entry
+    try {
+      const lower = aiInput.toLowerCase();
+      const isAddCmd = /(add|upload|save)/.test(lower) && /(diary|entry|today|this)/.test(lower);
+      if (isAddCmd || aiInput.length > 400) {
+        // Try to extract quoted content first
+        const quoted = aiInput.match(/"([\s\S]*?)"/g);
+        let contentToAdd = quoted
+          ? quoted.map(q => q.replace(/^"|"$/g, "")).join("\n\n").trim()
+          : aiInput
+              .replace(/\b(add|upload|save)\b/gi, "")
+              .replace(/\b(to|into|my|the|diary|journal|entry|today|this)\b/gi, "")
+              .trim();
+        if (!contentToAdd || contentToAdd.length < 20) {
+          contentToAdd = aiInput.trim();
+        }
+
+        const dateStr = currentDate.toDateString();
+        const existingEntry = entries.find((e) => new Date(e.date).toDateString() === dateStr);
+        let updatedEntries: DiaryEntry[];
+
+        if (existingEntry) {
+          updatedEntries = entries.map((e) =>
+            e.id === existingEntry.id
+              ? { ...e, content: (e.content ? e.content + "\n\n" : "") + contentToAdd, updatedAt: new Date().toISOString() }
+              : e
+          );
+        } else {
+          const newEntry: DiaryEntry = {
+            id: Date.now().toString(),
+            date: currentDate.toISOString(),
+            content: contentToAdd,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          updatedEntries = [...entries, newEntry];
+        }
+
+        setEntries(updatedEntries);
+        storage.saveDiaryEntries(updatedEntries);
+        setCurrentEntry(updatedEntries.find(e => new Date(e.date).toDateString() === dateStr)?.content || "");
+
+        setAiMessages([...updatedMessages, { role: "assistant", content: `Added to your diary for ${dateStr}.` }]);
+        return;
+      }
+    } catch (e) {
+      console.error("Diary command handling error:", e);
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('enhance-text', {
         body: { 

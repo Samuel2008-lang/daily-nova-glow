@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Bot, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +12,7 @@ export const AINavigationButton = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -52,14 +54,16 @@ export const AINavigationButton = () => {
   };
 
   const handleVoiceClick = async () => {
-    if (isListening) {
-      await stopListening(null);
+    if (isListening && recognitionInstance) {
+      await stopListening(recognitionInstance);
+      setRecognitionInstance(null);
       if (transcript.trim()) {
         await processCommand(transcript);
       }
     } else {
       setTranscript("");
-      await startListening(false, "navigation");
+      const instance = await startListening(false, "navigation");
+      setRecognitionInstance(instance);
     }
   };
 
@@ -84,10 +88,31 @@ export const AINavigationButton = () => {
 
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Say commands like "open notes", "show my tasks", "go to diary", or "open habits"
+              Type or say commands like "open notes", "show my tasks", "go to diary", or "open habits"
             </p>
 
-            {transcript && (
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Type a command (e.g., open journal)"
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (transcript.trim()) processCommand(transcript);
+                  }
+                }}
+              />
+              <Button
+                variant="default"
+                onClick={() => transcript.trim() && processCommand(transcript)}
+                disabled={isProcessing || !transcript.trim()}
+              >
+                Go
+              </Button>
+            </div>
+
+            {transcript && isListening && (
               <div className="p-4 bg-background/50 rounded-lg">
                 <p className="text-sm font-medium">You said:</p>
                 <p className="text-foreground">{transcript}</p>
