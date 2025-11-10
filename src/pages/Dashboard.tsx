@@ -46,10 +46,6 @@ const Dashboard = () => {
     { to: "/journal", icon: BookMarked, label: "Journal", color: "secondary" },
   ];
 
-  const aiActions = [
-    { to: "/diary", icon: BookOpen, label: "Diary AI" },
-    { to: "/journal", icon: BookMarked, label: "Journal AI" },
-  ];
 
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
@@ -121,29 +117,6 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        {/* AI Assistant */}
-        <Card className="glass glow-purple p-6 mb-8">
-          <h2 className="text-2xl font-bold mb-6 text-secondary flex items-center gap-2">
-            <Bot className="w-6 h-6" />
-            AI Assistant
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            {aiActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <Link key={action.to} to={action.to}>
-                  <Button
-                    variant="outline"
-                    className="w-full h-20 flex flex-col gap-2 glass border-border/50 hover:border-secondary/50 transition-all duration-300 hover:scale-105"
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="text-sm">{action.label}</span>
-                  </Button>
-                </Link>
-              );
-            })}
-          </div>
-        </Card>
 
         {/* Quote of the Day */}
         <Link to="/quotes">

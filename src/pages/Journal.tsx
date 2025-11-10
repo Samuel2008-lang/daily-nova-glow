@@ -70,14 +70,33 @@ const Journal = () => {
     try {
       const { data, error } = await supabase.functions.invoke('enhance-text', {
         body: { 
-          text: `Context: The user is writing in their journal. Recent journal entries: ${entries.slice(-3).map(e => e.content).join(". ")}. User asks: ${aiInput}`,
-          context: "journal advice"
+          text: `You are an expert journaling coach and creative writing mentor. The user is working on their free-form journal.
+
+Recent journal entries: ${entries.slice(-5).map(e => e.content.substring(0, 150)).join("\n---\n")}
+
+Current entry they're working on: "${currentEntry || "Just starting..."}"
+
+The user asks: "${aiInput}"
+
+Provide sophisticated, creative responses that:
+- Offer powerful journaling prompts that spark deep introspection
+- Help them explore their thoughts through different perspectives (future self, observer, etc.)
+- Suggest creative writing techniques to express themselves better
+- Identify recurring themes and help them explore those deeper
+- Recommend specific journaling frameworks (gratitude, stream of consciousness, letter writing, etc.)
+- Help them overcome writer's block with targeted questions
+- Encourage vulnerability and authentic self-expression
+- Suggest ways to turn their reflections into actionable insights
+- Celebrate their commitment to self-discovery
+
+Be inspiring, thought-provoking, and help them unlock deeper layers of self-understanding through their writing.`,
+          context: "journal mentoring"
         }
       });
 
       if (error) throw error;
 
-      const aiResponse = { role: "assistant", content: data?.enhanced || "I'm here to help with your journaling." };
+      const aiResponse = { role: "assistant", content: data?.enhanced || "I'm here to guide your journaling journey." };
       setAiMessages([...updatedMessages, aiResponse]);
     } catch (error) {
       console.error("AI error:", error);

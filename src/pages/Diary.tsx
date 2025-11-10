@@ -106,14 +106,32 @@ const Diary = () => {
     try {
       const { data, error } = await supabase.functions.invoke('enhance-text', {
         body: { 
-          text: `Context: The user is writing in their daily diary for ${currentDate.toLocaleDateString()}. Today's entry: ${currentEntry || "No entry yet"}. User asks: ${aiInput}`,
-          context: "diary advice"
+          text: `You are a thoughtful and empathetic diary companion. The user is writing their daily diary entry for ${currentDate.toLocaleDateString()}.
+
+Current diary entry: "${currentEntry || "No entry yet"}"
+
+Recent diary entries context: ${entries.slice(-5).map(e => `${new Date(e.date).toLocaleDateString()}: ${e.content.substring(0, 100)}`).join("\n")}
+
+The user asks: "${aiInput}"
+
+Provide deep, meaningful responses that:
+- Show genuine empathy and understanding of their emotions
+- Ask thoughtful follow-up questions to help them reflect deeper
+- Offer psychological insights when appropriate
+- Help them identify patterns in their thoughts and behaviors
+- Suggest healthy coping strategies if they're struggling
+- Celebrate their wins and progress
+- Encourage self-compassion and growth
+- Draw connections between different diary entries when relevant
+
+Be warm, supportive, and insightful. Help them gain clarity and self-awareness.`,
+          context: "diary coaching"
         }
       });
 
       if (error) throw error;
 
-      const aiResponse = { role: "assistant", content: data?.enhanced || "I'm here to help with your diary." };
+      const aiResponse = { role: "assistant", content: data?.enhanced || "I'm here to support your self-reflection journey." };
       setAiMessages([...updatedMessages, aiResponse]);
     } catch (error) {
       console.error("AI error:", error);
