@@ -70,7 +70,11 @@ Return ONLY a JSON object with "route" and "page" fields. No other text.`;
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    let content = data.choices[0].message.content;
+    
+    // Strip markdown code blocks if present
+    content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    
     const parsed = JSON.parse(content);
 
     return new Response(JSON.stringify(parsed), {

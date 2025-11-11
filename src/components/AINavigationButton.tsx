@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bot, Mic } from "lucide-react";
+import { Bot, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { useVoiceMode } from "@/hooks/use-voice-mode";
 import { supabase } from "@/integrations/supabase/client";
 
 export const AINavigationButton = () => {
@@ -13,6 +14,7 @@ export const AINavigationButton = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
+  const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -21,6 +23,17 @@ export const AINavigationButton = () => {
       setTranscript(text);
     },
   });
+
+  const { isActive: isVoiceModeActive, startVoiceMode, stopVoiceMode } = useVoiceMode({
+    onCommand: async (command) => {
+      await processCommand(command);
+    },
+    wakeWord: "hey nova"
+  });
+
+  useEffect(() => {
+    setIsWakeWordActive(isVoiceModeActive);
+  }, [isVoiceModeActive]);
 
   const processCommand = async (command: string) => {
     setIsProcessing(true);
@@ -67,15 +80,34 @@ export const AINavigationButton = () => {
     }
   };
 
+  const toggleWakeWord = async () => {
+    if (isWakeWordActive) {
+      stopVoiceMode();
+    } else {
+      await startVoiceMode();
+    }
+  };
+
   return (
     <>
-      <Button
-        size="icon"
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 md:bottom-8 right-4 h-14 w-14 rounded-full shadow-lg glow-purple z-50"
-      >
-        <Bot className="w-6 h-6" />
-      </Button>
+      <div className="fixed bottom-20 md:bottom-8 right-4 z-50 flex flex-col gap-2 items-end">
+        <Button
+          size="icon"
+          onClick={() => setIsOpen(true)}
+          className="h-14 w-14 rounded-full shadow-lg glow-purple"
+        >
+          <Bot className="w-6 h-6" />
+        </Button>
+        
+        <Button
+          size="icon"
+          variant={isWakeWordActive ? "default" : "outline"}
+          onClick={toggleWakeWord}
+          className={`h-10 w-10 rounded-full shadow-lg ${isWakeWordActive ? "animate-pulse-glow" : ""}`}
+        >
+          {isWakeWordActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+        </Button>
+      </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="glass">
@@ -90,6 +122,13 @@ export const AINavigationButton = () => {
             <p className="text-sm text-muted-foreground">
               Type or say commands like "open notes", "show my tasks", "go to diary", or "open habits"
             </p>
+            
+            {isWakeWordActive && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-secondary/20 rounded-lg animate-pulse-glow">
+                <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
+                <span className="text-xs text-secondary font-medium">Wake word active - Say "hey nova" + command</span>
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <Input
