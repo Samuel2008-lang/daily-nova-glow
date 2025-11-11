@@ -14,6 +14,7 @@ const Journal = () => {
   const [aiMessages, setAiMessages] = useState<{role: string, content: string}[]>([]);
   const [aiInput, setAiInput] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
   const { toast } = useToast();
 
@@ -66,6 +67,7 @@ const Journal = () => {
     setAiMessages(updatedMessages);
     setAiInput("");
     setIsAiLoading(true);
+    setStreamingContent("");
 
     // Command: Add/Upload text to journal
     try {
@@ -94,51 +96,133 @@ const Journal = () => {
         storage.saveJournalEntries(updated);
         setCurrentEntry("");
 
-        setAiMessages([...updatedMessages, { role: "assistant", content: "Added to your journal." }]);
+        setAiMessages([...updatedMessages, { role: "assistant", content: "✓ Added to your journal." }]);
+        setIsAiLoading(false);
         return;
       }
     } catch (e) {
       console.error("Journal command handling error:", e);
     }
 
+    // Streaming AI response
     try {
-      const { data, error } = await supabase.functions.invoke('enhance-text', {
-        body: { 
-          text: `You are an expert journaling coach and creative writing mentor. The user is working on their free-form journal.
+      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-stream`;
+      
+      const systemPrompt = `You are an expert journaling coach and creative writing mentor, specializing in helping people unlock deeper self-understanding through intentional, creative writing practices. You combine expertise in narrative therapy, creative writing techniques, and psychological frameworks to guide meaningful self-exploration.
 
-Recent journal entries: ${entries.slice(-5).map(e => e.content.substring(0, 150)).join("\n---\n")}
+CONTEXT & MEMORY:
+Recent journal entries: ${entries.slice(-5).map(e => `[${new Date(e.createdAt).toLocaleDateString()}] ${e.content.substring(0, 150)}`).join("\n---\n")}
 
-Current entry they're working on: "${currentEntry || "Just starting..."}"
+Current entry in progress: "${currentEntry || "Just starting..."}"
 
-The user asks: "${aiInput}"
+Previous conversation:
+${updatedMessages.slice(-4).map(m => `${m.role}: ${m.content}`).join("\n")}
 
-Provide sophisticated, creative responses that:
-- Offer powerful journaling prompts that spark deep introspection
-- Help them explore their thoughts through different perspectives (future self, observer, etc.)
-- Suggest creative writing techniques to express themselves better
-- Identify recurring themes and help them explore those deeper
-- Recommend specific journaling frameworks (gratitude, stream of consciousness, letter writing, etc.)
-- Help them overcome writer's block with targeted questions
-- Encourage vulnerability and authentic self-expression
-- Suggest ways to turn their reflections into actionable insights
-- Be decisive and focused with clear next steps
+YOUR EXPERTISE:
+1. **Creative Prompts**: Generate powerful, unique journaling prompts that spark deep introspection
+   - Perspective shifts: "Write from your 80-year-old self looking back", "What would someone who loves you say about this situation?"
+   - Sensory exploration: "Describe this feeling as a place you're walking through"
+   - Dialogues: "Have a conversation between your fear and your courage"
+   
+2. **Writing Techniques**: Teach concrete methods to deepen their practice
+   - Stream of consciousness, unsent letters, list-making, metaphor exploration
+   - Morning pages, gratitude spirals, dream analysis, timeline mapping
+   
+3. **Pattern Recognition**: Identify recurring themes, character arcs, emotional patterns across entries
+   - "I notice you often mention feeling 'stuck' when discussing work—let's explore that"
+   
+4. **Psychological Frameworks**: Apply relevant concepts when helpful
+   - Cognitive restructuring, narrative identity, values clarification, parts work
+   
+5. **Writer's Block Solutions**: Offer targeted questions and exercises to overcome blocks
+   - "What's the one thing you're avoiding writing about right now?"
+   - "Write the worst possible version of what you're trying to say, then flip it"
+   
+6. **Actionable Insights**: Help translate reflections into real-world wisdom
+   - "What's one small experiment you could try this week based on this realization?"
 
-Be inspiring, thought-provoking, and help them unlock deeper layers of self-understanding through their writing.`,
-          context: "journal mentoring"
-        }
+RESPONSE APPROACH:
+- Be inspiring and thought-provoking while remaining grounded and practical
+- Ask provocative questions that encourage vulnerability and authentic expression
+- Reference their previous entries and our conversation to show continuity
+- Suggest specific exercises tailored to what they're working through
+- Celebrate their insights and breakthroughs
+- Be direct and focused—give them clear next steps
+- Match their creative energy while gently pushing them deeper
+
+TONE: Wise mentor meets enthusiastic writing coach—encouraging, insightful, creative, and focused on transformation through writing.
+
+Help them use journaling as a tool for profound self-discovery, creative expression, and intentional personal evolution.`;
+
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ 
+          messages: updatedMessages,
+          systemPrompt 
+        }),
       });
 
-      if (error) throw error;
+      if (!resp.ok) {
+        if (resp.status === 429 || resp.status === 402) {
+          const errData = await resp.json();
+          throw new Error(errData.error || "Rate limit or credits exhausted");
+        }
+        throw new Error("Failed to start stream");
+      }
 
-      const aiResponse = { role: "assistant", content: data?.enhanced || "I'm here to guide your journaling journey." };
-      setAiMessages([...updatedMessages, aiResponse]);
+      if (!resp.body) throw new Error("No response body");
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let assistantContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        textBuffer += decoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+          
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") break;
+          
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantContent += content;
+              setStreamingContent(assistantContent);
+            }
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      setAiMessages([...updatedMessages, { role: "assistant", content: assistantContent }]);
+      setStreamingContent("");
     } catch (error) {
       console.error("AI error:", error);
       toast({
         title: "AI Error",
-        description: "Could not get AI response. Please try again.",
+        description: error instanceof Error ? error.message : "Could not get AI response.",
         variant: "destructive",
       });
+      setAiMessages(updatedMessages);
     } finally {
       setIsAiLoading(false);
     }
@@ -217,18 +301,26 @@ Be inspiring, thought-provoking, and help them unlock deeper layers of self-unde
                   Ask me for advice, prompts, or reflections on your journal entries...
                 </p>
               ) : (
-                aiMessages.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-3 rounded-lg text-sm ${
-                      msg.role === "user"
-                        ? "bg-secondary/20 ml-8"
-                        : "bg-background/50 mr-8"
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
-                ))
+                <>
+                  {aiMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-lg text-sm ${
+                        msg.role === "user"
+                          ? "bg-secondary/20 ml-8"
+                          : "bg-background/50 mr-8"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  ))}
+                  {streamingContent && (
+                    <div className="p-3 rounded-lg text-sm bg-background/50 mr-8 animate-pulse-glow">
+                      {streamingContent}
+                      <span className="inline-block w-1 h-4 bg-secondary ml-1 animate-pulse" />
+                    </div>
+                  )}
+                </>
               )}
             </div>
 

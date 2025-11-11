@@ -15,6 +15,7 @@ const Diary = () => {
   const [aiMessages, setAiMessages] = useState<{role: string, content: string}[]>([]);
   const [aiInput, setAiInput] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
   const { toast } = useToast();
 
@@ -102,6 +103,7 @@ const Diary = () => {
     setAiMessages(updatedMessages);
     setAiInput("");
     setIsAiLoading(true);
+    setStreamingContent("");
 
     // Command: Add/Upload text to today's diary entry
     try {
@@ -145,50 +147,125 @@ const Diary = () => {
         storage.saveDiaryEntries(updatedEntries);
         setCurrentEntry(updatedEntries.find(e => new Date(e.date).toDateString() === dateStr)?.content || "");
 
-        setAiMessages([...updatedMessages, { role: "assistant", content: `Added to your diary for ${dateStr}.` }]);
+        setAiMessages([...updatedMessages, { role: "assistant", content: `✓ Added to your diary for ${dateStr}.` }]);
+        setIsAiLoading(false);
         return;
       }
     } catch (e) {
       console.error("Diary command handling error:", e);
     }
 
+    // Streaming AI response
     try {
-      const { data, error } = await supabase.functions.invoke('enhance-text', {
-        body: { 
-          text: `You are a thoughtful and empathetic diary companion. The user is writing their daily diary entry for ${currentDate.toLocaleDateString()}.
+      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-stream`;
+      
+      const systemPrompt = `You are a deeply empathetic and insightful diary companion, combining the wisdom of a therapist, the strategic thinking of a life coach, and the warmth of a trusted friend. Your role is to help users process their daily experiences, emotions, and thoughts through meaningful dialogue.
 
+CONTEXT & MEMORY:
+Today's date: ${currentDate.toLocaleDateString()}
 Current diary entry: "${currentEntry || "No entry yet"}"
 
-Recent diary entries context: ${entries.slice(-5).map(e => `${new Date(e.date).toLocaleDateString()}: ${e.content.substring(0, 100)}`).join("\n")}
+Recent diary entries: ${entries.slice(-5).map(e => `[${new Date(e.date).toLocaleDateString()}] ${e.content.substring(0, 150)}`).join("\n---\n")}
 
-The user asks: "${aiInput}"
+Previous conversation:
+${updatedMessages.slice(-4).map(m => `${m.role}: ${m.content}`).join("\n")}
 
-Provide deep, meaningful responses that:
-- Show genuine empathy and understanding of their emotions
-- Ask thoughtful follow-up questions to help them reflect deeper
-- Offer psychological insights when appropriate
-- Help them identify patterns in their thoughts and behaviors
-- Suggest healthy coping strategies if they're struggling
-- Celebrate their wins and progress
-- Encourage self-compassion and growth
-- Draw connections between different diary entries when relevant
+YOUR CAPABILITIES:
+1. **Emotional Intelligence**: Recognize subtle emotions, validate feelings, help identify patterns in mood and behavior
+2. **Reflective Questioning**: Ask powerful questions that promote self-discovery (e.g., "What would your future self say about this?", "What's the real fear underneath this feeling?")
+3. **Pattern Recognition**: Notice recurring themes across entries and conversations, point out growth or stuck patterns
+4. **Practical Guidance**: Offer concrete coping strategies, reframing techniques, and actionable next steps
+5. **Creative Expression**: Suggest writing exercises (gratitude lists, letter to your younger self, stream of consciousness, dialogue with emotions)
+6. **Psychological Frameworks**: Draw from CBT, mindfulness, positive psychology, narrative therapy when relevant
+7. **Contextual Memory**: Remember and reference earlier parts of this conversation to build continuity
 
-Be warm, supportive, and insightful. Help them gain clarity and self-awareness.`,
-          context: "diary coaching"
-        }
+RESPONSE STYLE:
+- Be conversational, warm, and authentic—avoid clinical or robotic language
+- Match their emotional tone while gently guiding toward constructive perspectives
+- Use metaphors, analogies, and storytelling when helpful
+- Ask clarifying questions before jumping to conclusions
+- Celebrate small wins and acknowledge progress
+- Be direct and honest while remaining compassionate
+- Keep responses focused and actionable (2-4 paragraphs typically)
+
+WHEN TO:
+- **Validate**: They share difficult emotions, setbacks, or vulnerabilities
+- **Challenge**: They're stuck in negative patterns or limiting beliefs
+- **Explore**: They mention significant events, decisions, or relationships
+- **Guide**: They're seeking direction or feeling lost
+- **Celebrate**: They share achievements, insights, or breakthroughs
+
+Help them transform daily reflections into meaningful self-understanding, emotional resilience, and intentional growth.`;
+
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ 
+          messages: updatedMessages,
+          systemPrompt 
+        }),
       });
 
-      if (error) throw error;
+      if (!resp.ok) {
+        if (resp.status === 429 || resp.status === 402) {
+          const errData = await resp.json();
+          throw new Error(errData.error || "Rate limit or credits exhausted");
+        }
+        throw new Error("Failed to start stream");
+      }
 
-      const aiResponse = { role: "assistant", content: data?.enhanced || "I'm here to support your self-reflection journey." };
-      setAiMessages([...updatedMessages, aiResponse]);
+      if (!resp.body) throw new Error("No response body");
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let assistantContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        textBuffer += decoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+          
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") break;
+          
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantContent += content;
+              setStreamingContent(assistantContent);
+            }
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      setAiMessages([...updatedMessages, { role: "assistant", content: assistantContent }]);
+      setStreamingContent("");
     } catch (error) {
       console.error("AI error:", error);
       toast({
         title: "AI Error",
-        description: "Could not get AI response. Please try again.",
+        description: error instanceof Error ? error.message : "Could not get AI response.",
         variant: "destructive",
       });
+      setAiMessages(updatedMessages);
     } finally {
       setIsAiLoading(false);
     }
@@ -316,18 +393,26 @@ Be warm, supportive, and insightful. Help them gain clarity and self-awareness.`
                   Ask me for prompts, reflections, or advice about your diary entry...
                 </p>
               ) : (
-                aiMessages.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-3 rounded-lg text-sm ${
-                      msg.role === "user"
-                        ? "bg-success/20 ml-8"
-                        : "bg-background/50 mr-8"
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
-                ))
+                <>
+                  {aiMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-lg text-sm ${
+                        msg.role === "user"
+                          ? "bg-success/20 ml-8"
+                          : "bg-background/50 mr-8"
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  ))}
+                  {streamingContent && (
+                    <div className="p-3 rounded-lg text-sm bg-background/50 mr-8 animate-pulse-glow">
+                      {streamingContent}
+                      <span className="inline-block w-1 h-4 bg-success ml-1 animate-pulse" />
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
