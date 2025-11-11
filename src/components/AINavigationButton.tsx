@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useVoiceMode } from "@/hooks/use-voice-mode";
 import { supabase } from "@/integrations/supabase/client";
+import { DraggableButtons } from "@/components/DraggableButtons";
 
 export const AINavigationButton = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -90,11 +91,11 @@ export const AINavigationButton = () => {
 
   return (
     <>
-      <div className="fixed bottom-20 md:bottom-8 right-4 z-50 flex flex-col gap-2 items-end">
+      <DraggableButtons>
         <Button
           size="icon"
           onClick={() => setIsOpen(true)}
-          className="h-14 w-14 rounded-full shadow-lg glow-purple"
+          className="h-14 w-14 rounded-full shadow-lg glow-purple cursor-pointer"
         >
           <Bot className="w-6 h-6" />
         </Button>
@@ -103,11 +104,11 @@ export const AINavigationButton = () => {
           size="icon"
           variant={isWakeWordActive ? "default" : "outline"}
           onClick={toggleWakeWord}
-          className={`h-10 w-10 rounded-full shadow-lg ${isWakeWordActive ? "animate-pulse-glow" : ""}`}
+          className={`h-10 w-10 rounded-full shadow-lg cursor-pointer ${isWakeWordActive ? "animate-pulse-glow" : ""}`}
         >
           {isWakeWordActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
         </Button>
-      </div>
+      </DraggableButtons>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="glass">

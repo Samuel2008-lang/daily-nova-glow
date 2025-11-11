@@ -27,8 +27,18 @@ export const useVoiceMode = ({ onCommand, wakeWord = "nova" }: UseVoiceModeProps
           const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
           console.log("Heard:", transcript);
 
-          if (transcript.includes(wakeWord)) {
-            const command = transcript.replace(wakeWord, "").trim();
+          // Normalize both transcript and wake word for better matching
+          const normalizedTranscript = transcript.replace(/[^\w\s]/g, '');
+          const normalizedWakeWord = wakeWord.toLowerCase().replace(/[^\w\s]/g, '');
+          
+          // Check if transcript contains the wake word
+          if (normalizedTranscript.includes(normalizedWakeWord)) {
+            // Extract command after wake word
+            const wakeWordIndex = normalizedTranscript.indexOf(normalizedWakeWord);
+            const command = normalizedTranscript.substring(wakeWordIndex + normalizedWakeWord.length).trim();
+            
+            console.log("Wake word detected! Command:", command);
+            
             if (command) {
               setIsListening(true);
               onCommand(command);
