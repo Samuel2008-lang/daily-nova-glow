@@ -24,25 +24,46 @@ export const useVoiceMode = ({ onCommand, wakeWord = "nova" }: UseVoiceModeProps
         recognitionInstance.lang = "en-US";
 
         recognitionInstance.onresult = (event: any) => {
-          const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-          console.log("Heard:", transcript);
+          const raw = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+          // Normalize text: remove punctuation, collapse spaces, dedupe consecutive words
+          const normalized = raw
+            .replace(/[^\w\s]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+          const tokens = normalized.split(" ").filter(Boolean);
+          const deduped = tokens.filter((w, i, arr) => i === 0 || w !== arr[i - 1]).join(" ");
 
-          // Normalize both transcript and wake word for better matching
-          const normalizedTranscript = transcript.replace(/[^\w\s]/g, '');
-          const normalizedWakeWord = wakeWord.toLowerCase().replace(/[^\w\s]/g, '');
-          
-          // Check if transcript contains the wake word
-          if (normalizedTranscript.includes(normalizedWakeWord)) {
-            // Extract command after wake word
-            const wakeWordIndex = normalizedTranscript.indexOf(normalizedWakeWord);
-            const command = normalizedTranscript.substring(wakeWordIndex + normalizedWakeWord.length).trim();
-            
-            console.log("Wake word detected! Command:", command);
-            
+          // Build tolerant wake phrase matcher: allow repeated first token (e.g., "hey hey")
+          const wake = wakeWord.toLowerCase().replace(/[^\w\s]/g, " ").trim();
+          const wakeParts = wake.split(" ").filter(Boolean);
+          let matchIndex = -1;
+          let afterIndex = -1;
+
+          if (wakeParts.length === 1) {
+            const idx = deduped.indexOf(wakeParts[0]);
+            if (idx !== -1) {
+              matchIndex = idx;
+              afterIndex = idx + wakeParts[0].length;
+            }
+          } else {
+            // Example: hey (hey)* nova (handles repeated "hey")
+            const first = wakeParts[0];
+            const rest = wakeParts.slice(1).join("\\s+");
+            const rx = new RegExp(`\\b${first}(?:\\s+${first})*\\s+${rest}\\b`);
+            const m = deduped.match(rx);
+            if (m && m.index !== undefined) {
+              matchIndex = m.index;
+              afterIndex = m.index + m[0].length;
+            }
+          }
+
+          if (matchIndex !== -1) {
+            const command = deduped.slice(afterIndex).trim();
             if (command) {
               setIsListening(true);
               onCommand(command);
-              setTimeout(() => setIsListening(false), 2000);
+              // brief cooldown visual only
+              setTimeout(() => setIsListening(false), 1200);
             }
           }
         };

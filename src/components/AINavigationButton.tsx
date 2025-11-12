@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useVoiceMode } from "@/hooks/use-voice-mode";
 import { supabase } from "@/integrations/supabase/client";
-import { DraggableButtons } from "@/components/DraggableButtons";
+import { Draggable } from "@/components/Draggable";
 
 export const AINavigationButton = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -45,7 +45,7 @@ export const AINavigationButton = () => {
     onCommand: async (command) => {
       await processCommand(command);
     },
-    wakeWord: "hey nova"
+    wakeWord: "hey nova",
   });
 
   useEffect(() => {
@@ -128,7 +128,7 @@ export const AINavigationButton = () => {
 
   return (
     <>
-      <DraggableButtons>
+      <Draggable storageKey="ai-fab-position">
         <Button
           size="icon"
           onClick={() => setIsOpen(true)}
@@ -136,7 +136,9 @@ export const AINavigationButton = () => {
         >
           <Bot className="w-6 h-6" />
         </Button>
-        
+      </Draggable>
+
+      <Draggable storageKey="mic-fab-position" defaultBottom="10.5rem">
         <Button
           size="icon"
           variant={isWakeWordActive ? "default" : "outline"}
@@ -145,7 +147,7 @@ export const AINavigationButton = () => {
         >
           {isWakeWordActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
         </Button>
-      </DraggableButtons>
+      </Draggable>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="glass">
@@ -164,7 +166,7 @@ export const AINavigationButton = () => {
             {isWakeWordActive && (
               <div className="flex items-center gap-2 px-3 py-2 bg-secondary/20 rounded-lg animate-pulse-glow">
                 <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
-                <span className="text-xs text-secondary font-medium">Wake word active - Say "hey nova" + command</span>
+                <span className="text-xs text-secondary font-medium">Wake word active — Say "hey nova" + command</span>
               </div>
             )}
 

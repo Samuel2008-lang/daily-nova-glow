@@ -279,7 +279,11 @@ Help them transform daily reflections into meaningful self-understanding, emotio
         <h1 className="text-4xl font-bold mb-8 text-success">Daily Diary</h1>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-6">;
+          <div className="space-y-6">
+        {/* Date Navigation */}
+
+        {/* Date Navigation */}
+          
         {/* Date Navigation */}
 
         {/* Date Navigation */}
@@ -376,6 +380,31 @@ Help them transform daily reflections into meaningful self-understanding, emotio
                 </p>
                 <p className="text-sm text-muted-foreground">Words Written</p>
               </div>
+            </div>
+          </Card>
+
+          {/* Saved Entries */}
+          <Card className="glass p-6">
+            <h3 className="text-lg font-semibold mb-4 text-success">Saved Entries</h3>
+            <div className="space-y-2 max-h-[220px] overflow-y-auto">
+              {entries
+                .slice()
+                .sort((a, b) => +new Date(b.date) - +new Date(a.date))
+                .map((entry) => (
+                  <button
+                    key={entry.id}
+                    onClick={() => {
+                      setCurrentDate(new Date(entry.date));
+                      setCurrentEntry(entry.content);
+                    }}
+                    className="w-full text-left text-xs p-3 bg-background/30 rounded-lg hover:bg-background/50 transition"
+                  >
+                    <p className="text-muted-foreground mb-1">
+                      {new Date(entry.date).toLocaleDateString()}
+                    </p>
+                    <p className="line-clamp-2">{entry.content}</p>
+                  </button>
+                ))}
             </div>
           </Card>
           </div>

@@ -85,12 +85,21 @@ export const useSpeechRecognition = ({
       const text = fullTranscript.trim();
       if (!text) return;
 
+      // Clean up duplicates like "hey hey hey" or repeated words from final chunks
+      const cleaned = text
+        .replace(/[^\w\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .split(" ")
+        .filter((w, i, arr) => i === 0 || w !== arr[i - 1])
+        .join(" ");
+
       if (autoEnhance) {
         toast({ title: "Processing...", description: "Enhancing your speech with AI..." });
         try {
           const { supabase } = await import("@/integrations/supabase/client");
           const { data, error } = await supabase.functions.invoke('enhance-text', {
-            body: { text, context }
+            body: { text: cleaned, context }
           });
           if (!error && data?.enhanced) {
             onResult(data.enhanced);
@@ -100,10 +109,10 @@ export const useSpeechRecognition = ({
         } catch (e) {
           console.error("Enhancement error:", e);
         }
-        onResult(text);
+        onResult(cleaned);
         toast({ title: "Speech captured", description: "Using original text." });
       } else {
-        onResult(text);
+        onResult(cleaned);
         toast({ title: "Speech captured", description: "Your speech has been converted to text." });
       }
     };

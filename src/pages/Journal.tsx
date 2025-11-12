@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Journal = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [currentEntry, setCurrentEntry] = useState("");
   const [aiMessages, setAiMessages] = useState<{role: string, content: string}[]>([]);
   const [aiInput, setAiInput] = useState("");
@@ -28,20 +29,38 @@ const Journal = () => {
     setEntries(storage.getJournalEntries());
   }, []);
 
+  useEffect(() => {
+    const dateStr = currentDate.toDateString();
+    const entry = entries.find((e) => new Date(e.createdAt).toDateString() === dateStr);
+    setCurrentEntry(entry?.content || "");
+  }, [currentDate, entries]);
+
   const saveEntry = () => {
     if (!currentEntry.trim()) return;
 
-    const newEntry: JournalEntry = {
-      id: Date.now().toString(),
-      content: currentEntry,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const dateStr = currentDate.toDateString();
+    const existingEntry = entries.find((e) => new Date(e.createdAt).toDateString() === dateStr);
 
-    const updatedEntries = [...entries, newEntry];
+    let updatedEntries: JournalEntry[];
+
+    if (existingEntry) {
+      updatedEntries = entries.map((e) =>
+        e.id === existingEntry.id
+          ? { ...e, content: currentEntry, updatedAt: new Date().toISOString() }
+          : e
+      );
+    } else {
+      const newEntry: JournalEntry = {
+        id: Date.now().toString(),
+        content: currentEntry,
+        createdAt: currentDate.toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      updatedEntries = [...entries, newEntry];
+    }
+
     setEntries(updatedEntries);
     storage.saveJournalEntries(updatedEntries);
-    setCurrentEntry("");
 
     toast({
       title: "Entry saved",
@@ -234,13 +253,39 @@ Help them use journaling as a tool for profound self-discovery, creative express
         <h1 className="text-4xl font-bold mb-8 text-secondary">Journal</h1>
 
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Journal Entry */}
           <Card className="glass glow-purple p-6">
-            <h2 className="text-xl font-semibold mb-4 text-secondary flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Write Entry
-            </h2>
-            
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-secondary flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                Write Entry
+              </h2>
+            </div>
+
+            {/* Date Navigation */}
+            <div className="flex items-center justify-between mb-4">
+              <Button variant="ghost" size="icon" onClick={() => setCurrentDate(new Date(currentDate.getTime() - 86400000))}>
+                <span className="sr-only">Previous day</span>‹
+              </Button>
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-secondary">
+                  {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                </h3>
+                {currentDate.toDateString() !== new Date().toDateString() && (
+                  <Button variant="link" onClick={() => setCurrentDate(new Date())} className="text-xs text-secondary">
+                    Go to today
+                  </Button>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCurrentDate(new Date(currentDate.getTime() + 86400000))}
+                disabled={currentDate.toDateString() === new Date().toDateString()}
+              >
+                <span className="sr-only">Next day</span>›
+              </Button>
+            </div>
+
             <div className="relative mb-4">
               <Textarea
                 placeholder="What's on your mind? Write freely..."
@@ -274,16 +319,26 @@ Help them use journaling as a tool for profound self-discovery, creative express
             </Button>
 
             <div className="mt-6 pt-6 border-t border-border/50">
-              <p className="text-sm text-muted-foreground mb-2">Recent Entries: {entries.length}</p>
+              <p className="text-sm text-muted-foreground mb-2">Saved Entries: {entries.length}</p>
               <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {entries.slice(-3).reverse().map((entry) => (
-                  <div key={entry.id} className="text-xs p-3 bg-background/30 rounded-lg">
-                    <p className="text-muted-foreground mb-1">
-                      {new Date(entry.createdAt).toLocaleDateString()}
-                    </p>
-                    <p className="line-clamp-2">{entry.content}</p>
-                  </div>
-                ))}
+                {entries
+                  .slice()
+                  .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+                  .map((entry) => (
+                    <button
+                      key={entry.id}
+                      onClick={() => {
+                        setCurrentDate(new Date(entry.createdAt));
+                        setCurrentEntry(entry.content);
+                      }}
+                      className="w-full text-left text-xs p-3 bg-background/30 rounded-lg hover:bg-background/50 transition"
+                    >
+                      <p className="text-muted-foreground mb-1">
+                        {new Date(entry.createdAt).toLocaleDateString()}
+                      </p>
+                      <p className="line-clamp-2">{entry.content}</p>
+                    </button>
+                  ))}
               </div>
             </div>
           </Card>
