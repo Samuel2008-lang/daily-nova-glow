@@ -5,75 +5,93 @@ interface DraggableButtonsProps {
 }
 
 export const DraggableButtons = ({ children }: DraggableButtonsProps) => {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const THRESHOLD = 5; // px before we consider it a drag
 
   useEffect(() => {
     // Initialize position from localStorage or default
     const saved = localStorage.getItem("ai-button-position");
     if (saved) {
-      setPosition(JSON.parse(saved));
+      try {
+        const parsed = JSON.parse(saved);
+        setPosition({
+          x: typeof parsed.x === "number" ? parsed.x : null,
+          y: typeof parsed.y === "number" ? parsed.y : null,
+        });
+      } catch {}
     }
   }, []);
 
+  const beginPointer = (clientX: number, clientY: number) => {
+    const curX = position.x ?? 0;
+    const curY = position.y ?? 0;
+    setDragStart({ x: clientX - curX, y: clientY - curY });
+    setHasMoved(false);
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("button")) {
-      return; // Don't start dragging if clicking on a button
-    }
-    setIsDragging(true);
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    });
+    beginPointer(e.clientX, e.clientY);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if ((e.target as HTMLElement).closest("button")) {
-      return;
-    }
-    setIsDragging(true);
     const touch = e.touches[0];
-    setDragStart({
-      x: touch.clientX - position.x,
-      y: touch.clientY - position.y,
-    });
+    beginPointer(touch.clientX, touch.clientY);
   };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      
       const newX = e.clientX - dragStart.x;
       const newY = e.clientY - dragStart.y;
-      
+      const curX = position.x ?? 0;
+      const curY = position.y ?? 0;
+      const dist = Math.hypot(newX - curX, newY - curY);
+
+      if (!isDragging) {
+        if (dist > THRESHOLD) setIsDragging(true);
+        else return; // don't move until threshold is exceeded
+      }
+
+      setHasMoved(true);
       setPosition({ x: newX, y: newY });
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isDragging) return;
-      
       const touch = e.touches[0];
       const newX = touch.clientX - dragStart.x;
       const newY = touch.clientY - dragStart.y;
-      
+      const curX = position.x ?? 0;
+      const curY = position.y ?? 0;
+      const dist = Math.hypot(newX - curX, newY - curY);
+
+      if (!isDragging) {
+        if (dist > THRESHOLD) setIsDragging(true);
+        else return;
+      }
+
+      setHasMoved(true);
       setPosition({ x: newX, y: newY });
     };
 
     const handleEnd = () => {
       if (isDragging) {
         setIsDragging(false);
-        localStorage.setItem("ai-button-position", JSON.stringify(position));
+        setTimeout(() => setHasMoved(false), 0); // reset so next click works
+        localStorage.setItem(
+          "ai-button-position",
+          JSON.stringify({ x: position.x ?? 0, y: position.y ?? 0 })
+        );
       }
     };
 
-    if (isDragging) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleEnd);
-      document.addEventListener("touchmove", handleTouchMove);
-      document.addEventListener("touchend", handleEnd);
-    }
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleEnd);
+    document.addEventListener("touchmove", handleTouchMove);
+    document.addEventListener("touchend", handleEnd);
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
@@ -83,19 +101,28 @@ export const DraggableButtons = ({ children }: DraggableButtonsProps) => {
     };
   }, [isDragging, dragStart, position]);
 
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (hasMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+      setHasMoved(false);
+    }
+  };
+
   return (
     <div
       ref={containerRef}
-      className="fixed z-50 flex flex-col gap-2 items-end cursor-move"
+      className="fixed z-50 flex flex-col gap-2 items-end cursor-move select-none"
       style={{
-        right: position.x ? undefined : "1rem",
-        bottom: position.x ? undefined : "5rem",
-        left: position.x ? `${position.x}px` : undefined,
-        top: position.y ? `${position.y}px` : undefined,
+        right: position.x == null ? "1rem" : undefined,
+        bottom: position.y == null ? "5rem" : undefined,
+        left: position.x == null ? undefined : `${position.x}px`,
+        top: position.y == null ? undefined : `${position.y}px`,
         touchAction: "none",
       }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
+      onClickCapture={handleClickCapture}
     >
       {children}
     </div>

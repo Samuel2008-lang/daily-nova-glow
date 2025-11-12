@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bot, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,22 @@ export const AINavigationButton = () => {
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const resumeWakeAfterManual = useRef(false);
+
+  const cleanCommand = (raw: string) => {
+    const wake = ["hey nova"]; // leading wake phrase to strip
+    let t = raw.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+    // de-duplicate consecutive words (handles repeated "hey hey hey")
+    t = t
+      .split(" ")
+      .filter((w, i, arr) => i === 0 || w !== arr[i - 1])
+      .join(" ");
+    for (const w of wake) {
+      if (t.startsWith(w + " ")) t = t.slice(w.length).trim();
+      else if (t === w) t = "";
+    }
+    return t;
+  };
 
   const { isListening, startListening, stopListening } = useSpeechRecognition({
     onResult: (text) => {
@@ -36,11 +52,21 @@ export const AINavigationButton = () => {
     setIsWakeWordActive(isVoiceModeActive);
   }, [isVoiceModeActive]);
 
+  useEffect(() => {
+    // Auto-activate wake phrase listening on mount
+    startVoiceMode().catch(() => {
+      // User may deny mic access; they can toggle manually
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const processCommand = async (command: string) => {
+    const cleaned = cleanCommand(command);
+    if (!cleaned) return;
     setIsProcessing(true);
     try {
       const { data, error } = await supabase.functions.invoke('navigate-command', {
-        body: { command }
+        body: { command: cleaned }
       });
 
       if (error) throw error;
@@ -64,6 +90,11 @@ export const AINavigationButton = () => {
     } finally {
       setIsProcessing(false);
       setTranscript("");
+      // resume wake mode if it was paused for manual input
+      if (resumeWakeAfterManual.current) {
+        try { await startVoiceMode(); } catch {}
+        resumeWakeAfterManual.current = false;
+      }
     }
   };
 
@@ -71,11 +102,17 @@ export const AINavigationButton = () => {
     if (isListening && recognitionInstance) {
       await stopListening(recognitionInstance);
       setRecognitionInstance(null);
-      if (transcript.trim()) {
-        await processCommand(transcript);
+      const cmd = cleanCommand(transcript);
+      if (cmd) {
+        await processCommand(cmd);
       }
     } else {
       setTranscript("");
+      // Pause wake-word mode during manual listening to avoid conflicts
+      if (isWakeWordActive) {
+        stopVoiceMode();
+        resumeWakeAfterManual.current = true;
+      }
       const instance = await startListening(false, "navigation");
       setRecognitionInstance(instance);
     }
@@ -146,8 +183,7 @@ export const AINavigationButton = () => {
               <Button
                 variant="default"
                 onClick={() => transcript.trim() && processCommand(transcript)}
-                disabled={isProcessing || !transcript.trim()}
-              >
+                disabled={isProcessing || !transcript.trim()}>
                 Go
               </Button>
             </div>
@@ -155,7 +191,7 @@ export const AINavigationButton = () => {
             {transcript && isListening && (
               <div className="p-4 bg-background/50 rounded-lg">
                 <p className="text-sm font-medium">You said:</p>
-                <p className="text-foreground">{transcript}</p>
+                <p className="text-foreground">{cleanCommand(transcript)}</p>
               </div>
             )}
 
