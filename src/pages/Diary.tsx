@@ -19,7 +19,7 @@ const Diary = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
-  const [isClosed, setIsClosed] = useState(false);
+  const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
@@ -276,6 +276,44 @@ Help them transform daily reflections into meaningful self-understanding, emotio
 
   const isToday = currentDate.toDateString() === new Date().toDateString();
 
+  // Reader view mode
+  if (viewMode === 'read') {
+    const entry = entries.find((e) => new Date(e.date).toDateString() === currentDate.toDateString());
+    return (
+      <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
+        <div className="max-w-4xl mx-auto animate-fade-in">
+          <Card className="glass glow p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <CalendarIcon className="w-5 h-5 text-success" />
+                  <h2 className="text-2xl font-bold text-success">
+                    {currentDate.toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </h2>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => setViewMode('write')} variant="outline">
+                  Edit
+                </Button>
+                <Button onClick={() => setViewMode('closed')} variant="secondary">
+                  Close
+                </Button>
+              </div>
+            </div>
+            <div className="prose prose-invert max-w-none">
+              <p className="whitespace-pre-wrap text-foreground">{entry?.content || "No entry for this date."}</p>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
       <div className="max-w-4xl mx-auto animate-fade-in">
@@ -283,14 +321,7 @@ Help them transform daily reflections into meaningful self-understanding, emotio
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-6">
-        {/* Date Navigation */}
-
-        {/* Date Navigation */}
-          
-        {/* Date Navigation */}
-
-        {/* Date Navigation */}
-        {!isClosed && (
+        {viewMode === 'write' && (
           <Card className="glass glow p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
               <Button
@@ -368,7 +399,7 @@ Help them transform daily reflections into meaningful self-understanding, emotio
                 <Button onClick={saveEntry} disabled={!currentEntry.trim()} className="glow">
                   Save Entry
                 </Button>
-                <Button variant="outline" onClick={() => { saveEntry(); setIsClosed(true); }}>
+                <Button variant="outline" onClick={() => { saveEntry(); setViewMode('closed'); }}>
                   Save & Close
                 </Button>
               </div>
@@ -393,59 +424,36 @@ Help them transform daily reflections into meaningful self-understanding, emotio
             </div>
           </Card>
 
-          {/* Saved Entries */}
+          {/* Quick Access */}
           <Card className="glass p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-success">Saved Entries</h3>
-              <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <CalendarIcon className="w-4 h-4 mr-2" />
-                      Select date
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
-                      mode="single"
-                      selected={currentDate}
-                      onSelect={(d: Date | undefined) => {
-                        if (!d) return;
-                        if (d > new Date()) return;
-                        setCurrentDate(d);
-                        setIsClosed(false);
-                      }}
-                      disabled={(date) => date > new Date()}
-                      className="p-3 pointer-events-auto"
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Button variant="secondary" size="sm" onClick={() => { setCurrentDate(new Date()); setIsClosed(false); }}>
-                  Open today
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2 max-h-[220px] overflow-y-auto">
-              {entries
-                .slice()
-                .sort((a, b) => +new Date(b.date) - +new Date(a.date))
-                .map((entry) => (
-                  <button
-                    key={entry.id}
-                      onClick={() => {
-                        setCurrentDate(new Date(entry.date));
-                        setCurrentEntry(entry.content);
-                        if (isClosed) setIsClosed(false);
-                      }}
-                    className="w-full text-left text-xs p-3 bg-background/30 rounded-lg hover:bg-background/50 transition"
-                  >
-                    <p className="text-muted-foreground mb-1">
-                      {new Date(entry.date).toLocaleDateString()}
-                    </p>
-                    <p className="line-clamp-2">{entry.content}</p>
-                  </button>
-                ))}
+            <h3 className="text-lg font-semibold text-success mb-4">Quick Access</h3>
+            <div className="flex flex-col gap-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full">
+                    <CalendarIcon className="w-4 h-4 mr-2" />
+                    Select date
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={currentDate}
+                    onSelect={(d: Date | undefined) => {
+                      if (!d) return;
+                      if (d > new Date()) return;
+                      setCurrentDate(d);
+                      setViewMode('read');
+                    }}
+                    disabled={(date) => date > new Date()}
+                    className="p-3 pointer-events-auto"
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <Button variant="secondary" className="w-full" onClick={() => { setCurrentDate(new Date()); setViewMode('write'); }}>
+                Open today
+              </Button>
             </div>
           </Card>
           </div>

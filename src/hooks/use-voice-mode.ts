@@ -113,12 +113,21 @@ export const useVoiceMode = ({ onCommand, wakeWord = "nova" }: UseVoiceModeProps
 
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
-      recognition.start();
-      setIsActive(true);
-      toast({
-        title: "Voice mode activated",
-        description: `Say "${wakeWord}" followed by your command.`,
-      });
+      try {
+        recognition.start();
+        setIsActive(true);
+        toast({
+          title: "Voice mode activated",
+          description: `Say "${wakeWord}" followed by your command.`,
+        });
+      } catch (e: any) {
+        if (e.message?.includes('already started')) {
+          // Already running, just mark as active
+          setIsActive(true);
+        } else {
+          throw e;
+        }
+      }
     } catch (error) {
       console.error("Error starting voice mode:", error);
       toast({
