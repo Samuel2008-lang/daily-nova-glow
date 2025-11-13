@@ -3,6 +3,8 @@ import { MessageSquare, Mic, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { storage, JournalEntry } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -17,6 +19,7 @@ const Journal = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
+  const [isClosed, setIsClosed] = useState(false);
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
@@ -253,93 +256,154 @@ Help them use journaling as a tool for profound self-discovery, creative express
         <h1 className="text-4xl font-bold mb-8 text-secondary">Journal</h1>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="glass glow-purple p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-secondary flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
-                Write Entry
-              </h2>
-            </div>
+          {!isClosed && (
+            <Card className="glass glow-purple p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-secondary flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Write Entry
+                </h2>
+              </div>
 
-            {/* Date Navigation */}
-            <div className="flex items-center justify-between mb-4">
-              <Button variant="ghost" size="icon" onClick={() => setCurrentDate(new Date(currentDate.getTime() - 86400000))}>
-                <span className="sr-only">Previous day</span>‹
-              </Button>
-              <div className="text-center">
-                <h3 className="text-lg font-bold text-secondary">
-                  {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                </h3>
-                {currentDate.toDateString() !== new Date().toDateString() && (
-                  <Button variant="link" onClick={() => setCurrentDate(new Date())} className="text-xs text-secondary">
-                    Go to today
+              {/* Date Navigation */}
+              <div className="flex items-center justify-between mb-4">
+                <Button variant="ghost" size="icon" onClick={() => setCurrentDate(new Date(currentDate.getTime() - 86400000))}>
+                  <span className="sr-only">Previous day</span>‹
+                </Button>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-secondary">
+                    {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                  </h3>
+                  {currentDate.toDateString() !== new Date().toDateString() && (
+                    <Button variant="link" onClick={() => setCurrentDate(new Date())} className="text-xs text-secondary">
+                      Go to today
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setCurrentDate(new Date(currentDate.getTime() + 86400000))}
+                  disabled={currentDate.toDateString() === new Date().toDateString()}
+                >
+                  <span className="sr-only">Next day</span>›
+                </Button>
+              </div>
+
+              <div className="relative mb-4">
+                <Textarea
+                  placeholder="What's on your mind? Write freely..."
+                  value={currentEntry}
+                  onChange={(e) => setCurrentEntry(e.target.value)}
+                  className="min-h-[300px] bg-background/50 border-border/50 focus:border-secondary resize-none pr-14"
+                />
+                {isSupported && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={handleVoiceClick}
+                    className={`${
+                      isListening ? "animate-pulse-glow text-secondary" : "text-muted-foreground hover:text-secondary"
+                    } absolute top-3 right-3`}
+                  >
+                    <Mic className="w-5 h-5" />
                   </Button>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setCurrentDate(new Date(currentDate.getTime() + 86400000))}
-                disabled={currentDate.toDateString() === new Date().toDateString()}
-              >
-                <span className="sr-only">Next day</span>›
-              </Button>
-            </div>
 
-            <div className="relative mb-4">
-              <Textarea
-                placeholder="What's on your mind? Write freely..."
-                value={currentEntry}
-                onChange={(e) => setCurrentEntry(e.target.value)}
-                className="min-h-[300px] bg-background/50 border-border/50 focus:border-secondary resize-none pr-14"
-              />
-              {isSupported && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={handleVoiceClick}
-                  className={`absolute top-3 right-3 ${
-                    isListening ? "animate-pulse-glow text-secondary" : "text-muted-foreground hover:text-secondary"
-                  }`}
-                >
-                  <Mic className="w-5 h-5" />
-                </Button>
+              {isListening && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/20 rounded-lg animate-pulse-glow mb-4">
+                  <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
+                  <span className="text-xs text-secondary font-medium">Recording... Tap mic to stop</span>
+                </div>
               )}
-            </div>
 
-            {isListening && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-secondary/20 rounded-lg animate-pulse-glow mb-4">
-                <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
-                <span className="text-xs text-secondary font-medium">Recording... Tap mic to stop</span>
+              <div className="flex items-center justify-end gap-2">
+                <Button onClick={saveEntry} disabled={!currentEntry.trim()} className="glow-purple">
+                  Save Entry
+                </Button>
+                <Button variant="outline" onClick={() => { saveEntry(); setIsClosed(true); }}>
+                  Save & Close
+                </Button>
               </div>
-            )}
 
-            <Button onClick={saveEntry} disabled={!currentEntry.trim()} className="w-full glow-purple">
-              Save Entry
-            </Button>
+              <div className="mt-6 pt-6 border-t border-border/50">
+                <p className="text-sm text-muted-foreground mb-2">Saved Entries: {entries.length}</p>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {entries
+                    .slice()
+                    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+                    .map((entry) => (
+                      <button
+                        key={entry.id}
+                        onClick={() => {
+                          setCurrentDate(new Date(entry.createdAt));
+                          setCurrentEntry(entry.content);
+                          if (isClosed) setIsClosed(false);
+                        }}
+                        className="w-full text-left text-xs p-3 bg-background/30 rounded-lg hover:bg-background/50 transition"
+                      >
+                        <p className="text-muted-foreground mb-1">
+                          {new Date(entry.createdAt).toLocaleDateString()}
+                        </p>
+                        <p className="line-clamp-2">{entry.content}</p>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            </Card>
+          )}
 
-            <div className="mt-6 pt-6 border-t border-border/50">
-              <p className="text-sm text-muted-foreground mb-2">Saved Entries: {entries.length}</p>
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {entries
-                  .slice()
-                  .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
-                  .map((entry) => (
-                    <button
-                      key={entry.id}
-                      onClick={() => {
-                        setCurrentDate(new Date(entry.createdAt));
-                        setCurrentEntry(entry.content);
+          {/* Entries (when closed or for quick access) */}
+          <Card className="glass p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-secondary">Saved Entries</h3>
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">Select date</Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={currentDate}
+                      onSelect={(d: Date | undefined) => {
+                        if (!d) return;
+                        if (d > new Date()) return;
+                        setCurrentDate(d);
+                        setIsClosed(false);
                       }}
-                      className="w-full text-left text-xs p-3 bg-background/30 rounded-lg hover:bg-background/50 transition"
-                    >
-                      <p className="text-muted-foreground mb-1">
-                        {new Date(entry.createdAt).toLocaleDateString()}
-                      </p>
-                      <p className="line-clamp-2">{entry.content}</p>
-                    </button>
-                  ))}
+                      disabled={(date) => date > new Date()}
+                      className="p-3 pointer-events-auto"
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button variant="secondary" size="sm" onClick={() => { setCurrentDate(new Date()); setIsClosed(false); }}>
+                  Open today
+                </Button>
               </div>
+            </div>
+            <div className="space-y-2 max-h-[220px] overflow-y-auto">
+              {entries
+                .slice()
+                .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+                .map((entry) => (
+                  <button
+                    key={entry.id}
+                    onClick={() => {
+                      setCurrentDate(new Date(entry.createdAt));
+                      setCurrentEntry(entry.content);
+                      if (isClosed) setIsClosed(false);
+                    }}
+                    className="w-full text-left text-xs p-3 bg-background/30 rounded-lg hover:bg-background/50 transition"
+                  >
+                    <p className="text-muted-foreground mb-1">
+                      {new Date(entry.createdAt).toLocaleDateString()}
+                    </p>
+                    <p className="line-clamp-2">{entry.content}</p>
+                  </button>
+                ))}
             </div>
           </Card>
 

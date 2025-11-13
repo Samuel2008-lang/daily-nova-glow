@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Mic, Send, Sparkle
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { storage, DiaryEntry } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -17,6 +19,7 @@ const Diary = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
+  const [isClosed, setIsClosed] = useState(false);
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
@@ -287,84 +290,91 @@ Help them transform daily reflections into meaningful self-understanding, emotio
         {/* Date Navigation */}
 
         {/* Date Navigation */}
-        <Card className="glass glow p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToPreviousDay}
-              className="hover:text-success"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
+        {!isClosed && (
+          <Card className="glass glow p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={goToPreviousDay}
+                className="hover:text-success"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
 
-            <div className="text-center">
-              <div className="flex items-center gap-2 justify-center mb-1">
-                <CalendarIcon className="w-4 h-4 text-success" />
-                <h2 className="text-2xl font-bold text-success">
-                  {currentDate.toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </h2>
+              <div className="text-center">
+                <div className="flex items-center gap-2 justify-center mb-1">
+                  <CalendarIcon className="w-4 h-4 text-success" />
+                  <h2 className="text-2xl font-bold text-success">
+                    {currentDate.toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </h2>
+                </div>
+                {!isToday && (
+                  <Button variant="link" onClick={goToToday} className="text-xs text-success">
+                    Go to today
+                  </Button>
+                )}
               </div>
-              {!isToday && (
-                <Button variant="link" onClick={goToToday} className="text-xs text-success">
-                  Go to today
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={goToNextDay}
+                className="hover:text-success"
+                disabled={isToday}
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="relative">
+              <Textarea
+                placeholder="What's on your mind today? Write your thoughts, experiences, or reflections..."
+                value={currentEntry}
+                onChange={(e) => setCurrentEntry(e.target.value)}
+                className="min-h-[300px] bg-background/50 border-border/50 focus:border-success resize-none pr-14"
+              />
+              {isSupported && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={handleVoiceClick}
+                  className={`${
+                    isListening ? "animate-pulse-glow text-success" : "text-muted-foreground hover:text-success"
+                  } absolute top-3 right-3`}
+                >
+                  <Mic className="w-5 h-5" />
                 </Button>
               )}
             </div>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToNextDay}
-              className="hover:text-success"
-              disabled={isToday}
-            >
-              <ChevronRight className="w-5 h-5" />
-            </Button>
-          </div>
-
-          <div className="relative">
-            <Textarea
-              placeholder="What's on your mind today? Write your thoughts, experiences, or reflections..."
-              value={currentEntry}
-              onChange={(e) => setCurrentEntry(e.target.value)}
-              className="min-h-[300px] bg-background/50 border-border/50 focus:border-success resize-none pr-14"
-            />
-            {isSupported && (
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={handleVoiceClick}
-                className={`absolute top-3 right-3 ${
-                  isListening ? "animate-pulse-glow text-success" : "text-muted-foreground hover:text-success"
-                }`}
-              >
-                <Mic className="w-5 h-5" />
-              </Button>
-            )}
-          </div>
-
-          <div className="flex justify-between items-center mt-4">
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-muted-foreground">
-                {currentEntry.length} characters
-              </span>
-              {isListening && (
-                <div className="flex items-center gap-2 px-3 py-1 bg-success/20 rounded-lg animate-pulse-glow">
-                  <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
-                  <span className="text-xs text-success font-medium">Recording... Tap mic to stop</span>
-                </div>
-              )}
+            <div className="flex justify-between items-center mt-4">
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-muted-foreground">
+                  {currentEntry.length} characters
+                </span>
+                {isListening && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-success/20 rounded-lg animate-pulse-glow">
+                    <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
+                    <span className="text-xs text-success font-medium">Recording... Tap mic to stop</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={saveEntry} disabled={!currentEntry.trim()} className="glow">
+                  Save Entry
+                </Button>
+                <Button variant="outline" onClick={() => { saveEntry(); setIsClosed(true); }}>
+                  Save & Close
+                </Button>
+              </div>
             </div>
-            <Button onClick={saveEntry} disabled={!currentEntry.trim()} className="glow">
-              Save Entry
-            </Button>
-          </div>
-        </Card>
+          </Card>
+        )}
 
           {/* Entry Stats */}
           <Card className="glass p-6">
@@ -385,7 +395,37 @@ Help them transform daily reflections into meaningful self-understanding, emotio
 
           {/* Saved Entries */}
           <Card className="glass p-6">
-            <h3 className="text-lg font-semibold mb-4 text-success">Saved Entries</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-success">Saved Entries</h3>
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <CalendarIcon className="w-4 h-4 mr-2" />
+                      Select date
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={currentDate}
+                      onSelect={(d: Date | undefined) => {
+                        if (!d) return;
+                        if (d > new Date()) return;
+                        setCurrentDate(d);
+                        setIsClosed(false);
+                      }}
+                      disabled={(date) => date > new Date()}
+                      className="p-3 pointer-events-auto"
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button variant="secondary" size="sm" onClick={() => { setCurrentDate(new Date()); setIsClosed(false); }}>
+                  Open today
+                </Button>
+              </div>
+            </div>
             <div className="space-y-2 max-h-[220px] overflow-y-auto">
               {entries
                 .slice()
@@ -393,10 +433,11 @@ Help them transform daily reflections into meaningful self-understanding, emotio
                 .map((entry) => (
                   <button
                     key={entry.id}
-                    onClick={() => {
-                      setCurrentDate(new Date(entry.date));
-                      setCurrentEntry(entry.content);
-                    }}
+                      onClick={() => {
+                        setCurrentDate(new Date(entry.date));
+                        setCurrentEntry(entry.content);
+                        if (isClosed) setIsClosed(false);
+                      }}
                     className="w-full text-left text-xs p-3 bg-background/30 rounded-lg hover:bg-background/50 transition"
                   >
                     <p className="text-muted-foreground mb-1">
@@ -426,7 +467,7 @@ Help them transform daily reflections into meaningful self-understanding, emotio
                   {aiMessages.map((msg, idx) => (
                     <div
                       key={idx}
-                      className={`p-3 rounded-lg text-sm ${
+                      className={`p-3 rounded-lg text-sm select-text ${
                         msg.role === "user"
                           ? "bg-success/20 ml-8"
                           : "bg-background/50 mr-8"

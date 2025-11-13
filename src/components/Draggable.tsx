@@ -17,6 +17,7 @@ export const Draggable: React.FC<DraggableProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hasMoved, setHasMoved] = useState(false);
+  const [pointerDown, setPointerDown] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const THRESHOLD = 5; // px before we consider it a drag
@@ -40,6 +41,7 @@ export const Draggable: React.FC<DraggableProps> = ({
     const curY = position.y ?? 0;
     setDragStart({ x: clientX - curX, y: clientY - curY });
     setHasMoved(false);
+    setPointerDown(true);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -53,6 +55,7 @@ export const Draggable: React.FC<DraggableProps> = ({
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      if (!pointerDown) return;
       const newX = e.clientX - dragStart.x;
       const newY = e.clientY - dragStart.y;
       const curX = position.x ?? 0;
@@ -69,6 +72,7 @@ export const Draggable: React.FC<DraggableProps> = ({
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      if (!pointerDown) return;
       const touch = e.touches[0];
       const newX = touch.clientX - dragStart.x;
       const newY = touch.clientY - dragStart.y;
@@ -94,6 +98,7 @@ export const Draggable: React.FC<DraggableProps> = ({
           JSON.stringify({ x: position.x ?? 0, y: position.y ?? 0 })
         );
       }
+      setPointerDown(false);
     };
 
     document.addEventListener("mousemove", handleMouseMove);
@@ -107,7 +112,7 @@ export const Draggable: React.FC<DraggableProps> = ({
       document.removeEventListener("touchmove", handleTouchMove);
       document.removeEventListener("touchend", handleEnd);
     };
-  }, [isDragging, dragStart, position, storageKey]);
+  }, [isDragging, dragStart, position, storageKey, pointerDown]);
 
   const handleClickCapture = (e: React.MouseEvent) => {
     if (hasMoved) {
