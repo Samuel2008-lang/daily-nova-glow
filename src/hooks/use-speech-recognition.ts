@@ -19,6 +19,7 @@ export const useSpeechRecognition = ({
   const silenceTimerRef = useRef<number | null>(null);
   const lastResultAtRef = useRef<number>(0);
   const retriedRef = useRef(false);
+  const finalTranscriptsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -42,15 +43,13 @@ export const useSpeechRecognition = ({
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
 
-    // Configure recognition
     recognition.continuous = true;
-    recognition.interimResults = true; // capture interim to keep alive on long pauses
+    recognition.interimResults = false; // Only get final results to avoid duplicates
     recognition.lang = "en-US";
 
-    let fullTranscript = "";
+    finalTranscriptsRef.current = new Set();
     retriedRef.current = false;
 
-    // Reset any previous timers
     if (silenceTimerRef.current) {
       clearInterval(silenceTimerRef.current);
       silenceTimerRef.current = null;
@@ -60,7 +59,6 @@ export const useSpeechRecognition = ({
       setIsListening(true);
       recognitionRef.current = recognition;
       lastResultAtRef.current = Date.now();
-      // Auto-stop after 15s of silence to prevent premature processing on short pauses
       silenceTimerRef.current = window.setInterval(() => {
         const idle = Date.now() - lastResultAtRef.current;
         if (idle > 15000 && recognitionRef.current) {
@@ -76,30 +74,26 @@ export const useSpeechRecognition = ({
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const res = event.results[i];
         if (res.isFinal) {
-          fullTranscript += res[0].transcript + " ";
+          const transcript = res[0].transcript.trim();
+          // Only add if we haven't seen this exact transcript before
+          if (transcript && !finalTranscriptsRef.current.has(transcript)) {
+            finalTranscriptsRef.current.add(transcript);
+          }
         }
       }
     };
 
     const processTranscript = async () => {
-      const text = fullTranscript.trim();
+      // Join all unique transcripts
+      const text = Array.from(finalTranscriptsRef.current).join(" ").trim();
       if (!text) return;
-
-      // Clean up duplicates like "hey hey hey" or repeated words from final chunks
-      const cleaned = text
-        .replace(/[^\w\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .split(" ")
-        .filter((w, i, arr) => i === 0 || w !== arr[i - 1])
-        .join(" ");
 
       if (autoEnhance) {
         toast({ title: "Processing...", description: "Enhancing your speech with AI..." });
         try {
           const { supabase } = await import("@/integrations/supabase/client");
           const { data, error } = await supabase.functions.invoke('enhance-text', {
-            body: { text: cleaned, context }
+            body: { text, context }
           });
           if (!error && data?.enhanced) {
             onResult(data.enhanced);
@@ -109,10 +103,10 @@ export const useSpeechRecognition = ({
         } catch (e) {
           console.error("Enhancement error:", e);
         }
-        onResult(cleaned);
+        onResult(text);
         toast({ title: "Speech captured", description: "Using original text." });
       } else {
-        onResult(cleaned);
+        onResult(text);
         toast({ title: "Speech captured", description: "Your speech has been converted to text." });
       }
     };
@@ -148,7 +142,6 @@ export const useSpeechRecognition = ({
           variant: "destructive",
         });
       } else if (event.error === "network" && !retriedRef.current) {
-        // Attempt one auto-retry for transient network errors
         retriedRef.current = true;
         try {
           recognition.stop();

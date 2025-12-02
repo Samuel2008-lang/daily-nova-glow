@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { Sparkles, RefreshCw, Wifi, WifiOff, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -25,12 +25,15 @@ const fallbackQuotes: Quote[] = [
 
 const QUOTES_STORAGE_KEY = "daily-quotes";
 const QUOTES_DATE_KEY = "daily-quotes-date";
+const QUOTE_INDEX_KEY = "daily-quote-index";
+const SHOWN_MORE_KEY = "shown-more-quotes";
 
 const Quotes = () => {
   const [quotes, setQuotes] = useState<Quote[]>(fallbackQuotes);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isLoading, setIsLoading] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -59,11 +62,26 @@ const Quotes = () => {
   const loadQuotes = () => {
     try {
       const savedQuotes = localStorage.getItem(QUOTES_STORAGE_KEY);
+      const savedDate = localStorage.getItem(QUOTES_DATE_KEY);
+      const savedIndex = localStorage.getItem(QUOTE_INDEX_KEY);
+      const today = new Date().toDateString();
+      
       if (savedQuotes) {
         const parsed = JSON.parse(savedQuotes);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setQuotes(parsed);
         }
+      }
+      
+      // Check if it's a new day - reset to show first quote
+      if (savedDate !== today) {
+        setCurrentIndex(0);
+        setShowMore(false);
+        localStorage.setItem(QUOTE_INDEX_KEY, "0");
+        localStorage.setItem(SHOWN_MORE_KEY, "false");
+      } else if (savedIndex) {
+        setCurrentIndex(parseInt(savedIndex, 10));
+        setShowMore(localStorage.getItem(SHOWN_MORE_KEY) === "true");
       }
     } catch (error) {
       console.error("Error loading quotes:", error);
@@ -91,7 +109,6 @@ const Quotes = () => {
 
     setIsLoading(true);
     try {
-      // Using ZenQuotes API (free, no auth required)
       const response = await fetch("https://zenquotes.io/api/quotes");
       
       if (!response.ok) throw new Error("Failed to fetch quotes");
@@ -106,17 +123,14 @@ const Quotes = () => {
         
         setQuotes(newQuotes);
         setCurrentIndex(0);
+        setShowMore(false);
         localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(newQuotes));
         localStorage.setItem(QUOTES_DATE_KEY, new Date().toDateString());
-        
-        toast({
-          title: "Quotes updated!",
-          description: "10 new inspirational quotes loaded.",
-        });
+        localStorage.setItem(QUOTE_INDEX_KEY, "0");
+        localStorage.setItem(SHOWN_MORE_KEY, "false");
       }
     } catch (error) {
       console.error("Error fetching quotes:", error);
-      // Try alternative API
       try {
         const altResponse = await fetch("https://api.quotable.io/quotes/random?limit=10");
         if (altResponse.ok) {
@@ -128,30 +142,66 @@ const Quotes = () => {
             }));
             setQuotes(newQuotes);
             setCurrentIndex(0);
+            setShowMore(false);
             localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(newQuotes));
             localStorage.setItem(QUOTES_DATE_KEY, new Date().toDateString());
-            toast({
-              title: "Quotes updated!",
-              description: "10 new inspirational quotes loaded.",
-            });
+            localStorage.setItem(QUOTE_INDEX_KEY, "0");
+            localStorage.setItem(SHOWN_MORE_KEY, "false");
             return;
           }
         }
       } catch {
         // Silent fail for alternative
       }
-      
-      toast({
-        title: "Using saved quotes",
-        description: "Couldn't fetch new quotes. Showing saved ones.",
-      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const seeMoreQuotes = () => {
+    setShowMore(true);
+    localStorage.setItem(SHOWN_MORE_KEY, "true");
+  };
+
   const nextQuote = () => {
-    setCurrentIndex((prev) => (prev + 1) % quotes.length);
+    const newIndex = (currentIndex + 1) % quotes.length;
+    setCurrentIndex(newIndex);
+    localStorage.setItem(QUOTE_INDEX_KEY, newIndex.toString());
+  };
+
+  const prevQuote = () => {
+    const newIndex = currentIndex === 0 ? quotes.length - 1 : currentIndex - 1;
+    setCurrentIndex(newIndex);
+    localStorage.setItem(QUOTE_INDEX_KEY, newIndex.toString());
+  };
+
+  const shareQuote = async () => {
+    const currentQuote = quotes[currentIndex];
+    const shareText = `"${currentQuote.text}" — ${currentQuote.author}\n\nShared from DailyNova`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Quote of the Day",
+          text: shareText,
+        });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          copyToClipboard(shareText);
+        }
+      }
+    } else {
+      copyToClipboard(shareText);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Copied!", description: "Quote copied to clipboard." });
+    } catch {
+      toast({ title: "Error", description: "Could not copy to clipboard.", variant: "destructive" });
+    }
   };
 
   const currentQuote = quotes[currentIndex];
@@ -163,7 +213,7 @@ const Quotes = () => {
           <div className="inline-block mb-4">
             <Sparkles className="w-16 h-16 text-accent animate-pulse-glow" />
           </div>
-          <h1 className="text-4xl font-bold text-accent">Daily Inspiration</h1>
+          <h1 className="text-4xl font-bold text-accent">Quote of the Day</h1>
           <div className="flex items-center justify-center gap-2 mt-2">
             {isOnline ? (
               <Wifi className="w-4 h-4 text-green-500" />
@@ -183,38 +233,53 @@ const Quotes = () => {
           <p className="text-lg text-accent font-medium">— {currentQuote.author}</p>
         </Card>
 
-        <div className="flex justify-center gap-4">
+        <div className="flex justify-center gap-4 flex-wrap">
           <Button
-            onClick={nextQuote}
+            onClick={shareQuote}
             size="lg"
-            className="glow-pink group"
+            variant="outline"
           >
-            <RefreshCw className="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-500" />
-            Next Quote
+            <Share2 className="w-5 h-5 mr-2" />
+            Share Quote
           </Button>
           
-          {isOnline && (
+          {!showMore ? (
             <Button
-              onClick={fetchNewQuotes}
+              onClick={seeMoreQuotes}
               size="lg"
-              variant="outline"
-              disabled={isLoading}
+              className="glow-pink"
             >
-              {isLoading ? (
-                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="w-5 h-5 mr-2" />
-              )}
-              Get New Quotes
+              <Sparkles className="w-5 h-5 mr-2" />
+              See More Quotes
             </Button>
+          ) : (
+            <>
+              <Button
+                onClick={prevQuote}
+                size="lg"
+                variant="outline"
+              >
+                Previous
+              </Button>
+              <Button
+                onClick={nextQuote}
+                size="lg"
+                className="glow-pink group"
+              >
+                <RefreshCw className="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-500" />
+                Next Quote
+              </Button>
+            </>
           )}
         </div>
 
-        <div className="text-center mt-8">
-          <p className="text-sm text-muted-foreground">
-            Quote {currentIndex + 1} of {quotes.length}
-          </p>
-        </div>
+        {showMore && (
+          <div className="text-center mt-8">
+            <p className="text-sm text-muted-foreground">
+              Quote {currentIndex + 1} of {quotes.length}
+            </p>
+          </div>
+        )}
       </div>
       <BannerAd position="bottom" />
     </div>
