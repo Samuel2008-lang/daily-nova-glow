@@ -9,6 +9,7 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useVoiceMode } from "@/hooks/use-voice-mode";
 import { supabase } from "@/integrations/supabase/client";
 import { Draggable } from "@/components/Draggable";
+import { WakeWordIndicator } from "@/components/WakeWordIndicator";
 
 export const AINavigationButton = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,18 +17,15 @@ export const AINavigationButton = () => {
   const [transcript, setTranscript] = useState("");
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
+  const [lastCommand, setLastCommand] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
   const resumeWakeAfterManual = useRef(false);
 
   const cleanCommand = (raw: string) => {
-    const wake = ["hey nova"]; // leading wake phrase to strip
+    const wake = ["hey nova", "hey no va", "a nova", "hey know va"];
     let t = raw.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
-    // de-duplicate consecutive words (handles repeated "hey hey hey")
-    t = t
-      .split(" ")
-      .filter((w, i, arr) => i === 0 || w !== arr[i - 1])
-      .join(" ");
+    t = t.split(" ").filter((w, i, arr) => i === 0 || w !== arr[i - 1]).join(" ");
     for (const w of wake) {
       if (t.startsWith(w + " ")) t = t.slice(w.length).trim();
       else if (t === w) t = "";
@@ -41,9 +39,11 @@ export const AINavigationButton = () => {
     },
   });
 
-  const { isActive: isVoiceModeActive, startVoiceMode, stopVoiceMode } = useVoiceMode({
+  const { isActive: isVoiceModeActive, isListening: isWakeListening, startVoiceMode, stopVoiceMode } = useVoiceMode({
     onCommand: async (command) => {
+      setLastCommand(command);
       await processCommand(command);
+      setTimeout(() => setLastCommand(""), 3000);
     },
     wakeWord: "hey nova",
   });
@@ -54,10 +54,7 @@ export const AINavigationButton = () => {
 
   useEffect(() => {
     // Auto-activate wake phrase listening on mount
-    startVoiceMode().catch(() => {
-      // User may deny mic access; they can toggle manually
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    startVoiceMode().catch(() => {});
   }, []);
 
   const processCommand = async (command: string) => {
@@ -90,7 +87,6 @@ export const AINavigationButton = () => {
     } finally {
       setIsProcessing(false);
       setTranscript("");
-      // resume wake mode if it was paused for manual input
       if (resumeWakeAfterManual.current) {
         try { await startVoiceMode(); } catch {}
         resumeWakeAfterManual.current = false;
@@ -108,7 +104,6 @@ export const AINavigationButton = () => {
       }
     } else {
       setTranscript("");
-      // Pause wake-word mode during manual listening to avoid conflicts
       if (isWakeWordActive) {
         stopVoiceMode();
         resumeWakeAfterManual.current = true;
@@ -128,7 +123,14 @@ export const AINavigationButton = () => {
 
   return (
     <>
-      <Draggable storageKey="ai-fab-position">
+      {/* Wake Word Status Indicator */}
+      <WakeWordIndicator 
+        isActive={isWakeWordActive} 
+        isListening={isWakeListening}
+        lastCommand={lastCommand}
+      />
+
+      <Draggable storageKey="ai-fab-position" defaultRight="1rem" defaultBottom="5rem">
         <Button
           size="icon"
           onClick={() => setIsOpen(true)}
@@ -138,14 +140,22 @@ export const AINavigationButton = () => {
         </Button>
       </Draggable>
 
-      <Draggable storageKey="mic-fab-position" defaultBottom="10.5rem">
+      <Draggable storageKey="mic-fab-position" defaultRight="1rem" defaultBottom="10.5rem">
         <Button
           size="icon"
           variant={isWakeWordActive ? "default" : "outline"}
           onClick={toggleWakeWord}
-          className={`h-10 w-10 rounded-full shadow-lg cursor-pointer ${isWakeWordActive ? "animate-pulse-glow" : ""}`}
+          className={`h-12 w-12 rounded-full shadow-lg cursor-pointer transition-all ${
+            isWakeWordActive 
+              ? "bg-primary animate-pulse ring-4 ring-primary/30" 
+              : "bg-background hover:bg-muted"
+          }`}
         >
-          {isWakeWordActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+          {isWakeWordActive ? (
+            <Mic className="w-5 h-5 text-primary-foreground" />
+          ) : (
+            <MicOff className="w-5 h-5 text-muted-foreground" />
+          )}
         </Button>
       </Draggable>
 
@@ -164,8 +174,11 @@ export const AINavigationButton = () => {
             </p>
             
             {isWakeWordActive && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-secondary/20 rounded-lg animate-pulse-glow">
-                <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
+              <div className="flex items-center gap-2 px-3 py-2 bg-secondary/20 rounded-lg">
+                <div className="relative">
+                  <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
+                  <div className="absolute inset-0 w-2 h-2 bg-secondary rounded-full animate-ping" />
+                </div>
                 <span className="text-xs text-secondary font-medium">Wake word active — Say "hey nova" + command</span>
               </div>
             )}
@@ -200,9 +213,7 @@ export const AINavigationButton = () => {
             <Button
               onClick={handleVoiceClick}
               disabled={isProcessing}
-              className={`w-full h-20 text-lg ${
-                isListening ? "animate-pulse-glow" : ""
-              }`}
+              className={`w-full h-20 text-lg ${isListening ? "animate-pulse-glow" : ""}`}
               variant={isListening ? "default" : "outline"}
             >
               <Mic className="w-6 h-6 mr-2" />
