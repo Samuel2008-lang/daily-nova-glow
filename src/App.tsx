@@ -13,7 +13,6 @@ import Quotes from "./pages/Quotes";
 import Premium from "./pages/Premium";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
-import { AINavigationButton } from "./components/AINavigationButton";
 
 const queryClient = new QueryClient();
 
@@ -24,7 +23,6 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Navigation />
-        <AINavigationButton />
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/notes" element={<Notes />} />

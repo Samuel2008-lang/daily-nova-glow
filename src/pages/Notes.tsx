@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Trash2, Edit2, Mic, Calendar, ArrowLeft, ArrowRight, BookOpen, X } from "lucide-react";
+import { Plus, Search, Mic, Calendar, ArrowLeft, ArrowRight, BookOpen, X, Edit2, Share2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,7 +16,6 @@ const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [newNote, setNewNote] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -68,17 +67,6 @@ const Notes = () => {
     });
     setViewMode('closed');
     setNewNote("");
-  };
-
-  const deleteNote = (id: string) => {
-    const updatedNotes = notes.filter((note) => note.id !== id);
-    setNotes(updatedNotes);
-    storage.saveNotes(updatedNotes);
-    
-    toast({
-      title: "Note deleted",
-      description: "Your note has been removed.",
-    });
   };
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -133,6 +121,48 @@ const Notes = () => {
     setViewMode('write');
   };
 
+  const shareNote = async () => {
+    const shareText = `Note - ${format(selectedDate, "MMMM d, yyyy")}\n\n${newNote}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Note - ${format(selectedDate, "MMMM d, yyyy")}`,
+          text: shareText,
+        });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          copyToClipboard(shareText);
+        }
+      }
+    } else {
+      copyToClipboard(shareText);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Copied!", description: "Note copied to clipboard." });
+    } catch {
+      toast({ title: "Error", description: "Could not copy to clipboard.", variant: "destructive" });
+    }
+  };
+
+  const saveToFile = () => {
+    const content = `Note - ${format(selectedDate, "MMMM d, yyyy")}\n\n${newNote}`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `note-${format(selectedDate, "yyyy-MM-dd")}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Downloaded!", description: "Note saved to your device." });
+  };
+
   // Read mode view
   if (viewMode === 'read') {
     return (
@@ -143,7 +173,13 @@ const Notes = () => {
               Note - {format(selectedDate, "MMMM d, yyyy")}
             </h1>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => { setViewMode('write'); }}>
+              <Button variant="outline" size="icon" onClick={shareNote}>
+                <Share2 className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={saveToFile}>
+                <Download className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" onClick={() => setViewMode('write')}>
                 <Edit2 className="w-4 h-4 mr-2" />
                 Edit
               </Button>
@@ -228,14 +264,14 @@ const Notes = () => {
     );
   }
 
-  // Closed mode - show date access
+  // Closed mode - show date access only
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
       <div className="max-w-4xl mx-auto animate-fade-in">
         <h1 className="text-4xl font-bold mb-8 text-primary">Notes</h1>
 
         {/* Quick Access */}
-        <Card className="glass glow p-6 mb-8">
+        <Card className="glass glow p-6">
           <CardHeader className="p-0 mb-4">
             <CardTitle className="text-lg flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-primary" />
@@ -265,49 +301,6 @@ const Notes = () => {
               </PopoverContent>
             </Popover>
           </CardContent>
-        </Card>
-
-        {/* Search */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search notes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-background/50 border-border/50 focus:border-primary"
-            />
-          </div>
-        </div>
-
-        {/* Recent Notes Preview */}
-        <Card className="glass p-6">
-          <h2 className="text-lg font-semibold mb-4">Recent Notes</h2>
-          <div className="space-y-3">
-            {notes
-              .filter(note => note.content.toLowerCase().includes(searchQuery.toLowerCase()))
-              .slice(0, 5)
-              .map((note) => (
-                <div
-                  key={note.id}
-                  className="p-3 rounded-lg bg-background/50 hover:bg-background/70 cursor-pointer transition-colors"
-                  onClick={() => {
-                    const noteDate = new Date(note.createdAt);
-                    setSelectedDate(noteDate);
-                    setNewNote(note.content);
-                    setViewMode('read');
-                  }}
-                >
-                  <p className="text-sm text-muted-foreground mb-1">
-                    {format(new Date(note.createdAt), "MMMM d, yyyy")}
-                  </p>
-                  <p className="text-foreground line-clamp-2">{note.content}</p>
-                </div>
-              ))}
-            {notes.length === 0 && (
-              <p className="text-muted-foreground text-center py-4">No notes yet. Create your first note!</p>
-            )}
-          </div>
         </Card>
       </div>
       <BannerAd position="bottom" />
