@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface UseVoiceModeProps {
@@ -9,8 +9,13 @@ interface UseVoiceModeProps {
 export const useVoiceMode = ({ onCommand, wakeWord = "nova" }: UseVoiceModeProps) => {
   const [isActive, setIsActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [recognition, setRecognition] = useState<any>(null);
+  const recognitionRef = useRef<any>(null);
+  const isActiveRef = useRef(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -20,51 +25,63 @@ export const useVoiceMode = ({ onCommand, wakeWord = "nova" }: UseVoiceModeProps
       if (SpeechRecognition) {
         const recognitionInstance = new SpeechRecognition();
         recognitionInstance.continuous = true;
-        recognitionInstance.interimResults = false;
+        recognitionInstance.interimResults = true;
         recognitionInstance.lang = "en-US";
+        recognitionInstance.maxAlternatives = 3;
 
         recognitionInstance.onresult = (event: any) => {
-          const raw = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-          // Normalize text: remove punctuation, collapse spaces, dedupe consecutive words
+          // Get the latest result
+          const result = event.results[event.results.length - 1];
+          if (!result.isFinal) return;
+          
+          const raw = result[0].transcript.toLowerCase().trim();
+          console.log("Voice mode heard:", raw);
+          
+          // Normalize: remove punctuation, collapse spaces
           const normalized = raw
             .replace(/[^\w\s]/g, " ")
             .replace(/\s+/g, " ")
             .trim();
+          
+          // Dedupe consecutive words
           const tokens = normalized.split(" ").filter(Boolean);
           const deduped = tokens.filter((w, i, arr) => i === 0 || w !== arr[i - 1]).join(" ");
+          
+          console.log("Normalized:", deduped);
 
-          // Build tolerant wake phrase matcher: allow repeated first token (e.g., "hey hey")
-          const wake = wakeWord.toLowerCase().replace(/[^\w\s]/g, " ").trim();
-          const wakeParts = wake.split(" ").filter(Boolean);
-          let matchIndex = -1;
-          let afterIndex = -1;
+          // Wake word patterns to check
+          const wakePatterns = [
+            "hey nova",
+            "hey no va", 
+            "a nova",
+            "hey know va",
+            "henova",
+            "hey novo",
+            "nova"
+          ];
 
-          if (wakeParts.length === 1) {
-            const idx = deduped.indexOf(wakeParts[0]);
-            if (idx !== -1) {
-              matchIndex = idx;
-              afterIndex = idx + wakeParts[0].length;
-            }
-          } else {
-            // Example: hey (hey)* nova (handles repeated "hey")
-            const first = wakeParts[0];
-            const rest = wakeParts.slice(1).join("\\s+");
-            const rx = new RegExp(`\\b${first}(?:\\s+${first})*\\s+${rest}\\b`);
-            const m = deduped.match(rx);
-            if (m && m.index !== undefined) {
-              matchIndex = m.index;
-              afterIndex = m.index + m[0].length;
+          let command = "";
+          for (const pattern of wakePatterns) {
+            const patternIndex = deduped.indexOf(pattern);
+            if (patternIndex !== -1) {
+              command = deduped.slice(patternIndex + pattern.length).trim();
+              break;
             }
           }
 
-          if (matchIndex !== -1) {
-            const command = deduped.slice(afterIndex).trim();
-            if (command) {
-              setIsListening(true);
-              onCommand(command);
-              // brief cooldown visual only
-              setTimeout(() => setIsListening(false), 1200);
+          // Also try regex for flexible matching
+          if (!command) {
+            const flexMatch = deduped.match(/(?:hey\s*)?no+v+a+\s+(.+)/i);
+            if (flexMatch) {
+              command = flexMatch[1].trim();
             }
+          }
+
+          if (command) {
+            console.log("Wake word detected! Command:", command);
+            setIsListening(true);
+            onCommand(command);
+            setTimeout(() => setIsListening(false), 1500);
           }
         };
 
@@ -77,32 +94,49 @@ export const useVoiceMode = ({ onCommand, wakeWord = "nova" }: UseVoiceModeProps
               description: "Please allow microphone access to use voice mode.",
               variant: "destructive",
             });
+          } else if (event.error === "no-speech") {
+            // Ignore no-speech errors, just restart
+            console.log("No speech detected, continuing...");
           }
         };
 
         recognitionInstance.onend = () => {
-          if (isActive) {
-            try {
-              recognitionInstance.start();
-            } catch (e) {
-              console.error("Error restarting recognition:", e);
-            }
+          console.log("Recognition ended, isActive:", isActiveRef.current);
+          if (isActiveRef.current) {
+            setTimeout(() => {
+              if (isActiveRef.current && recognitionRef.current) {
+                try {
+                  recognitionRef.current.start();
+                  console.log("Recognition restarted");
+                } catch (e: any) {
+                  if (!e.message?.includes('already started')) {
+                    console.error("Error restarting recognition:", e);
+                  }
+                }
+              }
+            }, 100);
           }
         };
 
-        setRecognition(recognitionInstance);
+        recognitionInstance.onstart = () => {
+          console.log("Recognition started");
+        };
+
+        recognitionRef.current = recognitionInstance;
       }
     }
 
     return () => {
-      if (recognition) {
-        recognition.stop();
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
       }
     };
-  }, []);
+  }, [onCommand, toast, wakeWord]);
 
   const startVoiceMode = useCallback(async () => {
-    if (!recognition) {
+    if (!recognitionRef.current) {
       toast({
         title: "Not supported",
         description: "Voice recognition is not supported in your browser.",
@@ -113,16 +147,22 @@ export const useVoiceMode = ({ onCommand, wakeWord = "nova" }: UseVoiceModeProps
 
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      if (isActiveRef.current) {
+        console.log("Voice mode already active");
+        return;
+      }
+
       try {
-        recognition.start();
+        recognitionRef.current.start();
         setIsActive(true);
+        console.log("Voice mode started");
         toast({
           title: "Voice mode activated",
-          description: `Say "${wakeWord}" followed by your command.`,
+          description: `Say "Hey Nova" followed by your command.`,
         });
       } catch (e: any) {
         if (e.message?.includes('already started')) {
-          // Already running, just mark as active
           setIsActive(true);
         } else {
           throw e;
@@ -136,18 +176,21 @@ export const useVoiceMode = ({ onCommand, wakeWord = "nova" }: UseVoiceModeProps
         variant: "destructive",
       });
     }
-  }, [recognition, toast, wakeWord]);
+  }, [toast]);
 
   const stopVoiceMode = useCallback(() => {
-    if (recognition) {
-      recognition.stop();
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
       setIsActive(false);
+      console.log("Voice mode stopped");
       toast({
         title: "Voice mode deactivated",
         description: "Voice commands are now off.",
       });
     }
-  }, [recognition, toast]);
+  }, [toast]);
 
   return {
     isActive,
