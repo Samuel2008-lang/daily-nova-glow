@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { storage, JournalEntry } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 const Journal = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -22,7 +22,7 @@ const Journal = () => {
   const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
   const { toast } = useToast();
 
-  const { isListening, isProcessing, isSupported, startListening, stopListening } = useSpeechRecognition({
+  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (transcript) => {
       setCurrentEntry((prev) => (prev ? prev + " " + transcript : transcript));
     },
@@ -37,11 +37,6 @@ const Journal = () => {
     const entry = entries.find((e) => new Date(e.createdAt).toDateString() === dateStr);
     setCurrentEntry(entry?.content || "");
   }, [currentDate, entries]);
-
-  // Get dates that have entries for calendar highlighting
-  const datesWithEntries = new Set(
-    entries.map(entry => format(new Date(entry.createdAt), "yyyy-MM-dd"))
-  );
 
   const saveEntry = () => {
     if (!currentEntry.trim()) return;
@@ -135,65 +130,51 @@ const Journal = () => {
     try {
       const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-stream`;
       
-      const systemPrompt = `You are a wise, spiritually grounded journaling mentor who combines creative writing expertise with faith-based encouragement. You help users explore their thoughts, process emotions, and grow spiritually through intentional journaling.
+      const systemPrompt = `You are an expert journaling coach and creative writing mentor, specializing in helping people unlock deeper self-understanding through intentional, creative writing practices. You combine expertise in narrative therapy, creative writing techniques, and psychological frameworks to guide meaningful self-exploration.
 
 CONTEXT & MEMORY:
-Recent journal entries: ${entries.slice(-5).map(e => `[${new Date(e.createdAt).toLocaleDateString()}] ${e.content.substring(0, 200)}`).join("\n---\n")}
+Recent journal entries: ${entries.slice(-5).map(e => `[${new Date(e.createdAt).toLocaleDateString()}] ${e.content.substring(0, 150)}`).join("\n---\n")}
 
 Current entry in progress: "${currentEntry || "Just starting..."}"
 
 Previous conversation:
 ${updatedMessages.slice(-4).map(m => `${m.role}: ${m.content}`).join("\n")}
 
-YOUR EXPERTISE & SPIRITUAL GIFTS:
-1. **Creative Prompts**: Generate powerful journaling prompts that spark spiritual reflection and self-discovery
-   - "Write a prayer letter to God about this situation"
-   - "What would Jesus say to you about this struggle?"
-   - "List 5 things God has brought you through before"
-
-2. **Scripture Integration**: Weave relevant Bible verses into your guidance
-   - Comfort scriptures for hard times
-   - Wisdom scriptures for decisions
-   - Praise scriptures for celebration
+YOUR EXPERTISE:
+1. **Creative Prompts**: Generate powerful, unique journaling prompts that spark deep introspection
+   - Perspective shifts: "Write from your 80-year-old self looking back", "What would someone who loves you say about this situation?"
+   - Sensory exploration: "Describe this feeling as a place you're walking through"
+   - Dialogues: "Have a conversation between your fear and your courage"
    
-3. **Prayerful Support**: Offer heartfelt prayers for their specific situations
-   - Prayers for peace and clarity
-   - Prayers for healing and strength
-   - Prayers of gratitude and praise
+2. **Writing Techniques**: Teach concrete methods to deepen their practice
+   - Stream of consciousness, unsent letters, list-making, metaphor exploration
+   - Morning pages, gratitude spirals, dream analysis, timeline mapping
+   
+3. **Pattern Recognition**: Identify recurring themes, character arcs, emotional patterns across entries
+   - "I notice you often mention feeling 'stuck' when discussing work—let's explore that"
+   
+4. **Psychological Frameworks**: Apply relevant concepts when helpful
+   - Cognitive restructuring, narrative identity, values clarification, parts work
+   
+5. **Writer's Block Solutions**: Offer targeted questions and exercises to overcome blocks
+   - "What's the one thing you're avoiding writing about right now?"
+   - "Write the worst possible version of what you're trying to say, then flip it"
+   
+6. **Actionable Insights**: Help translate reflections into real-world wisdom
+   - "What's one small experiment you could try this week based on this realization?"
 
-4. **Pattern Recognition**: Notice recurring themes across entries and conversations
-   - Identify spiritual growth areas
-   - Point out where God might be working
-   - Recognize answered prayers
+RESPONSE APPROACH:
+- Be inspiring and thought-provoking while remaining grounded and practical
+- Ask provocative questions that encourage vulnerability and authentic expression
+- Reference their previous entries and our conversation to show continuity
+- Suggest specific exercises tailored to what they're working through
+- Celebrate their insights and breakthroughs
+- Be direct and focused—give them clear next steps
+- Match their creative energy while gently pushing them deeper
 
-5. **Practical Wisdom**: Balance spiritual guidance with actionable steps
-   - Daily devotional suggestions
-   - Journaling exercises for growth
-   - Meditation and reflection practices
+TONE: Wise mentor meets enthusiastic writing coach—encouraging, insightful, creative, and focused on transformation through writing.
 
-6. **Encouragement & Hope**: Speak life and truth into their circumstances
-   - Remind them of God's faithfulness
-   - Celebrate victories and growth
-   - Offer perspective in trials
-
-WHEN USER ASKS TO VIEW/READ THEIR JOURNAL:
-- Review their entries thoughtfully
-- Identify spiritual themes and growth
-- Provide personalized encouragement
-- Offer relevant scriptures and prayers
-
-RESPONSE STYLE:
-- Be warm, wise, and Spirit-led
-- Use encouraging, faith-filled language
-- Include Bible verses with references
-- Offer specific prayers when appropriate
-- Balance depth with accessibility
-- Always point toward hope and God's love
-
-EXAMPLE PRAYER:
-"Heavenly Father, I lift up [user] to You. You see their heart and know their struggles. Grant them Your supernatural peace (Philippians 4:7), wisdom from above (James 1:5), and strength for this journey. Help them trust in Your perfect plan. In Jesus' name, Amen."
-
-Help them use journaling as a spiritual discipline for deeper intimacy with God and personal transformation.`;
+Help them use journaling as a tool for profound self-discovery, creative expression, and intentional personal evolution.`;
 
       const resp = await fetch(CHAT_URL, {
         method: "POST",
@@ -359,11 +340,8 @@ Help them use journaling as a spiritual discipline for deeper intimacy with God 
                     size="icon"
                     variant="ghost"
                     onClick={handleVoiceClick}
-                    disabled={isProcessing}
                     className={`${
-                      isListening ? "animate-pulse-glow text-secondary" : 
-                      isProcessing ? "text-secondary" :
-                      "text-muted-foreground hover:text-secondary"
+                      isListening ? "animate-pulse-glow text-secondary" : "text-muted-foreground hover:text-secondary"
                     } absolute top-3 right-3`}
                   >
                     <Mic className="w-5 h-5" />
@@ -374,14 +352,7 @@ Help them use journaling as a spiritual discipline for deeper intimacy with God 
               {isListening && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-secondary/20 rounded-lg animate-pulse-glow mb-4">
                   <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
-                  <span className="text-xs text-secondary font-medium">Listening...</span>
-                </div>
-              )}
-
-              {isProcessing && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/20 rounded-lg mb-4">
-                  <div className="w-2 h-2 bg-secondary rounded-full animate-spin" />
-                  <span className="text-xs text-secondary font-medium">Processing...</span>
+                  <span className="text-xs text-secondary font-medium">Recording... Tap mic to stop</span>
                 </div>
               )}
 
@@ -419,15 +390,6 @@ Help them use journaling as a spiritual discipline for deeper intimacy with God 
                       setViewMode('read');
                     }}
                     disabled={(date) => date > new Date()}
-                    modifiers={{
-                      hasEntry: (date) => datesWithEntries.has(format(date, "yyyy-MM-dd"))
-                    }}
-                    modifiersStyles={{
-                      hasEntry: { 
-                        backgroundColor: "hsl(var(--secondary) / 0.3)",
-                        fontWeight: "bold"
-                      }
-                    }}
                     className="p-3 pointer-events-auto"
                     initialFocus
                   />
@@ -449,7 +411,7 @@ Help them use journaling as a spiritual discipline for deeper intimacy with God 
             <div className="flex-1 space-y-3 mb-4 overflow-y-auto max-h-[400px]">
               {aiMessages.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  I'm here to guide your journaling with prompts, prayers, scriptures, and encouragement. Say "view my journal" for personalized insights...
+                  Ask me for advice, prompts, or reflections on your journal entries...
                 </p>
               ) : (
                 <>
@@ -468,7 +430,7 @@ Help them use journaling as a spiritual discipline for deeper intimacy with God 
                   {streamingContent && (
                     <div className="p-3 rounded-lg text-sm bg-background/50 mr-8 animate-pulse-glow">
                       {streamingContent}
-                      <span className="inline-block w-2 h-4 bg-secondary ml-1 animate-pulse" />
+                      <span className="inline-block w-1 h-4 bg-secondary ml-1 animate-pulse" />
                     </div>
                   )}
                 </>
@@ -477,22 +439,22 @@ Help them use journaling as a spiritual discipline for deeper intimacy with God 
 
             <div className="flex gap-2">
               <Textarea
-                placeholder="Ask for prompts, prayer, scriptures, or say 'view my journal'..."
+                placeholder="Ask for journaling advice..."
                 value={aiInput}
                 onChange={(e) => setAiInput(e.target.value)}
-                className="min-h-[60px] bg-background/50 border-border/50 focus:border-secondary resize-none"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     sendAiMessage();
                   }
                 }}
+                className="min-h-[60px] bg-background/50"
               />
               <Button
-                size="icon"
                 onClick={sendAiMessage}
-                disabled={isAiLoading || !aiInput.trim()}
-                className="glow-purple self-end"
+                disabled={!aiInput.trim() || isAiLoading}
+                size="icon"
+                className="shrink-0 glow-purple"
               >
                 <Send className="w-4 h-4" />
               </Button>

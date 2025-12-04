@@ -13,17 +13,13 @@ export const useSpeechRecognition = ({
   continuous = false,
 }: UseSpeechRecognitionProps) => {
   const [isListening, setIsListening] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const { toast } = useToast();
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<number | null>(null);
-  const lastSpeechTimeRef = useRef<number>(0);
-  const audioBufferRef = useRef<string[]>([]);
+  const lastResultAtRef = useRef<number>(0);
   const retriedRef = useRef(false);
-
-  // Silence threshold in milliseconds (1.4 seconds as requested)
-  const SILENCE_THRESHOLD = 1400;
+  const finalTranscriptsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -32,33 +28,6 @@ export const useSpeechRecognition = ({
       setIsSupported(!!SpeechRecognition);
     }
   }, []);
-
-  const processAndEnhanceText = async (text: string, context?: string) => {
-    if (!text.trim()) return;
-    
-    setIsProcessing(true);
-    
-    try {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { data, error } = await supabase.functions.invoke('enhance-text', {
-        body: { text, context }
-      });
-      
-      if (!error && data?.enhanced) {
-        onResult(data.enhanced);
-        toast({ title: "Speech captured", description: "Your speech has been enhanced and saved." });
-      } else {
-        onResult(text);
-        toast({ title: "Speech captured", description: "Using original text." });
-      }
-    } catch (e) {
-      console.error("Enhancement error:", e);
-      onResult(text);
-      toast({ title: "Speech captured", description: "Using original text." });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   const startListening = useCallback(async (autoEnhance: boolean = false, context?: string) => {
     if (!isSupported) {
@@ -75,12 +44,11 @@ export const useSpeechRecognition = ({
     const recognition = new SpeechRecognition();
 
     recognition.continuous = true;
-    recognition.interimResults = true;
+    recognition.interimResults = false; // Only get final results to avoid duplicates
     recognition.lang = "en-US";
 
-    audioBufferRef.current = [];
+    finalTranscriptsRef.current = new Set();
     retriedRef.current = false;
-    lastSpeechTimeRef.current = Date.now();
 
     if (silenceTimerRef.current) {
       clearInterval(silenceTimerRef.current);
@@ -90,64 +58,72 @@ export const useSpeechRecognition = ({
     recognition.onstart = () => {
       setIsListening(true);
       recognitionRef.current = recognition;
-      lastSpeechTimeRef.current = Date.now();
-      
-      // VAD-style silence detection
+      lastResultAtRef.current = Date.now();
       silenceTimerRef.current = window.setInterval(() => {
-        const timeSinceLastSpeech = Date.now() - lastSpeechTimeRef.current;
-        
-        // If silence exceeds threshold, stop and process
-        if (timeSinceLastSpeech > SILENCE_THRESHOLD && audioBufferRef.current.length > 0) {
+        const idle = Date.now() - lastResultAtRef.current;
+        if (idle > 15000 && recognitionRef.current) {
           try {
-            recognition.stop();
+            recognitionRef.current.stop();
           } catch {}
         }
-      }, 200);
+      }, 1000);
     };
 
     recognition.onresult = (event: any) => {
-      // Update last speech time on any result
-      lastSpeechTimeRef.current = Date.now();
-      
+      lastResultAtRef.current = Date.now();
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const res = event.results[i];
         if (res.isFinal) {
           const transcript = res[0].transcript.trim();
-          if (transcript) {
-            // Add to buffer instead of immediately processing
-            audioBufferRef.current.push(transcript);
+          // Only add if we haven't seen this exact transcript before
+          if (transcript && !finalTranscriptsRef.current.has(transcript)) {
+            finalTranscriptsRef.current.add(transcript);
           }
         }
       }
     };
 
-    recognition.onend = async () => {
+    const processTranscript = async () => {
+      // Join all unique transcripts
+      const text = Array.from(finalTranscriptsRef.current).join(" ").trim();
+      if (!text) return;
+
+      if (autoEnhance) {
+        toast({ title: "Processing...", description: "Enhancing your speech with AI..." });
+        try {
+          const { supabase } = await import("@/integrations/supabase/client");
+          const { data, error } = await supabase.functions.invoke('enhance-text', {
+            body: { text, context }
+          });
+          if (!error && data?.enhanced) {
+            onResult(data.enhanced);
+            toast({ title: "Speech enhanced", description: "Your speech has been corrected and saved." });
+            return;
+          }
+        } catch (e) {
+          console.error("Enhancement error:", e);
+        }
+        onResult(text);
+        toast({ title: "Speech captured", description: "Using original text." });
+      } else {
+        onResult(text);
+        toast({ title: "Speech captured", description: "Your speech has been converted to text." });
+      }
+    };
+
+    recognition.onend = () => {
       setIsListening(false);
-      
       if (silenceTimerRef.current) {
         clearInterval(silenceTimerRef.current);
         silenceTimerRef.current = null;
       }
       recognitionRef.current = null;
-      
-      // Process the full audio buffer
-      const fullText = audioBufferRef.current.join(" ").trim();
-      audioBufferRef.current = [];
-      
-      if (fullText) {
-        if (autoEnhance) {
-          await processAndEnhanceText(fullText, context);
-        } else {
-          onResult(fullText);
-          toast({ title: "Speech captured", description: "Your speech has been converted to text." });
-        }
-      }
+      processTranscript();
     };
 
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
       setIsListening(false);
-      
       if (silenceTimerRef.current) {
         clearInterval(silenceTimerRef.current);
         silenceTimerRef.current = null;
@@ -179,7 +155,7 @@ export const useSpeechRecognition = ({
           description: "Network issue with speech service. Check connection and try again.",
           variant: "destructive",
         });
-      } else if (event.error !== "aborted") {
+      } else {
         toast({
           title: "Recognition error",
           description: "An error occurred during speech recognition.",
@@ -190,7 +166,6 @@ export const useSpeechRecognition = ({
 
     try {
       recognition.start();
-      toast({ title: "Listening...", description: "Speak now. Recording will stop after 1.4s of silence." });
       return recognition;
     } catch (error) {
       console.error("Error starting recognition:", error);
@@ -208,7 +183,6 @@ export const useSpeechRecognition = ({
 
   return {
     isListening,
-    isProcessing,
     isSupported,
     startListening,
     stopListening,
