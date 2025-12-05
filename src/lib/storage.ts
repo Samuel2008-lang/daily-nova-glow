@@ -2,6 +2,7 @@
 
 export interface Note {
   id: string;
+  topic: string;
   content: string;
   category?: string;
   createdAt: string;
@@ -22,6 +23,8 @@ export interface Habit {
   name: string;
   description?: string;
   completedDates: string[];
+  lastMarkedDate?: string;
+  streak: number;
   createdAt: string;
 }
 
@@ -46,6 +49,7 @@ const STORAGE_KEYS = {
   HABITS: 'dailynova_habits',
   JOURNAL: 'dailynova_journal',
   DIARY: 'dailynova_diary',
+  FIRST_LAUNCH: 'dailynova_first_launch',
 };
 
 export const storage = {
@@ -78,4 +82,12 @@ export const storage = {
   // Diary
   getDiaryEntries: (): DiaryEntry[] => storage.get<DiaryEntry>(STORAGE_KEYS.DIARY),
   saveDiaryEntries: (entries: DiaryEntry[]): void => storage.set(STORAGE_KEYS.DIARY, entries),
+
+  // First launch
+  isFirstLaunch: (): boolean => {
+    return localStorage.getItem(STORAGE_KEYS.FIRST_LAUNCH) !== 'false';
+  },
+  setFirstLaunchComplete: (): void => {
+    localStorage.setItem(STORAGE_KEYS.FIRST_LAUNCH, 'false');
+  },
 };

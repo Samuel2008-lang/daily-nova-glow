@@ -30,6 +30,8 @@ const Habits = () => {
       id: Date.now().toString(),
       name: newHabit,
       completedDates: [],
+      lastMarkedDate: undefined,
+      streak: 0,
       createdAt: new Date().toISOString(),
     };
 
@@ -44,17 +46,41 @@ const Habits = () => {
     });
   };
 
+  const getLocalDateString = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+
   const toggleHabitToday = (id: string) => {
-    const today = new Date().toDateString();
+    const today = getLocalDateString();
+    
     const updatedHabits = habits.map((habit) => {
-      if (habit.id === id) {
-        const isCompleted = habit.completedDates.includes(today);
-        const completedDates = isCompleted
-          ? habit.completedDates.filter((date) => date !== today)
-          : [...habit.completedDates, today];
-        return { ...habit, completedDates };
+      if (habit.id !== id) return habit;
+
+      const isCompletedToday = habit.completedDates.includes(today);
+      
+      if (isCompletedToday) {
+        // Unmark - remove today from completed dates
+        const completedDates = habit.completedDates.filter((date) => date !== today);
+        // Recalculate streak
+        const streak = calculateStreak(completedDates);
+        return { 
+          ...habit, 
+          completedDates, 
+          lastMarkedDate: completedDates.length > 0 ? completedDates[completedDates.length - 1] : undefined,
+          streak 
+        };
+      } else {
+        // Mark as done - only increment streak once per day
+        const completedDates = [...habit.completedDates, today].sort();
+        const streak = calculateStreak(completedDates);
+        return { 
+          ...habit, 
+          completedDates, 
+          lastMarkedDate: today,
+          streak 
+        };
       }
-      return habit;
     });
 
     setHabits(updatedHabits);
@@ -66,7 +92,7 @@ const Habits = () => {
     toast({
       title: isNowCompleted ? "Great job!" : "Unmarked",
       description: isNowCompleted
-        ? "Keep building your streak!"
+        ? `Keep building your streak! Current: ${habit?.streak || 0} days`
         : "Habit unmarked for today.",
     });
   };
@@ -82,19 +108,29 @@ const Habits = () => {
     });
   };
 
-  const getStreak = (completedDates: string[]) => {
+  const calculateStreak = (completedDates: string[]): number => {
     if (completedDates.length === 0) return 0;
 
-    const sorted = completedDates
-      .map((date) => new Date(date).getTime())
-      .sort((a, b) => b - a);
+    const sorted = [...completedDates].sort().reverse();
+    const today = getLocalDateString();
+    const yesterday = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    })();
+
+    // Streak must include today or yesterday to be active
+    if (sorted[0] !== today && sorted[0] !== yesterday) {
+      return 0;
+    }
 
     let streak = 1;
-    const oneDayMs = 24 * 60 * 60 * 1000;
-
     for (let i = 0; i < sorted.length - 1; i++) {
-      const diff = sorted[i] - sorted[i + 1];
-      if (diff <= oneDayMs * 1.5) {
+      const current = new Date(sorted[i]);
+      const next = new Date(sorted[i + 1]);
+      const diffDays = Math.floor((current.getTime() - next.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
         streak++;
       } else {
         break;
@@ -104,7 +140,7 @@ const Habits = () => {
     return streak;
   };
 
-  const today = new Date().toDateString();
+  const today = getLocalDateString();
   const completedToday = habits.filter((h) => h.completedDates.includes(today)).length;
   const totalHabits = habits.length;
   const completionPercentage = totalHabits > 0 ? (completedToday / totalHabits) * 100 : 0;
@@ -127,7 +163,7 @@ const Habits = () => {
           </div>
           <p className="text-sm text-muted-foreground text-center">
             {completedToday === totalHabits && totalHabits > 0
-              ? "Perfect! All habits completed today! 🎉"
+              ? "Perfect! All habits completed today!"
               : `Keep going! ${totalHabits - completedToday} habit${
                   totalHabits - completedToday !== 1 ? "s" : ""
                 } left.`}
@@ -180,7 +216,7 @@ const Habits = () => {
           ) : (
             habits.map((habit) => {
               const isCompletedToday = habit.completedDates.includes(today);
-              const streak = getStreak(habit.completedDates);
+              const streak = calculateStreak(habit.completedDates);
 
               return (
                 <Card
