@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Mic, Calendar, ArrowLeft, ArrowRight, BookOpen, X, Edit2, Share2, Download } from "lucide-react";
+import { Plus, Mic, Calendar, ArrowLeft, ArrowRight, BookOpen, X, Edit2, Share2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,19 +11,21 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { format, isFuture, startOfDay, isToday } from "date-fns";
 import { BannerAd } from "@/components/BannerAd";
+import NoteItem from "@/components/NoteItem";
 
 const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
-  const [newNote, setNewNote] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [noteTopic, setNoteTopic] = useState("");
+  const [noteContent, setNoteContent] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening } = useSpeechRecognition({
     onResult: (transcript) => {
-      setNewNote((prev) => (prev ? prev + " " + transcript : transcript));
+      setNoteContent((prev) => (prev ? prev + " " + transcript : transcript));
     },
   });
 
@@ -36,23 +38,32 @@ const Notes = () => {
     const noteDate = format(new Date(note.createdAt), "yyyy-MM-dd");
     return noteDate === dateKey;
   });
-  const currentNote = notesForDate[0]?.content || "";
 
-  const addOrUpdateNote = () => {
-    if (!newNote.trim()) return;
+  // Get dates that have notes for calendar highlighting
+  const datesWithNotes = new Set(
+    notes.map(note => format(new Date(note.createdAt), "yyyy-MM-dd"))
+  );
 
-    const existingNote = notesForDate[0];
+  const saveNote = () => {
+    if (!noteContent.trim()) return;
+
+    const topic = noteTopic.trim() || `Note - ${format(selectedDate, "MMM d, yyyy")}`;
     
-    if (existingNote) {
+    if (selectedNote) {
+      // Update existing note
       const updatedNotes = notes.map((note) =>
-        note.id === existingNote.id ? { ...note, content: newNote, updatedAt: new Date().toISOString() } : note
+        note.id === selectedNote.id 
+          ? { ...note, topic, content: noteContent, updatedAt: new Date().toISOString() } 
+          : note
       );
       setNotes(updatedNotes);
       storage.saveNotes(updatedNotes);
     } else {
+      // Create new note
       const note: Note = {
         id: Date.now().toString(),
-        content: newNote,
+        topic,
+        content: noteContent,
         createdAt: startOfDay(selectedDate).toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -63,10 +74,12 @@ const Notes = () => {
 
     toast({
       title: "Note saved",
-      description: `Note for ${format(selectedDate, "MMMM d, yyyy")} has been saved.`,
+      description: `"${topic}" has been saved.`,
     });
     setViewMode('closed');
-    setNewNote("");
+    setNoteTopic("");
+    setNoteContent("");
+    setSelectedNote(null);
   };
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -81,15 +94,6 @@ const Notes = () => {
     }
     setSelectedDate(date);
     setCalendarOpen(false);
-    const noteDate = format(date, "yyyy-MM-dd");
-    const noteForDate = notes.find(n => format(new Date(n.createdAt), "yyyy-MM-dd") === noteDate);
-    if (noteForDate) {
-      setNewNote(noteForDate.content);
-      setViewMode('read');
-    } else {
-      setNewNote("");
-      setViewMode('write');
-    }
   };
 
   const navigateDay = (direction: 'prev' | 'next') => {
@@ -105,44 +109,57 @@ const Notes = () => {
       return;
     }
     
-    handleDateSelect(newDate);
+    setSelectedDate(newDate);
   };
 
   const openToday = () => {
     const today = new Date();
     setSelectedDate(today);
-    const noteDate = format(today, "yyyy-MM-dd");
-    const noteForDate = notes.find(n => format(new Date(n.createdAt), "yyyy-MM-dd") === noteDate);
-    if (noteForDate) {
-      setNewNote(noteForDate.content);
-    } else {
-      setNewNote("");
-    }
+    setNoteTopic("");
+    setNoteContent("");
+    setSelectedNote(null);
     setViewMode('write');
   };
 
+  const viewNote = (note: Note) => {
+    setSelectedNote(note);
+    setNoteTopic(note.topic);
+    setNoteContent(note.content);
+    setViewMode('read');
+  };
+
+  const editNote = () => {
+    setViewMode('write');
+  };
+
+  const deleteNote = (noteId: string) => {
+    const updatedNotes = notes.filter(n => n.id !== noteId);
+    setNotes(updatedNotes);
+    storage.saveNotes(updatedNotes);
+    toast({ title: "Note deleted", description: "Your note has been removed." });
+    if (selectedNote?.id === noteId) {
+      setViewMode('closed');
+      setSelectedNote(null);
+    }
+  };
+
   const shareNote = async () => {
-    const shareText = `Note - ${format(selectedDate, "MMMM d, yyyy")}\n\n${newNote}`;
+    const shareText = `${noteTopic}\n\n${noteContent}\n\n— Note from DailyNova`;
     
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Note - ${format(selectedDate, "MMMM d, yyyy")}`,
+          title: noteTopic,
           text: shareText,
         });
+        return;
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          copyToClipboard(shareText);
-        }
+        if ((err as Error).name === 'AbortError') return;
       }
-    } else {
-      copyToClipboard(shareText);
     }
-  };
-
-  const copyToClipboard = async (text: string) => {
+    
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(shareText);
       toast({ title: "Copied!", description: "Note copied to clipboard." });
     } catch {
       toast({ title: "Error", description: "Could not copy to clipboard.", variant: "destructive" });
@@ -150,12 +167,12 @@ const Notes = () => {
   };
 
   const saveToFile = () => {
-    const content = `Note - ${format(selectedDate, "MMMM d, yyyy")}\n\n${newNote}`;
+    const content = `${noteTopic}\n\nDate: ${format(selectedDate, "MMMM d, yyyy")}\n\n${noteContent}`;
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `note-${format(selectedDate, "yyyy-MM-dd")}.txt`;
+    a.download = `${noteTopic.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${format(selectedDate, "yyyy-MM-dd")}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -164,26 +181,26 @@ const Notes = () => {
   };
 
   // Read mode view
-  if (viewMode === 'read') {
+  if (viewMode === 'read' && selectedNote) {
     return (
       <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
         <div className="max-w-4xl mx-auto animate-fade-in">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-primary">
-              Note - {format(selectedDate, "MMMM d, yyyy")}
+            <h1 className="text-2xl font-bold text-primary truncate flex-1 mr-4">
+              {noteTopic}
             </h1>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <Button variant="outline" size="icon" onClick={shareNote}>
                 <Share2 className="w-4 h-4" />
               </Button>
               <Button variant="outline" size="icon" onClick={saveToFile}>
                 <Download className="w-4 h-4" />
               </Button>
-              <Button variant="outline" onClick={() => setViewMode('write')}>
+              <Button variant="outline" onClick={editNote}>
                 <Edit2 className="w-4 h-4 mr-2" />
                 Edit
               </Button>
-              <Button variant="ghost" onClick={() => setViewMode('closed')}>
+              <Button variant="ghost" onClick={() => { setViewMode('closed'); setSelectedNote(null); }}>
                 <X className="w-4 h-4 mr-2" />
                 Close
               </Button>
@@ -191,9 +208,12 @@ const Notes = () => {
           </div>
 
           <Card className="glass glow p-8 min-h-[400px]">
+            <p className="text-xs text-muted-foreground mb-4">
+              {format(new Date(selectedNote.createdAt), "MMMM d, yyyy")}
+            </p>
             <div className="prose prose-invert max-w-none">
               <p className="text-foreground whitespace-pre-wrap text-lg leading-relaxed">
-                {newNote || "No note for this date."}
+                {noteContent || "No content."}
               </p>
             </div>
           </Card>
@@ -228,11 +248,18 @@ const Notes = () => {
           </div>
 
           <Card className="glass glow p-6">
+            <Input
+              placeholder="Note topic (e.g., Meeting Notes, Ideas, etc.)"
+              value={noteTopic}
+              onChange={(e) => setNoteTopic(e.target.value)}
+              className="mb-4 bg-background/50 border-border/50 focus:border-primary text-lg font-semibold"
+            />
+            
             <div className="relative">
               <Textarea
                 placeholder="Write your note here..."
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
+                value={noteContent}
+                onChange={(e) => setNoteContent(e.target.value)}
                 className="mb-4 min-h-[300px] bg-background/50 border-border/50 focus:border-primary pr-14 text-lg"
               />
               {isSupported && (
@@ -249,11 +276,19 @@ const Notes = () => {
                 </Button>
               )}
             </div>
+
+            {isListening && (
+              <div className="flex items-center gap-2 mb-4 px-4 py-2 bg-primary/20 rounded-lg animate-pulse-glow">
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                <span className="text-sm text-primary font-medium">Listening... Tap mic to stop</span>
+              </div>
+            )}
+
             <div className="flex gap-2">
-              <Button onClick={addOrUpdateNote} className="flex-1 glow">
-                Save & Close
+              <Button onClick={saveNote} className="flex-1 glow" disabled={!noteContent.trim()}>
+                Save Note
               </Button>
-              <Button variant="outline" onClick={() => setViewMode('closed')}>
+              <Button variant="outline" onClick={() => { setViewMode('closed'); setSelectedNote(null); setNoteTopic(""); setNoteContent(""); }}>
                 Cancel
               </Button>
             </div>
@@ -264,14 +299,14 @@ const Notes = () => {
     );
   }
 
-  // Closed mode - show date access only
+  // Closed mode - show date access and notes list
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
       <div className="max-w-4xl mx-auto animate-fade-in">
         <h1 className="text-4xl font-bold mb-8 text-primary">Notes</h1>
 
         {/* Quick Access */}
-        <Card className="glass glow p-6">
+        <Card className="glass glow p-6 mb-6">
           <CardHeader className="p-0 mb-4">
             <CardTitle className="text-lg flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-primary" />
@@ -281,7 +316,7 @@ const Notes = () => {
           <CardContent className="p-0 flex flex-wrap gap-3">
             <Button onClick={openToday} className="glow">
               <Plus className="w-4 h-4 mr-2" />
-              Open Today
+              New Note
             </Button>
             <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
               <PopoverTrigger asChild>
@@ -296,12 +331,45 @@ const Notes = () => {
                   selected={selectedDate}
                   onSelect={handleDateSelect}
                   disabled={(date) => isFuture(startOfDay(date)) && !isToday(date)}
+                  modifiers={{
+                    hasNote: (date) => datesWithNotes.has(format(date, "yyyy-MM-dd"))
+                  }}
+                  modifiersStyles={{
+                    hasNote: { 
+                      backgroundColor: 'hsl(var(--primary) / 0.2)',
+                      borderRadius: '50%'
+                    }
+                  }}
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
           </CardContent>
         </Card>
+
+        {/* Notes List */}
+        {notes.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-muted-foreground mb-4">
+              Your Notes ({notes.length})
+            </h2>
+            {notes.map((note) => (
+              <NoteItem
+                key={note.id}
+                note={note}
+                onView={() => viewNote(note)}
+                onDelete={() => deleteNote(note.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        {notes.length === 0 && (
+          <Card className="glass p-8 text-center">
+            <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No notes yet. Create your first note!</p>
+          </Card>
+        )}
       </div>
       <BannerAd position="bottom" />
     </div>
