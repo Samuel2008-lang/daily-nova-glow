@@ -23,22 +23,18 @@ const fallbackQuotes: Quote[] = [
   { text: "Your time is limited, don't waste it living someone else's life.", author: "Steve Jobs" },
 ];
 
-const QUOTES_STORAGE_KEY = "daily-quotes";
 const QUOTES_DATE_KEY = "daily-quotes-date";
 const QUOTE_INDEX_KEY = "daily-quote-index";
-const QUOTES_PAGE_KEY = "daily-quotes-page";
 const ALL_QUOTES_KEY = "daily-quotes-all";
+const FETCH_COUNT_KEY = "daily-quotes-fetch-count";
 
 const Quotes = () => {
   const [allQuotes, setAllQuotes] = useState<Quote[]>(fallbackQuotes);
-  const [currentPage, setCurrentPage] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isLoading, setIsLoading] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
   const { toast } = useToast();
-
-  const PAGE_SIZE = 10;
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -66,10 +62,7 @@ const Quotes = () => {
   const loadQuotes = () => {
     try {
       const savedAllQuotes = localStorage.getItem(ALL_QUOTES_KEY);
-      const savedDate = localStorage.getItem(QUOTES_DATE_KEY);
       const savedIndex = localStorage.getItem(QUOTE_INDEX_KEY);
-      const savedPage = localStorage.getItem(QUOTES_PAGE_KEY);
-      const today = new Date().toDateString();
       
       if (savedAllQuotes) {
         const parsed = JSON.parse(savedAllQuotes);
@@ -78,16 +71,8 @@ const Quotes = () => {
         }
       }
       
-      // Check if it's a new day - reset to show first quote of first page
-      if (savedDate !== today) {
-        setCurrentIndex(0);
-        setCurrentPage(0);
-        setShowNavigation(false);
-        localStorage.setItem(QUOTE_INDEX_KEY, "0");
-        localStorage.setItem(QUOTES_PAGE_KEY, "0");
-      } else {
-        if (savedIndex) setCurrentIndex(parseInt(savedIndex, 10));
-        if (savedPage) setCurrentPage(parseInt(savedPage, 10));
+      if (savedIndex) {
+        setCurrentIndex(parseInt(savedIndex, 10));
       }
     } catch (error) {
       console.error("Error loading quotes:", error);
@@ -98,8 +83,13 @@ const Quotes = () => {
     const today = new Date().toDateString();
     const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
     
+    // Fetch new quotes if it's a new day
     if (lastFetchDate !== today) {
       await fetchNewQuotes();
+      localStorage.setItem(QUOTES_DATE_KEY, today);
+      // Reset index for new day
+      setCurrentIndex(0);
+      localStorage.setItem(QUOTE_INDEX_KEY, "0");
     }
   };
 
@@ -110,12 +100,14 @@ const Quotes = () => {
         description: "Connect to the internet to get new quotes.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     setIsLoading(true);
     try {
-      const response = await fetch("https://zenquotes.io/api/quotes");
+      // Use random parameter to get different quotes each time
+      const randomSeed = Date.now();
+      const response = await fetch(`https://zenquotes.io/api/quotes?random=${randomSeed}`);
       
       if (!response.ok) throw new Error("Failed to fetch quotes");
       
@@ -127,21 +119,22 @@ const Quotes = () => {
           author: q.a || q.author || "Unknown",
         }));
         
-        // Store all fetched quotes (up to 50)
         setAllQuotes(newQuotes);
-        setCurrentIndex(0);
-        setCurrentPage(0);
-        setShowNavigation(false);
-        
         localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(newQuotes));
-        localStorage.setItem(QUOTES_DATE_KEY, new Date().toDateString());
-        localStorage.setItem(QUOTE_INDEX_KEY, "0");
-        localStorage.setItem(QUOTES_PAGE_KEY, "0");
+        
+        toast({
+          title: "New quotes loaded!",
+          description: `${newQuotes.length} fresh quotes ready for you.`,
+        });
+        
+        return true;
       }
     } catch (error) {
       console.error("Error fetching quotes:", error);
+      
+      // Try alternative API
       try {
-        const altResponse = await fetch("https://api.quotable.io/quotes/random?limit=50");
+        const altResponse = await fetch(`https://api.quotable.io/quotes/random?limit=10&seed=${Date.now()}`);
         if (altResponse.ok) {
           const altData = await altResponse.json();
           if (Array.isArray(altData) && altData.length > 0) {
@@ -150,65 +143,58 @@ const Quotes = () => {
               author: q.author,
             }));
             setAllQuotes(newQuotes);
-            setCurrentIndex(0);
-            setCurrentPage(0);
-            setShowNavigation(false);
-            
             localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(newQuotes));
-            localStorage.setItem(QUOTES_DATE_KEY, new Date().toDateString());
-            localStorage.setItem(QUOTE_INDEX_KEY, "0");
-            localStorage.setItem(QUOTES_PAGE_KEY, "0");
-            return;
+            
+            toast({
+              title: "New quotes loaded!",
+              description: `${newQuotes.length} fresh quotes ready.`,
+            });
+            return true;
           }
         }
       } catch {
-        // Silent fail for alternative
+        console.error("Alternative API also failed");
       }
+      
+      toast({
+        title: "Couldn't fetch new quotes",
+        description: "Using cached quotes instead.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
+    return false;
   };
 
   const seeMoreQuotes = () => {
     setShowNavigation(true);
   };
 
-  const getCurrentPageQuotes = () => {
-    const startIdx = currentPage * PAGE_SIZE;
-    return allQuotes.slice(startIdx, startIdx + PAGE_SIZE);
-  };
-
   const nextQuote = async () => {
-    const pageQuotes = getCurrentPageQuotes();
     const nextIdx = currentIndex + 1;
     
-    if (nextIdx >= pageQuotes.length) {
-      // Move to next page if available
-      const nextPage = currentPage + 1;
-      if (nextPage * PAGE_SIZE < allQuotes.length) {
-        setCurrentPage(nextPage);
-        setCurrentIndex(0);
-        localStorage.setItem(QUOTES_PAGE_KEY, nextPage.toString());
-        localStorage.setItem(QUOTE_INDEX_KEY, "0");
-      } else {
-        // Fetch new quotes when all are exhausted
-        if (isOnline) {
-          toast({
-            title: "Loading new quotes...",
-            description: "Fetching fresh quotes for you.",
-          });
-          await fetchNewQuotes();
-        } else {
-          // Loop back to first page when offline
-          setCurrentPage(0);
+    if (nextIdx >= allQuotes.length) {
+      // All quotes exhausted - fetch new ones
+      if (isOnline) {
+        toast({
+          title: "Loading new quotes...",
+          description: "Fetching a fresh set of quotes for you.",
+        });
+        
+        const success = await fetchNewQuotes();
+        if (success) {
           setCurrentIndex(0);
-          localStorage.setItem(QUOTES_PAGE_KEY, "0");
           localStorage.setItem(QUOTE_INDEX_KEY, "0");
-          toast({
-            title: "All quotes viewed",
-            description: "Connect to internet for new quotes.",
-          });
         }
+      } else {
+        // Offline - loop back to start
+        setCurrentIndex(0);
+        localStorage.setItem(QUOTE_INDEX_KEY, "0");
+        toast({
+          title: "Starting from beginning",
+          description: "Connect to internet for new quotes.",
+        });
       }
     } else {
       setCurrentIndex(nextIdx);
@@ -221,21 +207,11 @@ const Quotes = () => {
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
       localStorage.setItem(QUOTE_INDEX_KEY, newIndex.toString());
-    } else if (currentPage > 0) {
-      // Go to previous page
-      const prevPage = currentPage - 1;
-      setCurrentPage(prevPage);
-      const prevPageQuotes = allQuotes.slice(prevPage * PAGE_SIZE, (prevPage + 1) * PAGE_SIZE);
-      const lastIdx = prevPageQuotes.length - 1;
-      setCurrentIndex(lastIdx);
-      localStorage.setItem(QUOTES_PAGE_KEY, prevPage.toString());
-      localStorage.setItem(QUOTE_INDEX_KEY, lastIdx.toString());
     }
   };
 
   const shareQuote = async () => {
-    const pageQuotes = getCurrentPageQuotes();
-    const currentQuote = pageQuotes[currentIndex] || allQuotes[0];
+    const currentQuote = allQuotes[currentIndex] || allQuotes[0];
     const shareText = `"${currentQuote.text}" — ${currentQuote.author}\n\nShared from DailyNova`;
     
     if (navigator.share) {
@@ -258,10 +234,7 @@ const Quotes = () => {
     }
   };
 
-  const pageQuotes = getCurrentPageQuotes();
-  const currentQuote = pageQuotes[currentIndex] || allQuotes[0];
-  const totalQuotes = allQuotes.length;
-  const globalIndex = currentPage * PAGE_SIZE + currentIndex + 1;
+  const currentQuote = allQuotes[currentIndex] || allQuotes[0];
 
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
@@ -284,10 +257,19 @@ const Quotes = () => {
         </div>
 
         <Card className="glass glow-pink p-12 text-center mb-8 min-h-[300px] flex flex-col justify-center">
-          <p className="text-2xl md:text-3xl italic text-foreground mb-6 leading-relaxed">
-            "{currentQuote.text}"
-          </p>
-          <p className="text-lg text-accent font-medium">— {currentQuote.author}</p>
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2">
+              <RefreshCw className="w-6 h-6 animate-spin text-accent" />
+              <span className="text-muted-foreground">Loading new quotes...</span>
+            </div>
+          ) : (
+            <>
+              <p className="text-2xl md:text-3xl italic text-foreground mb-6 leading-relaxed">
+                "{currentQuote.text}"
+              </p>
+              <p className="text-lg text-accent font-medium">— {currentQuote.author}</p>
+            </>
+          )}
         </Card>
 
         <div className="flex justify-center gap-4 flex-wrap">
@@ -295,6 +277,7 @@ const Quotes = () => {
             onClick={shareQuote}
             size="lg"
             variant="outline"
+            disabled={isLoading}
           >
             <Share2 className="w-5 h-5 mr-2" />
             Share Quote
@@ -305,6 +288,7 @@ const Quotes = () => {
               onClick={seeMoreQuotes}
               size="lg"
               className="glow-pink"
+              disabled={isLoading}
             >
               <Sparkles className="w-5 h-5 mr-2" />
               See More Quotes
@@ -315,7 +299,7 @@ const Quotes = () => {
                 onClick={prevQuote}
                 size="lg"
                 variant="outline"
-                disabled={currentPage === 0 && currentIndex === 0}
+                disabled={currentIndex === 0 || isLoading}
               >
                 <ChevronLeft className="w-5 h-5 mr-1" />
                 Previous
@@ -324,8 +308,9 @@ const Quotes = () => {
                 onClick={nextQuote}
                 size="lg"
                 className="glow-pink group"
+                disabled={isLoading}
               >
-                Next
+                {currentIndex >= allQuotes.length - 1 ? "Load New" : "Next"}
                 <ChevronRight className="w-5 h-5 ml-1" />
               </Button>
             </>
@@ -335,13 +320,8 @@ const Quotes = () => {
         {showNavigation && (
           <div className="text-center mt-8">
             <p className="text-sm text-muted-foreground">
-              Quote {globalIndex} of {totalQuotes}
+              Quote {currentIndex + 1} of {allQuotes.length}
             </p>
-            {totalQuotes > PAGE_SIZE && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Page {currentPage + 1} of {Math.ceil(totalQuotes / PAGE_SIZE)}
-              </p>
-            )}
           </div>
         )}
       </div>

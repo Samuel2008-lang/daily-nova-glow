@@ -25,18 +25,27 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are a text enhancement assistant. Your job is to:
-1. Fix spelling and grammar errors
-2. Understand the user's intention even with unclear or fragmented input
-3. Make the text clear and natural while preserving the original meaning
-4. Keep the same tone and style (casual, formal, etc.)
-5. DO NOT add extra information or change the meaning
-6. If it's a task/reminder, extract the core action
-7. Keep it concise
+    // Updated system prompt to preserve user's original words and intent
+    const systemPrompt = `You are a speech-to-text transcription enhancer. Your ONLY job is to:
 
-Context: ${context || 'general text'}
+1. PRESERVE the user's exact words and meaning - DO NOT change what they said
+2. Fix only obvious spelling mistakes from speech recognition
+3. Add proper punctuation (periods, commas, question marks)
+4. Fix capitalization at the start of sentences
+5. Remove word repetitions caused by speech recognition errors (e.g., "how are you how are you" → "How are you?")
 
-Return ONLY the corrected/enhanced text, nothing else.`;
+CRITICAL RULES:
+- NEVER change the user's vocabulary or word choice
+- NEVER add words they didn't say
+- NEVER remove content words (only remove duplicates from speech errors)
+- NEVER change the meaning or rephrase
+- NEVER add your own interpretation
+- Keep their natural speaking style and expression
+- Study their intention and expression, then only fix grammar
+
+Context: ${context || 'general'}
+
+Return ONLY the cleaned transcription, nothing else. No explanations.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -71,6 +80,8 @@ Return ONLY the corrected/enhanced text, nothing else.`;
 
     const data = await response.json();
     const enhanced = data.choices?.[0]?.message?.content || text;
+
+    console.log("Enhanced text:", { original: text, enhanced: enhanced.trim() });
 
     return new Response(
       JSON.stringify({ enhanced: enhanced.trim() }),

@@ -98,6 +98,23 @@ const Diary = () => {
     }
   };
 
+  // Format the AI chat conversation for diary entry
+  const formatChatForDiary = (messages: {role: string, content: string}[]) => {
+    const now = new Date();
+    let formatted = `📅 AI Conversation - ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}\n\n`;
+    
+    messages.forEach((msg, idx) => {
+      if (msg.role === "user") {
+        formatted += `💭 Me:\n${msg.content}\n\n`;
+      } else {
+        formatted += `🌟 AI Assistant:\n${msg.content}\n\n`;
+      }
+    });
+    
+    formatted += `---\n✨ End of conversation`;
+    return formatted;
+  };
+
   const sendAiMessage = async () => {
     if (!aiInput.trim()) return;
 
@@ -108,12 +125,54 @@ const Diary = () => {
     setIsAiLoading(true);
     setStreamingContent("");
 
-    // Command: Add/Upload text to today's diary entry
+    // Command: Transfer/Upload chat to diary
     try {
       const lower = aiInput.toLowerCase();
-      const isAddCmd = /(add|upload|save)/.test(lower) && /(diary|entry|today|this)/.test(lower);
-      if (isAddCmd || aiInput.length > 400) {
-        // Try to extract quoted content first
+      
+      // Check for "transfer chat" or "upload chat" or "save chat" commands
+      const isTransferChatCmd = /(transfer|upload|save|add)\s*(our|this|the)?\s*(chat|conversation|dialogue)/i.test(lower) && 
+                                 /(diary|today|entry)/i.test(lower);
+      
+      if (isTransferChatCmd && updatedMessages.length > 1) {
+        // Format the entire conversation beautifully
+        const formattedChat = formatChatForDiary(updatedMessages.slice(0, -1)); // Exclude the transfer command itself
+        
+        const dateStr = currentDate.toDateString();
+        const existingEntry = entries.find((e) => new Date(e.date).toDateString() === dateStr);
+        let updatedEntries: DiaryEntry[];
+
+        if (existingEntry) {
+          updatedEntries = entries.map((e) =>
+            e.id === existingEntry.id
+              ? { ...e, content: (e.content ? e.content + "\n\n" : "") + formattedChat, updatedAt: new Date().toISOString() }
+              : e
+          );
+        } else {
+          const newEntry: DiaryEntry = {
+            id: Date.now().toString(),
+            date: currentDate.toISOString(),
+            content: formattedChat,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          updatedEntries = [...entries, newEntry];
+        }
+
+        setEntries(updatedEntries);
+        storage.saveDiaryEntries(updatedEntries);
+        setCurrentEntry(updatedEntries.find(e => new Date(e.date).toDateString() === dateStr)?.content || "");
+
+        setAiMessages([...updatedMessages, { 
+          role: "assistant", 
+          content: `✓ I've transferred our conversation to your diary for ${dateStr}. The chat has been beautifully formatted with timestamps and clear speaker labels. You can view it in your diary entry now! 📔` 
+        }]);
+        setIsAiLoading(false);
+        return;
+      }
+      
+      // Command: Add/Upload specific text to diary
+      const isAddCmd = /(add|upload|save)/.test(lower) && /(diary|entry|today|this)/.test(lower) && !isTransferChatCmd;
+      if (isAddCmd) {
         const quoted = aiInput.match(/"([\s\S]*?)"/g);
         let contentToAdd = quoted
           ? quoted.map(q => q.replace(/^"|"$/g, "")).join("\n\n").trim()
