@@ -178,7 +178,7 @@ const Quotes = () => {
     return allQuotes.slice(startIdx, startIdx + PAGE_SIZE);
   };
 
-  const nextQuote = () => {
+  const nextQuote = async () => {
     const pageQuotes = getCurrentPageQuotes();
     const nextIdx = currentIndex + 1;
     
@@ -191,15 +191,24 @@ const Quotes = () => {
         localStorage.setItem(QUOTES_PAGE_KEY, nextPage.toString());
         localStorage.setItem(QUOTE_INDEX_KEY, "0");
       } else {
-        // Loop back to first page
-        setCurrentPage(0);
-        setCurrentIndex(0);
-        localStorage.setItem(QUOTES_PAGE_KEY, "0");
-        localStorage.setItem(QUOTE_INDEX_KEY, "0");
-        toast({
-          title: "All quotes viewed",
-          description: "Starting from the beginning.",
-        });
+        // Fetch new quotes when all are exhausted
+        if (isOnline) {
+          toast({
+            title: "Loading new quotes...",
+            description: "Fetching fresh quotes for you.",
+          });
+          await fetchNewQuotes();
+        } else {
+          // Loop back to first page when offline
+          setCurrentPage(0);
+          setCurrentIndex(0);
+          localStorage.setItem(QUOTES_PAGE_KEY, "0");
+          localStorage.setItem(QUOTE_INDEX_KEY, "0");
+          toast({
+            title: "All quotes viewed",
+            description: "Connect to internet for new quotes.",
+          });
+        }
       }
     } else {
       setCurrentIndex(nextIdx);

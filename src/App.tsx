@@ -12,6 +12,7 @@ import Diary from "./pages/Diary";
 import Journal from "./pages/Journal";
 import Quotes from "./pages/Quotes";
 import Premium from "./pages/Premium";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
 import SplashScreen from "./components/SplashScreen";
@@ -70,6 +71,7 @@ const App = () => {
             <Route path="/journal" element={<Journal />} />
             <Route path="/quotes" element={<Quotes />} />
             <Route path="/premium" element={<Premium />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

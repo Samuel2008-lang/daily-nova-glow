@@ -446,6 +446,12 @@ Help them transform daily reflections into meaningful self-understanding, emotio
                       setViewMode('read');
                     }}
                     disabled={(date) => date > new Date()}
+                    modifiers={{
+                      hasEntry: entries.map(e => new Date(e.date))
+                    }}
+                    modifiersClassNames={{
+                      hasEntry: "bg-success/30 text-success font-bold"
+                    }}
                     className="p-3 pointer-events-auto"
                     initialFocus
                   />

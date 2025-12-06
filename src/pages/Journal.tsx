@@ -390,6 +390,12 @@ Help them use journaling as a tool for profound self-discovery, creative express
                       setViewMode('read');
                     }}
                     disabled={(date) => date > new Date()}
+                    modifiers={{
+                      hasEntry: entries.map(e => new Date(e.createdAt))
+                    }}
+                    modifiersClassNames={{
+                      hasEntry: "bg-secondary/30 text-secondary font-bold"
+                    }}
                     className="p-3 pointer-events-auto"
                     initialFocus
                   />
