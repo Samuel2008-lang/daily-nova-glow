@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
+import { useAdMob } from "@/hooks/use-admob";
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -7,6 +8,14 @@ interface SplashScreenProps {
 
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const [phase, setPhase] = useState<'logo' | 'text' | 'fade'>('logo');
+  const { showAppOpenAd, isNative } = useAdMob();
+
+  useEffect(() => {
+    // Show app open ad in native environment
+    if (isNative) {
+      showAppOpenAd();
+    }
+  }, [isNative, showAppOpenAd]);
 
   useEffect(() => {
     const timer1 = setTimeout(() => setPhase('text'), 800);
