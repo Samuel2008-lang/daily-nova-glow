@@ -132,19 +132,19 @@ export const useSpeechRecognition = ({
       lastSpeechTimeRef.current = Date.now();
       
       let finalTranscript = "";
-      let interimTranscript = "";
       
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalTranscript += transcript + " ";
-        } else {
-          interimTranscript = transcript;
+          const transcript = event.results[i][0].transcript.trim();
+          // Deduplicate: skip if this exact phrase was already added
+          if (transcript && !audioBufferRef.current.trim().endsWith(transcript)) {
+            finalTranscript += transcript + " ";
+          }
         }
       }
       
-      // Only add final transcripts to the buffer
-      if (finalTranscript) {
+      // Only add unique final transcripts to the buffer
+      if (finalTranscript.trim()) {
         audioBufferRef.current += finalTranscript;
       }
     };
