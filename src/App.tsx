@@ -15,6 +15,7 @@ import Premium from "./pages/Premium";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
+import { InterstitialAdManager } from "./components/InterstitialAdManager";
 import SplashScreen from "./components/SplashScreen";
 import WelcomeScreen from "./components/WelcomeScreen";
 import { storage } from "./lib/storage";
@@ -62,7 +63,8 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Navigation />
-          <Routes>
+           <InterstitialAdManager />
+           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/tasks" element={<Tasks />} />

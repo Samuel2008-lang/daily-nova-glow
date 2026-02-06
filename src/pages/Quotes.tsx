@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { BannerAd } from "@/components/BannerAd";
+import { RewardedAdButton } from "@/components/RewardedAdButton";
 
 interface Quote {
   text: string;
@@ -214,23 +215,42 @@ const Quotes = () => {
     const currentQuote = allQuotes[currentIndex] || allQuotes[0];
     const shareText = `"${currentQuote.text}" — ${currentQuote.author}\n\nShared from DailyNova`;
     
-    if (navigator.share) {
-      try {
+    // Always try native share first
+    try {
+      if (navigator.share) {
         await navigator.share({
-          title: "Quote of the Day",
+          title: "Quote of the Day — DailyNova",
           text: shareText,
         });
         return;
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return;
       }
+    } catch (err) {
+      // AbortError means user cancelled - that's fine
+      if ((err as Error).name === 'AbortError') return;
+      // Other errors: fall through to fallback
     }
+    
+    // Fallback: open a share URL or copy
+    const encodedText = encodeURIComponent(shareText);
+    
+    // Try opening a share intent URL (works on mobile browsers)
+    const shareUrl = `https://wa.me/?text=${encodedText}`;
     
     try {
       await navigator.clipboard.writeText(shareText);
-      toast({ title: "Copied!", description: "Quote copied to clipboard." });
+      toast({ 
+        title: "Copied to clipboard!", 
+        description: "Quote copied. You can paste it anywhere to share." 
+      });
     } catch {
-      toast({ title: "Error", description: "Could not share quote.", variant: "destructive" });
+      // Last resort: create a temporary textarea for copying
+      const textarea = document.createElement('textarea');
+      textarea.value = shareText;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      toast({ title: "Copied!", description: "Quote copied to clipboard." });
     }
   };
 
@@ -315,6 +335,16 @@ const Quotes = () => {
               </Button>
             </>
           )}
+        </div>
+
+        {/* Rewarded Ad - Watch ad for bonus quotes */}
+        <div className="flex justify-center mt-4">
+          <RewardedAdButton 
+            onReward={() => {
+              fetchNewQuotes();
+            }}
+            label="Watch Ad for Bonus Quotes"
+          />
         </div>
 
         {showNavigation && (
