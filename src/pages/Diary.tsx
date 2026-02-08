@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Mic, Send, Sparkles } from "lucide-react";
+import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -256,6 +257,9 @@ RESPONSE STYLE:
 - Celebrate small wins and acknowledge progress
 - Be direct and honest while remaining compassionate
 - Keep responses focused and actionable (2-4 paragraphs typically)
+- Use clean formatting: short paragraphs, numbered lists when listing steps, bullet points sparingly
+- NEVER use raw asterisks for emphasis. Use natural language emphasis instead
+- Write in a flowing, natural conversational style without heavy formatting
 
 WHEN TO:
 - **Validate**: They share difficult emotions, setbacks, or vulnerabilities
@@ -263,6 +267,9 @@ WHEN TO:
 - **Explore**: They mention significant events, decisions, or relationships
 - **Guide**: They're seeking direction or feeling lost
 - **Celebrate**: They share achievements, insights, or breakthroughs
+
+FEEDBACK AWARENESS:
+Users can give thumbs up/down on your responses. Pay attention to the conversation flow to understand what works. Be more concise if responses feel too long. Be more detailed if they ask follow-up questions.
 
 Help them transform daily reflections into meaningful self-understanding, emotional resilience, and intentional growth.`;
 
@@ -545,22 +552,20 @@ Help them transform daily reflections into meaningful self-understanding, emotio
               ) : (
                 <>
                   {aiMessages.map((msg, idx) => (
-                    <div
+                    <AiMessageBubble
                       key={idx}
-                      className={`p-3 rounded-lg text-sm select-text ${
-                        msg.role === "user"
-                          ? "bg-success/20 ml-8"
-                          : "bg-background/50 mr-8"
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
+                      content={msg.content}
+                      role={msg.role}
+                      accentColor="success"
+                    />
                   ))}
                   {streamingContent && (
-                    <div className="p-3 rounded-lg text-sm bg-background/50 mr-8 animate-pulse-glow">
-                      {streamingContent}
-                      <span className="inline-block w-1 h-4 bg-success ml-1 animate-pulse" />
-                    </div>
+                    <AiMessageBubble
+                      content={streamingContent}
+                      role="assistant"
+                      isStreaming
+                      accentColor="success"
+                    />
                   )}
                 </>
               )}

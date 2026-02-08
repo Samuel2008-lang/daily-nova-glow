@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MessageSquare, Mic, Send, Sparkles } from "lucide-react";
+import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -250,6 +251,12 @@ RESPONSE APPROACH:
 - Celebrate their insights and breakthroughs
 - Be direct and focused—give them clear next steps
 - Match their creative energy while gently pushing them deeper
+- Use clean formatting: short paragraphs, numbered lists when listing steps
+- NEVER use raw asterisks for emphasis. Use natural language emphasis instead
+- Write in a flowing, natural conversational style without heavy formatting
+
+FEEDBACK AWARENESS:
+Users can give thumbs up/down on your responses. Adapt your style based on conversation cues.
 
 TONE: Wise mentor meets enthusiastic writing coach—encouraging, insightful, creative, and focused on transformation through writing.
 
@@ -501,22 +508,20 @@ Help them use journaling as a tool for profound self-discovery, creative express
               ) : (
                 <>
                   {aiMessages.map((msg, idx) => (
-                    <div
+                    <AiMessageBubble
                       key={idx}
-                      className={`p-3 rounded-lg text-sm ${
-                        msg.role === "user"
-                          ? "bg-secondary/20 ml-8"
-                          : "bg-background/50 mr-8"
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
+                      content={msg.content}
+                      role={msg.role}
+                      accentColor="secondary"
+                    />
                   ))}
                   {streamingContent && (
-                    <div className="p-3 rounded-lg text-sm bg-background/50 mr-8 animate-pulse-glow">
-                      {streamingContent}
-                      <span className="inline-block w-1 h-4 bg-secondary ml-1 animate-pulse" />
-                    </div>
+                    <AiMessageBubble
+                      content={streamingContent}
+                      role="assistant"
+                      isStreaming
+                      accentColor="secondary"
+                    />
                   )}
                 </>
               )}
