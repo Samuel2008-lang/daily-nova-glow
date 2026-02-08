@@ -14,20 +14,22 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    const today = new Date().toDateString();
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const notes = storage.getNotes();
     const tasks = storage.getTasks();
     const habits = storage.getHabits();
 
     const notesToday = notes.filter(
-      (note) => new Date(note.createdAt).toDateString() === today
+      (note) => new Date(note.createdAt).toDateString() === todayStr
     ).length;
 
     const incompleteTasks = tasks.filter((task) => !task.completed);
     const nextTask = incompleteTasks.length > 0 ? incompleteTasks[0].title : "No pending tasks";
 
     const habitsCompleted = habits.filter((habit) =>
-      habit.completedDates.includes(today)
+      habit.completedDates.includes(todayLocal)
     ).length;
 
     setStats({

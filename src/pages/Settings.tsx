@@ -10,8 +10,11 @@ import {
   Info,
   BookOpen,
   BookMarked,
-  Share2
+  Share2,
+  MessageCircle,
+  Send
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -34,7 +37,27 @@ import { format } from "date-fns";
 const Settings = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState(false);
   const { toast } = useToast();
+
+  const sendFeedback = () => {
+    if (!feedbackText.trim()) return;
+    // Store feedback locally (will sync to backend in native app)
+    const feedbackLog = JSON.parse(localStorage.getItem("dailynova_user_feedback") || "[]");
+    feedbackLog.push({
+      message: feedbackText,
+      timestamp: new Date().toISOString(),
+    });
+    localStorage.setItem("dailynova_user_feedback", JSON.stringify(feedbackLog));
+    setFeedbackText("");
+    setFeedbackSent(true);
+    toast({
+      title: "Thank you!",
+      description: "Your feedback has been recorded.",
+    });
+    setTimeout(() => setFeedbackSent(false), 3000);
+  };
 
   const exportAllData = () => {
     try {
@@ -317,7 +340,33 @@ const Settings = () => {
             </div>
           </Card>
 
-          {/* About */}
+          {/* Send Feedback */}
+          <Card className="glass p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <MessageCircle className="w-5 h-5 text-accent" />
+              <h2 className="text-xl font-semibold">Send Feedback</h2>
+            </div>
+            <div className="space-y-3">
+              <Textarea
+                placeholder="Tell us what you think, report bugs, or suggest features..."
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                className="min-h-[100px] bg-background/50 border-border/50 focus:border-accent"
+              />
+              <Button 
+                onClick={sendFeedback} 
+                disabled={!feedbackText.trim() || feedbackSent}
+                className="w-full"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {feedbackSent ? "Sent! Thank you ✓" : "Send Feedback"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Your feedback helps us improve DailyNova for everyone.
+              </p>
+            </div>
+          </Card>
+
           <Card className="glass p-6">
             <div className="flex items-center gap-2 mb-4">
               <Info className="w-5 h-5 text-primary" />
