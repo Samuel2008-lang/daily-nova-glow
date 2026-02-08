@@ -19,12 +19,19 @@ const Journal = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
+  const [aiRecognitionInstance, setAiRecognitionInstance] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (transcript) => {
       setCurrentEntry((prev) => (prev ? prev + " " + transcript : transcript));
+    },
+  });
+
+  const { isListening: isAiListening, startListening: startAiListening, stopListening: stopAiListening } = useSpeechRecognition({
+    onResult: (transcript) => {
+      setAiInput((prev) => (prev ? prev + " " + transcript : transcript));
     },
   });
 
@@ -516,18 +523,38 @@ Help them use journaling as a tool for profound self-discovery, creative express
             </div>
 
             <div className="flex gap-2">
-              <Textarea
-                placeholder="Ask for journaling advice..."
-                value={aiInput}
-                onChange={(e) => setAiInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendAiMessage();
-                  }
-                }}
-                className="min-h-[60px] bg-background/50"
-              />
+              <div className="flex-1 relative">
+                <Textarea
+                  placeholder="Ask for journaling advice..."
+                  value={aiInput}
+                  onChange={(e) => setAiInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendAiMessage();
+                    }
+                  }}
+                  className="min-h-[60px] bg-background/50 pr-10"
+                />
+                {isSupported && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={async () => {
+                      if (isAiListening && aiRecognitionInstance) {
+                        stopAiListening(aiRecognitionInstance);
+                        setAiRecognitionInstance(null);
+                      } else {
+                        const inst = await startAiListening(true, "journal-chat");
+                        setAiRecognitionInstance(inst);
+                      }
+                    }}
+                    className={`absolute bottom-2 right-2 h-7 w-7 ${isAiListening ? "text-secondary animate-pulse" : "text-muted-foreground hover:text-secondary"}`}
+                  >
+                    <Mic className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
               <Button
                 onClick={sendAiMessage}
                 disabled={!aiInput.trim() || isAiLoading}

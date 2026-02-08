@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { BannerAd } from "@/components/BannerAd";
 import { RewardedAdButton } from "@/components/RewardedAdButton";
+import { useQuoteShareImage } from "@/components/QuoteShareImage";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Quote {
   text: string;
@@ -27,7 +29,6 @@ const fallbackQuotes: Quote[] = [
 const QUOTES_DATE_KEY = "daily-quotes-date";
 const QUOTE_INDEX_KEY = "daily-quote-index";
 const ALL_QUOTES_KEY = "daily-quotes-all";
-const FETCH_COUNT_KEY = "daily-quotes-fetch-count";
 
 const Quotes = () => {
   const [allQuotes, setAllQuotes] = useState<Quote[]>(fallbackQuotes);
@@ -36,14 +37,13 @@ const Quotes = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
   const { toast } = useToast();
+  const { shareAsImage } = useQuoteShareImage();
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
@@ -64,17 +64,11 @@ const Quotes = () => {
     try {
       const savedAllQuotes = localStorage.getItem(ALL_QUOTES_KEY);
       const savedIndex = localStorage.getItem(QUOTE_INDEX_KEY);
-      
       if (savedAllQuotes) {
         const parsed = JSON.parse(savedAllQuotes);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setAllQuotes(parsed);
-        }
+        if (Array.isArray(parsed) && parsed.length > 0) setAllQuotes(parsed);
       }
-      
-      if (savedIndex) {
-        setCurrentIndex(parseInt(savedIndex, 10));
-      }
+      if (savedIndex) setCurrentIndex(parseInt(savedIndex, 10));
     } catch (error) {
       console.error("Error loading quotes:", error);
     }
@@ -83,12 +77,9 @@ const Quotes = () => {
   const checkAndFetchDailyQuotes = async () => {
     const today = new Date().toDateString();
     const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
-    
-    // Fetch new quotes if it's a new day
     if (lastFetchDate !== today) {
       await fetchNewQuotes();
       localStorage.setItem(QUOTES_DATE_KEY, today);
-      // Reset index for new day
       setCurrentIndex(0);
       localStorage.setItem(QUOTE_INDEX_KEY, "0");
     }
@@ -96,106 +87,56 @@ const Quotes = () => {
 
   const fetchNewQuotes = async () => {
     if (!isOnline) {
-      toast({
-        title: "Offline",
-        description: "Connect to the internet to get new quotes.",
-        variant: "destructive",
-      });
+      toast({ title: "Offline", description: "Connect to the internet to get new quotes.", variant: "destructive" });
       return false;
     }
 
     setIsLoading(true);
     try {
-      // Use random parameter to get different quotes each time
-      const randomSeed = Date.now();
-      const response = await fetch(`https://zenquotes.io/api/quotes?random=${randomSeed}`);
-      
-      if (!response.ok) throw new Error("Failed to fetch quotes");
-      
-      const data = await response.json();
-      
-      if (Array.isArray(data) && data.length > 0) {
-        const newQuotes: Quote[] = data.map((q: any) => ({
-          text: q.q || q.quote || q.text,
-          author: q.a || q.author || "Unknown",
-        }));
-        
-        setAllQuotes(newQuotes);
-        localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(newQuotes));
-        
-        toast({
-          title: "New quotes loaded!",
-          description: `${newQuotes.length} fresh quotes ready for you.`,
-        });
-        
-        return true;
+      // Use edge function to avoid CORS issues
+      const { data, error } = await supabase.functions.invoke("fetch-quotes");
+
+      if (error) throw error;
+
+      if (data?.quotes && Array.isArray(data.quotes) && data.quotes.length > 0) {
+        const newQuotes: Quote[] = data.quotes.map((q: any) => ({
+          text: q.text || q.q || "",
+          author: q.author || q.a || "Unknown",
+        })).filter((q: Quote) => q.text);
+
+        if (newQuotes.length > 0) {
+          setAllQuotes(newQuotes);
+          localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(newQuotes));
+          toast({ title: "New quotes loaded!", description: `${newQuotes.length} fresh quotes ready.` });
+          return true;
+        }
       }
+
+      throw new Error("No quotes returned");
     } catch (error) {
       console.error("Error fetching quotes:", error);
-      
-      // Try alternative API
-      try {
-        const altResponse = await fetch(`https://api.quotable.io/quotes/random?limit=10&seed=${Date.now()}`);
-        if (altResponse.ok) {
-          const altData = await altResponse.json();
-          if (Array.isArray(altData) && altData.length > 0) {
-            const newQuotes: Quote[] = altData.map((q: any) => ({
-              text: q.content,
-              author: q.author,
-            }));
-            setAllQuotes(newQuotes);
-            localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(newQuotes));
-            
-            toast({
-              title: "New quotes loaded!",
-              description: `${newQuotes.length} fresh quotes ready.`,
-            });
-            return true;
-          }
-        }
-      } catch {
-        console.error("Alternative API also failed");
-      }
-      
-      toast({
-        title: "Couldn't fetch new quotes",
-        description: "Using cached quotes instead.",
-        variant: "destructive",
-      });
+      toast({ title: "Couldn't fetch new quotes", description: "Using cached quotes instead.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
     return false;
   };
 
-  const seeMoreQuotes = () => {
-    setShowNavigation(true);
-  };
+  const seeMoreQuotes = () => setShowNavigation(true);
 
   const nextQuote = async () => {
     const nextIdx = currentIndex + 1;
-    
     if (nextIdx >= allQuotes.length) {
-      // All quotes exhausted - fetch new ones
       if (isOnline) {
-        toast({
-          title: "Loading new quotes...",
-          description: "Fetching a fresh set of quotes for you.",
-        });
-        
         const success = await fetchNewQuotes();
         if (success) {
           setCurrentIndex(0);
           localStorage.setItem(QUOTE_INDEX_KEY, "0");
         }
       } else {
-        // Offline - loop back to start
         setCurrentIndex(0);
         localStorage.setItem(QUOTE_INDEX_KEY, "0");
-        toast({
-          title: "Starting from beginning",
-          description: "Connect to internet for new quotes.",
-        });
+        toast({ title: "Starting from beginning", description: "Connect to internet for new quotes." });
       }
     } else {
       setCurrentIndex(nextIdx);
@@ -211,47 +152,9 @@ const Quotes = () => {
     }
   };
 
-  const shareQuote = async () => {
+  const handleShare = async () => {
     const currentQuote = allQuotes[currentIndex] || allQuotes[0];
-    const shareText = `"${currentQuote.text}" — ${currentQuote.author}\n\nShared from DailyNova`;
-    
-    // Always try native share first
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: "Quote of the Day — DailyNova",
-          text: shareText,
-        });
-        return;
-      }
-    } catch (err) {
-      // AbortError means user cancelled - that's fine
-      if ((err as Error).name === 'AbortError') return;
-      // Other errors: fall through to fallback
-    }
-    
-    // Fallback: open a share URL or copy
-    const encodedText = encodeURIComponent(shareText);
-    
-    // Try opening a share intent URL (works on mobile browsers)
-    const shareUrl = `https://wa.me/?text=${encodedText}`;
-    
-    try {
-      await navigator.clipboard.writeText(shareText);
-      toast({ 
-        title: "Copied to clipboard!", 
-        description: "Quote copied. You can paste it anywhere to share." 
-      });
-    } catch {
-      // Last resort: create a temporary textarea for copying
-      const textarea = document.createElement('textarea');
-      textarea.value = shareText;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      toast({ title: "Copied!", description: "Quote copied to clipboard." });
-    }
+    await shareAsImage(currentQuote.text, currentQuote.author);
   };
 
   const currentQuote = allQuotes[currentIndex] || allQuotes[0];
@@ -293,43 +196,23 @@ const Quotes = () => {
         </Card>
 
         <div className="flex justify-center gap-4 flex-wrap">
-          <Button
-            onClick={shareQuote}
-            size="lg"
-            variant="outline"
-            disabled={isLoading}
-          >
+          <Button onClick={handleShare} size="lg" variant="outline" disabled={isLoading}>
             <Share2 className="w-5 h-5 mr-2" />
             Share Quote
           </Button>
           
           {!showNavigation ? (
-            <Button
-              onClick={seeMoreQuotes}
-              size="lg"
-              className="glow-pink"
-              disabled={isLoading}
-            >
+            <Button onClick={seeMoreQuotes} size="lg" className="glow-pink" disabled={isLoading}>
               <Sparkles className="w-5 h-5 mr-2" />
               See More Quotes
             </Button>
           ) : (
             <>
-              <Button
-                onClick={prevQuote}
-                size="lg"
-                variant="outline"
-                disabled={currentIndex === 0 || isLoading}
-              >
+              <Button onClick={prevQuote} size="lg" variant="outline" disabled={currentIndex === 0 || isLoading}>
                 <ChevronLeft className="w-5 h-5 mr-1" />
                 Previous
               </Button>
-              <Button
-                onClick={nextQuote}
-                size="lg"
-                className="glow-pink group"
-                disabled={isLoading}
-              >
+              <Button onClick={nextQuote} size="lg" className="glow-pink group" disabled={isLoading}>
                 {currentIndex >= allQuotes.length - 1 ? "Load New" : "Next"}
                 <ChevronRight className="w-5 h-5 ml-1" />
               </Button>
@@ -337,14 +220,8 @@ const Quotes = () => {
           )}
         </div>
 
-        {/* Rewarded Ad - Watch ad for bonus quotes */}
         <div className="flex justify-center mt-4">
-          <RewardedAdButton 
-            onReward={() => {
-              fetchNewQuotes();
-            }}
-            label="Watch Ad for Bonus Quotes"
-          />
+          <RewardedAdButton onReward={() => fetchNewQuotes()} label="Watch Ad for Bonus Quotes" />
         </div>
 
         {showNavigation && (
