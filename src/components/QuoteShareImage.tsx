@@ -121,14 +121,8 @@ export const useQuoteShareImage = () => {
       if ((err as Error).name === "AbortError") return;
     }
 
-    // Fallback: download the image
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "quote.png";
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: "Image downloaded!", description: "Share it from your gallery." });
+    // No share API available
+    toast({ title: "Not supported", description: "Share is available in native app or standalone browser.", variant: "destructive" });
   }, [generateImage, toast]);
 
   return { shareAsImage };

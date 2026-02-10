@@ -20,7 +20,21 @@ const Habits = () => {
   });
 
   useEffect(() => {
-    setHabits(storage.getHabits());
+    // Normalize any legacy date formats in completedDates
+    const raw = storage.getHabits();
+    const normalized = raw.map(h => ({
+      ...h,
+      completedDates: h.completedDates.map(d => {
+        // If date is already YYYY-MM-DD, keep it
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+        // Otherwise parse and convert
+        const parsed = new Date(d);
+        if (isNaN(parsed.getTime())) return d;
+        return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+      }),
+    }));
+    setHabits(normalized);
+    storage.saveHabits(normalized);
   }, []);
 
   const addHabit = () => {
