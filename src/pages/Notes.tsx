@@ -94,6 +94,19 @@ const Notes = () => {
     }
     setSelectedDate(date);
     setCalendarOpen(false);
+    
+    // Auto-open notes for that date
+    const dKey = format(date, "yyyy-MM-dd");
+    const dateNotes = notes.filter(n => format(new Date(n.createdAt), "yyyy-MM-dd") === dKey);
+    if (dateNotes.length === 1) {
+      viewNote(dateNotes[0]);
+    } else if (dateNotes.length === 0 && isToday(date)) {
+      setNoteTopic("");
+      setNoteContent("");
+      setSelectedNote(null);
+      setViewMode('write');
+    }
+    // If multiple notes, just show the list filtered by date (default behavior)
   };
 
   const navigateDay = (direction: 'prev' | 'next') => {
@@ -148,21 +161,14 @@ const Notes = () => {
     
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: noteTopic,
-          text: shareText,
-        });
-        return;
+        await navigator.share({ title: noteTopic, text: shareText });
       } catch (err) {
-        if ((err as Error).name === 'AbortError') return;
+        if ((err as Error).name !== 'AbortError') {
+          toast({ title: "Share failed", description: "Could not open share sheet.", variant: "destructive" });
+        }
       }
-    }
-    
-    try {
-      await navigator.clipboard.writeText(shareText);
-      toast({ title: "Copied!", description: "Note copied to clipboard." });
-    } catch {
-      toast({ title: "Error", description: "Could not copy to clipboard.", variant: "destructive" });
+    } else {
+      toast({ title: "Not supported", description: "Share is available in native app or standalone browser.", variant: "destructive" });
     }
   };
 

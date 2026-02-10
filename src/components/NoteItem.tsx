@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MoreVertical, Eye, Download, Trash2, Share2 } from "lucide-react";
+import { MoreVertical, Eye, Download, Trash2, Share2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -32,6 +32,15 @@ const NoteItem = ({ note, onView, onDelete }: NoteItemProps) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(`${note.topic}\n\n${note.content}`);
+      toast({ title: "Copied!", description: "Note copied to clipboard." });
+    } catch {
+      toast({ title: "Error", description: "Could not copy.", variant: "destructive" });
+    }
+  };
+
   const handleShare = async () => {
     const shareText = `${note.topic}\n\n${note.content}\n\n— Note from DailyNova`;
     
@@ -41,18 +50,13 @@ const NoteItem = ({ note, onView, onDelete }: NoteItemProps) => {
           title: note.topic,
           text: shareText,
         });
-        return;
       } catch (err) {
-        if ((err as Error).name === 'AbortError') return;
+        if ((err as Error).name !== 'AbortError') {
+          toast({ title: "Share failed", description: "Could not open share sheet.", variant: "destructive" });
+        }
       }
-    }
-    
-    // Fallback to clipboard
-    try {
-      await navigator.clipboard.writeText(shareText);
-      toast({ title: "Copied!", description: "Note copied to clipboard." });
-    } catch {
-      toast({ title: "Error", description: "Could not share note.", variant: "destructive" });
+    } else {
+      toast({ title: "Not supported", description: "Share is available in native app or standalone browser.", variant: "destructive" });
     }
   };
 
@@ -103,6 +107,10 @@ const NoteItem = ({ note, onView, onDelete }: NoteItemProps) => {
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onView(); }}>
                 <Eye className="w-4 h-4 mr-2" />
                 View
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleCopy(); }}>
+                <Copy className="w-4 h-4 mr-2" />
+                Copy
               </DropdownMenuItem>
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleShare(); }}>
                 <Share2 className="w-4 h-4 mr-2" />
