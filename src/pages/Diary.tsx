@@ -15,7 +15,12 @@ const Diary = () => {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentEntry, setCurrentEntry] = useState("");
-  const [aiMessages, setAiMessages] = useState<{role: string, content: string}[]>([]);
+  const [aiMessages, setAiMessages] = useState<{role: string, content: string}[]>(() => {
+    try {
+      const saved = localStorage.getItem('dailynova_diary_ai_chat');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [aiInput, setAiInput] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
@@ -38,6 +43,27 @@ const Diary = () => {
 
   useEffect(() => {
     setEntries(storage.getDiaryEntries());
+  }, []);
+
+  // Persist AI chats
+  useEffect(() => {
+    if (aiMessages.length > 0) {
+      localStorage.setItem('dailynova_diary_ai_chat', JSON.stringify(aiMessages));
+      localStorage.setItem('dailynova_diary_ai_chat_time', new Date().toISOString());
+    }
+  }, [aiMessages]);
+
+  // Clear chats older than 24 hours on mount
+  useEffect(() => {
+    const chatTime = localStorage.getItem('dailynova_diary_ai_chat_time');
+    if (chatTime) {
+      const elapsed = Date.now() - new Date(chatTime).getTime();
+      if (elapsed > 24 * 60 * 60 * 1000) {
+        localStorage.removeItem('dailynova_diary_ai_chat');
+        localStorage.removeItem('dailynova_diary_ai_chat_time');
+        setAiMessages([]);
+      }
+    }
   }, []);
 
   useEffect(() => {
