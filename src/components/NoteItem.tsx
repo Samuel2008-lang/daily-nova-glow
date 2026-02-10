@@ -44,19 +44,21 @@ const NoteItem = ({ note, onView, onDelete }: NoteItemProps) => {
   const handleShare = async () => {
     const shareText = `${note.topic}\n\n${note.content}\n\n— Note from DailyNova`;
     
-    if (navigator.share) {
-      try {
+    try {
+      if (navigator.share) {
         await navigator.share({
           title: note.topic,
           text: shareText,
         });
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          toast({ title: "Share failed", description: "Could not open share sheet.", variant: "destructive" });
-        }
+      } else {
+        toast({ title: "Not supported", description: "Share is available in native app or standalone browser.", variant: "destructive" });
       }
-    } else {
-      toast({ title: "Not supported", description: "Share is available in native app or standalone browser.", variant: "destructive" });
+    } catch (err: any) {
+      // AbortError = user cancelled, not a real error
+      if (err?.name !== 'AbortError') {
+        console.error("Share error:", err);
+        toast({ title: "Share unavailable", description: "This feature works best in the native app.", variant: "destructive" });
+      }
     }
   };
 
