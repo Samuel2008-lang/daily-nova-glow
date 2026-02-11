@@ -2,12 +2,12 @@ import { useEffect, useCallback } from "react";
 
 // AdMob configuration
 const AD_CONFIG = {
-  appId: "ca-app-pub-1017007756363897~3426274533",
-  banner: "ca-app-pub-1017007756363897/6062980508",
+  appId: "ca-app-pub-1017007756363897~9648031243",
+  banner: "ca-app-pub-1017007756363897/5113899609",
   interstitial: "ca-app-pub-1017007756363897/5156382503",
   rewarded: "ca-app-pub-1017007756363897/4821324675",
   rewardedInterstitial: "ca-app-pub-1017007756363897/4718109242",
-  appOpen: "ca-app-pub-1017007756363897/3816091114",
+  appOpen: "ca-app-pub-1017007756363897/5956198244",
   nativeAdvanced: "ca-app-pub-1017007756363897/3651729143",
 };
 
