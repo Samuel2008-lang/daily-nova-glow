@@ -45,19 +45,20 @@ const NoteItem = ({ note, onView, onDelete }: NoteItemProps) => {
     const shareText = `${note.topic}\n\n${note.content}\n\n— Note from DailyNova`;
     
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: note.topic,
-          text: shareText,
-        });
+      const isNativePlatform = typeof (window as any).Capacitor !== "undefined" && (window as any).Capacitor.isNativePlatform();
+      
+      if (isNativePlatform) {
+        const { Share } = await import("@capacitor/share");
+        await Share.share({ title: note.topic, text: shareText });
+      } else if (navigator.share) {
+        await navigator.share({ title: note.topic, text: shareText });
       } else {
-        toast({ title: "Not supported", description: "Share is available in native app or standalone browser.", variant: "destructive" });
+        await navigator.clipboard.writeText(shareText);
+        toast({ title: "Copied!", description: "Note copied to clipboard for sharing." });
       }
     } catch (err: any) {
-      // AbortError = user cancelled, not a real error
       if (err?.name !== 'AbortError') {
-        console.error("Share error:", err);
-        toast({ title: "Share unavailable", description: "This feature works best in the native app.", variant: "destructive" });
+        toast({ title: "Share failed", description: "Could not share note.", variant: "destructive" });
       }
     }
   };

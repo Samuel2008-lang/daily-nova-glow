@@ -159,16 +159,22 @@ const Notes = () => {
   const shareNote = async () => {
     const shareText = `${noteTopic}\n\n${noteContent}\n\n— Note from DailyNova`;
     
-    if (navigator.share) {
-      try {
+    try {
+      const isNativePlatform = typeof (window as any).Capacitor !== "undefined" && (window as any).Capacitor.isNativePlatform();
+      
+      if (isNativePlatform) {
+        const { Share } = await import("@capacitor/share");
+        await Share.share({ title: noteTopic, text: shareText });
+      } else if (navigator.share) {
         await navigator.share({ title: noteTopic, text: shareText });
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          toast({ title: "Share failed", description: "Could not open share sheet.", variant: "destructive" });
-        }
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        toast({ title: "Copied!", description: "Note copied to clipboard for sharing." });
       }
-    } else {
-      toast({ title: "Not supported", description: "Share is available in native app or standalone browser.", variant: "destructive" });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast({ title: "Share failed", description: "Could not share note.", variant: "destructive" });
+      }
     }
   };
 
