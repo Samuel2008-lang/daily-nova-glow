@@ -21,6 +21,7 @@ import WelcomeScreen from "./components/WelcomeScreen";
 import LockScreen from "./components/LockScreen";
 import PinGate from "./components/PinGate";
 import { storage } from "./lib/storage";
+import { notificationService } from "./lib/notifications";
 
 const queryClient = new QueryClient();
 
@@ -35,12 +36,13 @@ const App = () => {
     if (isFirst) {
       setShowWelcome(true);
     }
-    // Check if app lock is enabled
     const pin = localStorage.getItem("dailynova_app_pin");
     const lockEnabled = localStorage.getItem("dailynova_lock_enabled") === "true";
     if (pin && lockEnabled) {
       setIsLocked(true);
     }
+    // Setup daily reminders
+    notificationService.setupDailyReminders();
   }, []);
 
   const handleSplashComplete = () => {
