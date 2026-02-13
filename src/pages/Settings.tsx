@@ -12,8 +12,11 @@ import {
   BookMarked,
   Share2,
   MessageCircle,
-  Send
+  Send,
+  Lock,
+  ShieldCheck
 } from "lucide-react";
+import PinSetup from "@/components/PinSetup";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,6 +42,16 @@ const Settings = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const [lockEnabled, setLockEnabled] = useState(
+    localStorage.getItem("dailynova_lock_enabled") === "true"
+  );
+  const [diaryLock, setDiaryLock] = useState(
+    localStorage.getItem("dailynova_diary_lock") === "true"
+  );
+  const [journalLock, setJournalLock] = useState(
+    localStorage.getItem("dailynova_journal_lock") === "true"
+  );
+  const [showPinSetup, setShowPinSetup] = useState(false);
   const { toast } = useToast();
 
   const sendFeedback = () => {
@@ -214,6 +227,21 @@ const Settings = () => {
     }
   };
 
+  if (showPinSetup) {
+    return (
+      <PinSetup
+        onComplete={(newPin) => {
+          localStorage.setItem("dailynova_app_pin", newPin);
+          localStorage.setItem("dailynova_lock_enabled", "true");
+          setLockEnabled(true);
+          setShowPinSetup(false);
+          toast({ title: "PIN set!", description: "App lock is now enabled." });
+        }}
+        onCancel={() => setShowPinSetup(false)}
+      />
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
       <div className="max-w-2xl mx-auto animate-fade-in">
@@ -264,6 +292,79 @@ const Settings = () => {
               </div>
               <p className="text-xs text-muted-foreground">
                 Get reminders for habits and tasks. (Available in native app)
+              </p>
+            </div>
+          </Card>
+
+          {/* App Lock */}
+          <Card className="glass p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Lock className="w-5 h-5 text-accent" />
+              <h2 className="text-xl font-semibold">App Lock</h2>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="app-lock" className="cursor-pointer">Enable PIN Lock</Label>
+                <Switch
+                  id="app-lock"
+                  checked={lockEnabled}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      const existingPin = localStorage.getItem("dailynova_app_pin");
+                      if (existingPin) {
+                        localStorage.setItem("dailynova_lock_enabled", "true");
+                        setLockEnabled(true);
+                      } else {
+                        setShowPinSetup(true);
+                      }
+                    } else {
+                      localStorage.setItem("dailynova_lock_enabled", "false");
+                      setLockEnabled(false);
+                    }
+                  }}
+                />
+              </div>
+              {lockEnabled && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="diary-lock" className="cursor-pointer text-sm">Lock Diary</Label>
+                    </div>
+                    <Switch
+                      id="diary-lock"
+                      checked={diaryLock}
+                      onCheckedChange={(v) => {
+                        localStorage.setItem("dailynova_diary_lock", String(v));
+                        setDiaryLock(v);
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                      <Label htmlFor="journal-lock" className="cursor-pointer text-sm">Lock Journal</Label>
+                    </div>
+                    <Switch
+                      id="journal-lock"
+                      checked={journalLock}
+                      onCheckedChange={(v) => {
+                        localStorage.setItem("dailynova_journal_lock", String(v));
+                        setJournalLock(v);
+                      }}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setShowPinSetup(true)}
+                  >
+                    Change PIN
+                  </Button>
+                </>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Require a 4-digit PIN when opening the app.
               </p>
             </div>
           </Card>
