@@ -1,0 +1,96 @@
+import { useState, useEffect } from "react";
+import { Lock, Delete, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+interface LockScreenProps {
+  onUnlock: () => void;
+}
+
+const LockScreen = ({ onUnlock }: LockScreenProps) => {
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(false);
+  const savedPin = localStorage.getItem("dailynova_app_pin") || "";
+
+  const handleDigit = (digit: string) => {
+    if (pin.length >= 4) return;
+    const newPin = pin + digit;
+    setPin(newPin);
+    setError(false);
+
+    if (newPin.length === 4) {
+      if (newPin === savedPin) {
+        onUnlock();
+      } else {
+        setError(true);
+        setTimeout(() => {
+          setPin("");
+          setError(false);
+        }, 800);
+      }
+    }
+  };
+
+  const handleDelete = () => {
+    setPin((prev) => prev.slice(0, -1));
+    setError(false);
+  };
+
+  const dots = Array.from({ length: 4 }, (_, i) => (
+    <div
+      key={i}
+      className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
+        i < pin.length
+          ? error
+            ? "bg-destructive border-destructive"
+            : "bg-primary border-primary"
+          : "border-muted-foreground/50"
+      } ${error ? "animate-shake" : ""}`}
+    />
+  ));
+
+  const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center">
+      <div className="flex flex-col items-center gap-8">
+        <Lock className="w-12 h-12 text-primary" />
+        <h2 className="text-xl font-semibold text-foreground">Enter PIN</h2>
+
+        <div className="flex gap-4 mb-4">{dots}</div>
+
+        {error && (
+          <p className="text-destructive text-sm -mt-2">Wrong PIN</p>
+        )}
+
+        <div className="grid grid-cols-3 gap-4">
+          {digits.map((d, i) => {
+            if (d === "") return <div key={i} />;
+            if (d === "del")
+              return (
+                <Button
+                  key={i}
+                  variant="ghost"
+                  className="w-16 h-16 rounded-full text-muted-foreground"
+                  onClick={handleDelete}
+                >
+                  <Delete className="w-6 h-6" />
+                </Button>
+              );
+            return (
+              <Button
+                key={i}
+                variant="outline"
+                className="w-16 h-16 rounded-full text-xl font-semibold glass border-border/50"
+                onClick={() => handleDigit(d)}
+              >
+                {d}
+              </Button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LockScreen;

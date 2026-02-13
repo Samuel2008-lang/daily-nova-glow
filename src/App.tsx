@@ -18,6 +18,8 @@ import Navigation from "./components/Navigation";
 import { InterstitialAdManager } from "./components/InterstitialAdManager";
 import SplashScreen from "./components/SplashScreen";
 import WelcomeScreen from "./components/WelcomeScreen";
+import LockScreen from "./components/LockScreen";
+import PinGate from "./components/PinGate";
 import { storage } from "./lib/storage";
 
 const queryClient = new QueryClient();
@@ -26,12 +28,18 @@ const App = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
-    // Check if this is the first launch
     const isFirst = storage.isFirstLaunch();
     if (isFirst) {
       setShowWelcome(true);
+    }
+    // Check if app lock is enabled
+    const pin = localStorage.getItem("dailynova_app_pin");
+    const lockEnabled = localStorage.getItem("dailynova_lock_enabled") === "true";
+    if (pin && lockEnabled) {
+      setIsLocked(true);
     }
   }, []);
 
@@ -56,6 +64,10 @@ const App = () => {
     return <WelcomeScreen onComplete={handleWelcomeComplete} />;
   }
 
+  if (isLocked) {
+    return <LockScreen onUnlock={() => setIsLocked(false)} />;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -69,8 +81,8 @@ const App = () => {
             <Route path="/notes" element={<Notes />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/habits" element={<Habits />} />
-            <Route path="/diary" element={<Diary />} />
-            <Route path="/journal" element={<Journal />} />
+            <Route path="/diary" element={<PinGate storageKey="dailynova_diary_lock"><Diary /></PinGate>} />
+            <Route path="/journal" element={<PinGate storageKey="dailynova_journal_lock"><Journal /></PinGate>} />
             <Route path="/quotes" element={<Quotes />} />
             <Route path="/premium" element={<Premium />} />
             <Route path="/settings" element={<Settings />} />
