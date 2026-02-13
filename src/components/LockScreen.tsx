@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Lock, Delete, Check } from "lucide-react";
+import { Lock, Delete, Fingerprint } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { biometricService } from "@/lib/biometric";
 
 interface LockScreenProps {
   onUnlock: () => void;
@@ -9,7 +10,25 @@ interface LockScreenProps {
 const LockScreen = ({ onUnlock }: LockScreenProps) => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
   const savedPin = localStorage.getItem("dailynova_app_pin") || "";
+  const biometricEnabled = localStorage.getItem("dailynova_biometric_enabled") === "true";
+
+  useEffect(() => {
+    if (biometricEnabled) {
+      biometricService.isAvailable().then((result) => {
+        setBiometricAvailable(result.available);
+        if (result.available) {
+          handleBiometric();
+        }
+      });
+    }
+  }, []);
+
+  const handleBiometric = async () => {
+    const success = await biometricService.authenticate();
+    if (success) onUnlock();
+  };
 
   const handleDigit = (digit: string) => {
     if (pin.length >= 4) return;
@@ -88,6 +107,17 @@ const LockScreen = ({ onUnlock }: LockScreenProps) => {
             );
           })}
         </div>
+
+        {biometricAvailable && biometricEnabled && (
+          <Button
+            variant="ghost"
+            className="flex items-center gap-2 text-primary mt-4"
+            onClick={handleBiometric}
+          >
+            <Fingerprint className="w-6 h-6" />
+            Use Fingerprint
+          </Button>
+        )}
       </div>
     </div>
   );

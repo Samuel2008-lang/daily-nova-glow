@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Settings as SettingsIcon, 
   Palette, 
@@ -14,9 +14,13 @@ import {
   MessageCircle,
   Send,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  Fingerprint,
+  Clock
 } from "lucide-react";
 import PinSetup from "@/components/PinSetup";
+import { notificationService } from "@/lib/notifications";
+import { biometricService } from "@/lib/biometric";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -40,11 +44,21 @@ import { format } from "date-fns";
 const Settings = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notifyDiary, setNotifyDiary] = useState(localStorage.getItem("dailynova_notify_diary") === "true");
+  const [notifyJournal, setNotifyJournal] = useState(localStorage.getItem("dailynova_notify_journal") === "true");
+  const [notifyHabits, setNotifyHabits] = useState(localStorage.getItem("dailynova_notify_habits") === "true");
+  const [notifyTasks, setNotifyTasks] = useState(localStorage.getItem("dailynova_notify_tasks") === "true");
+  const [notifyHour, setNotifyHour] = useState(localStorage.getItem("dailynova_notify_hour") || "20");
+  const [notifyMinute, setNotifyMinute] = useState(localStorage.getItem("dailynova_notify_minute") || "0");
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(
     localStorage.getItem("dailynova_lock_enabled") === "true"
   );
+  const [biometricEnabled, setBiometricEnabled] = useState(
+    localStorage.getItem("dailynova_biometric_enabled") === "true"
+  );
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [diaryLock, setDiaryLock] = useState(
     localStorage.getItem("dailynova_diary_lock") === "true"
   );
@@ -53,6 +67,10 @@ const Settings = () => {
   );
   const [showPinSetup, setShowPinSetup] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    biometricService.isAvailable().then((r) => setBiometricAvailable(r.available));
+  }, []);
 
   const sendFeedback = () => {
     if (!feedbackText.trim()) return;
@@ -275,23 +293,64 @@ const Settings = () => {
             </div>
           </Card>
 
-          {/* Notifications */}
+          {/* Notifications & Reminders */}
           <Card className="glass p-6">
             <div className="flex items-center gap-2 mb-4">
               <Bell className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">Notifications</h2>
+              <h2 className="text-xl font-semibold">Reminders</h2>
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label htmlFor="notifications" className="cursor-pointer">Enable Notifications</Label>
-                <Switch 
-                  id="notifications" 
-                  checked={notificationsEnabled} 
-                  onCheckedChange={setNotificationsEnabled}
-                />
+                <Label htmlFor="notify-diary" className="cursor-pointer text-sm">Diary Reminder</Label>
+                <Switch id="notify-diary" checked={notifyDiary} onCheckedChange={(v) => {
+                  localStorage.setItem("dailynova_notify_diary", String(v));
+                  setNotifyDiary(v);
+                  notificationService.setupDailyReminders();
+                }} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notify-journal" className="cursor-pointer text-sm">Journal Reminder</Label>
+                <Switch id="notify-journal" checked={notifyJournal} onCheckedChange={(v) => {
+                  localStorage.setItem("dailynova_notify_journal", String(v));
+                  setNotifyJournal(v);
+                  notificationService.setupDailyReminders();
+                }} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notify-habits" className="cursor-pointer text-sm">Habits Reminder</Label>
+                <Switch id="notify-habits" checked={notifyHabits} onCheckedChange={(v) => {
+                  localStorage.setItem("dailynova_notify_habits", String(v));
+                  setNotifyHabits(v);
+                  notificationService.setupDailyReminders();
+                }} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notify-tasks" className="cursor-pointer text-sm">Tasks Reminder</Label>
+                <Switch id="notify-tasks" checked={notifyTasks} onCheckedChange={(v) => {
+                  localStorage.setItem("dailynova_notify_tasks", String(v));
+                  setNotifyTasks(v);
+                  notificationService.setupDailyReminders();
+                }} />
+              </div>
+              <div className="flex items-center gap-3">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <Label className="text-sm">Reminder Time</Label>
+                <select
+                  className="bg-background border border-border rounded px-2 py-1 text-sm"
+                  value={notifyHour}
+                  onChange={(e) => {
+                    localStorage.setItem("dailynova_notify_hour", e.target.value);
+                    setNotifyHour(e.target.value);
+                    notificationService.setupDailyReminders();
+                  }}
+                >
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={String(i)}>{String(i).padStart(2, "0")}:00</option>
+                  ))}
+                </select>
               </div>
               <p className="text-xs text-muted-foreground">
-                Get reminders for habits and tasks. (Available in native app)
+                Daily reminders at your chosen time. Works in native app.
               </p>
             </div>
           </Card>
@@ -354,6 +413,22 @@ const Settings = () => {
                       }}
                     />
                   </div>
+                  {biometricAvailable && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Fingerprint className="w-4 h-4 text-muted-foreground" />
+                        <Label htmlFor="biometric" className="cursor-pointer text-sm">Fingerprint Unlock</Label>
+                      </div>
+                      <Switch
+                        id="biometric"
+                        checked={biometricEnabled}
+                        onCheckedChange={(v) => {
+                          localStorage.setItem("dailynova_biometric_enabled", String(v));
+                          setBiometricEnabled(v);
+                        }}
+                      />
+                    </div>
+                  )}
                   <Button
                     variant="outline"
                     className="w-full"
@@ -364,7 +439,7 @@ const Settings = () => {
                 </>
               )}
               <p className="text-xs text-muted-foreground">
-                Require a 4-digit PIN when opening the app.
+                Require a 4-digit PIN or fingerprint when opening the app.
               </p>
             </div>
           </Card>
