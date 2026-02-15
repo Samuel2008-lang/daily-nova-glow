@@ -13,7 +13,7 @@ serve(async (req) => {
   try {
     // Try ZenQuotes API first
     try {
-      const resp = await fetch("https://zenquotes.io/api/quotes/random/5", {
+      const resp = await fetch("https://zenquotes.io/api/quotes/random/3", {
         headers: { "User-Agent": "DailyNova/1.0" },
       });
       if (resp.ok) {
@@ -46,7 +46,7 @@ serve(async (req) => {
           messages: [
             {
               role: "user",
-              content: `Generate 5 unique, real inspirational quotes from famous people. Return ONLY a JSON array with objects having "text" and "author" fields. No markdown, no explanation. Example: [{"text":"Quote here","author":"Person Name"}]`,
+              content: `Generate 3 unique, real inspirational quotes from famous people. Return ONLY a JSON array with objects having "text" and "author" fields. No markdown, no explanation. Example: [{"text":"Quote here","author":"Person Name"}]`,
             },
           ],
         }),
