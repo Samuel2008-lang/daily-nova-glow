@@ -15,17 +15,23 @@ export const useQuoteShareImage = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
 
-    // Dark gradient background
+    // Vibrant gradient background
     const grad = ctx.createLinearGradient(0, 0, size, size);
-    grad.addColorStop(0, "#1a1a2e");
-    grad.addColorStop(1, "#16213e");
+    grad.addColorStop(0, "#0f0c29");
+    grad.addColorStop(0.5, "#302b63");
+    grad.addColorStop(1, "#24243e");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, size, size);
 
-    // Subtle border glow
-    ctx.strokeStyle = "rgba(255, 105, 180, 0.15)";
-    ctx.lineWidth = 4;
+    // Accent glow border
+    ctx.strokeStyle = "rgba(255, 105, 180, 0.4)";
+    ctx.lineWidth = 6;
     ctx.strokeRect(40, 40, size - 80, size - 80);
+
+    // Inner subtle border
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(55, 55, size - 110, size - 110);
 
     // Quote text
     ctx.fillStyle = "#f0f0f0";
@@ -69,9 +75,13 @@ export const useQuoteShareImage = () => {
     ctx.font = `bold 36px 'Segoe UI', Arial, sans-serif`;
     ctx.fillText(`— ${author}`, size / 2, startY + totalTextHeight + 50);
 
-    ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
-    ctx.font = `16px 'Segoe UI', Arial, sans-serif`;
-    ctx.fillText("DailyNova", size / 2, size - 60);
+    // DailyNova branding - bigger and more visible
+    ctx.fillStyle = "rgba(255, 105, 180, 0.7)";
+    ctx.font = `bold 32px 'Segoe UI', Arial, sans-serif`;
+    ctx.fillText("✦ DailyNova ✦", size / 2, size - 70);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.font = `14px 'Segoe UI', Arial, sans-serif`;
+    ctx.fillText("Your Daily Inspiration", size / 2, size - 40);
 
     return new Promise((resolve) => {
       canvas.toBlob((blob) => resolve(blob), "image/png");
