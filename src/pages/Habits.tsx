@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Check, Mic } from "lucide-react";
+import { Plus, Trash2, Check, Mic, Bell, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { storage, Habit } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { notificationService } from "@/lib/notifications";
 
 const Habits = () => {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -111,7 +114,8 @@ const Habits = () => {
     });
   };
 
-  const deleteHabit = (id: string) => {
+  const deleteHabit = async (id: string) => {
+    await notificationService.cancelHabitReminder(id);
     const updatedHabits = habits.filter((habit) => habit.id !== id);
     setHabits(updatedHabits);
     storage.saveHabits(updatedHabits);
@@ -120,6 +124,34 @@ const Habits = () => {
       title: "Habit deleted",
       description: "Your habit has been removed.",
     });
+  };
+
+  const toggleHabitReminder = async (id: string, enabled: boolean) => {
+    const updatedHabits = habits.map((h) => {
+      if (h.id !== id) return h;
+      const updated = { ...h, reminderEnabled: enabled, reminderHour: h.reminderHour ?? 8, reminderMinute: h.reminderMinute ?? 0 };
+      if (enabled) {
+        notificationService.scheduleHabitReminder(id, h.name, updated.reminderHour!, updated.reminderMinute!);
+      } else {
+        notificationService.cancelHabitReminder(id);
+      }
+      return updated;
+    });
+    setHabits(updatedHabits);
+    storage.saveHabits(updatedHabits);
+  };
+
+  const updateHabitReminderTime = async (id: string, hour: number, minute: number) => {
+    const updatedHabits = habits.map((h) => {
+      if (h.id !== id) return h;
+      const updated = { ...h, reminderHour: hour, reminderMinute: minute };
+      if (h.reminderEnabled) {
+        notificationService.scheduleHabitReminder(id, h.name, hour, minute);
+      }
+      return updated;
+    });
+    setHabits(updatedHabits);
+    storage.saveHabits(updatedHabits);
   };
 
   const calculateStreak = (completedDates: string[]): number => {
@@ -262,6 +294,31 @@ const Habits = () => {
                         <span className="text-xs text-muted-foreground">
                           {habit.completedDates.length} total completions
                         </span>
+                      </div>
+                      
+                      {/* Per-habit reminder */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <Bell className="w-3 h-3 text-muted-foreground" />
+                        <Switch
+                          checked={habit.reminderEnabled || false}
+                          onCheckedChange={(v) => toggleHabitReminder(habit.id, v)}
+                          className="scale-75"
+                        />
+                        {habit.reminderEnabled && (
+                          <div className="flex items-center gap-1">
+                            <select className="bg-background border border-border rounded px-1 py-0.5 text-xs"
+                              value={String(habit.reminderHour ?? 8)}
+                              onChange={(e) => updateHabitReminderTime(habit.id, parseInt(e.target.value), habit.reminderMinute ?? 0)}>
+                              {Array.from({ length: 24 }, (_, i) => <option key={i} value={String(i)}>{String(i).padStart(2, "0")}</option>)}
+                            </select>
+                            <span className="text-xs">:</span>
+                            <select className="bg-background border border-border rounded px-1 py-0.5 text-xs"
+                              value={String(habit.reminderMinute ?? 0)}
+                              onChange={(e) => updateHabitReminderTime(habit.id, habit.reminderHour ?? 8, parseInt(e.target.value))}>
+                              {[0, 15, 30, 45].map(m => <option key={m} value={String(m)}>{String(m).padStart(2, "0")}</option>)}
+                            </select>
+                          </div>
+                        )}
                       </div>
                     </div>
 

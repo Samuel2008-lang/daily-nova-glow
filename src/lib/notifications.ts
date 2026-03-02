@@ -85,46 +85,130 @@ export const notificationService = {
     }
   },
 
-  /** Call this once on app start to set up all enabled reminders */
-  async setupDailyReminders() {
+  /** Schedule diary reminder + follow-up */
+  async setupDiaryReminder() {
     if (!isNative) return;
-
     const granted = await this.requestPermission();
     if (!granted) return;
 
-    // Cancel existing daily reminders first
     await this.cancelNotification(1001);
+    await this.cancelNotification(1011);
+
+    const enabled = localStorage.getItem("dailynova_notify_diary") === "true";
+    if (!enabled) return;
+
+    const hour = parseInt(localStorage.getItem("dailynova_diary_hour") || localStorage.getItem("dailynova_notify_hour") || "20", 10);
+    const minute = parseInt(localStorage.getItem("dailynova_diary_minute") || localStorage.getItem("dailynova_notify_minute") || "0", 10);
+
+    await this.scheduleDailyReminder({
+      id: 1001,
+      title: "📖 Write in your Diary",
+      body: "Take a moment to reflect on your day!",
+      hour,
+      minute,
+    });
+
+    // Follow-up 2 hours later
+    const followHour = (hour + 2) % 24;
+    await this.scheduleDailyReminder({
+      id: 1011,
+      title: "📖 Diary Reminder",
+      body: "You haven't written in your diary today. Don't miss it!",
+      hour: followHour,
+      minute,
+    });
+  },
+
+  /** Schedule journal reminder + follow-up */
+  async setupJournalReminder() {
+    if (!isNative) return;
+    const granted = await this.requestPermission();
+    if (!granted) return;
+
     await this.cancelNotification(1002);
+    await this.cancelNotification(1012);
+
+    const enabled = localStorage.getItem("dailynova_notify_journal") === "true";
+    if (!enabled) return;
+
+    const hour = parseInt(localStorage.getItem("dailynova_journal_hour") || localStorage.getItem("dailynova_notify_hour") || "20", 10);
+    const minute = parseInt(localStorage.getItem("dailynova_journal_minute") || localStorage.getItem("dailynova_notify_minute") || "0", 10);
+
+    await this.scheduleDailyReminder({
+      id: 1002,
+      title: "✍️ Journal Time",
+      body: "Time to write today's journal entry!",
+      hour,
+      minute,
+    });
+
+    const followHour = (hour + 2) % 24;
+    await this.scheduleDailyReminder({
+      id: 1012,
+      title: "✍️ Journal Reminder",
+      body: "You haven't journaled today. Take a few minutes!",
+      hour: followHour,
+      minute,
+    });
+  },
+
+  /** Schedule a per-habit reminder */
+  async scheduleHabitReminder(habitId: string, habitName: string, hour: number, minute: number) {
+    if (!isNative) return;
+    const granted = await this.requestPermission();
+    if (!granted) return;
+
+    const idNum = Math.abs(hashCode(habitId)) % 50000;
+
+    // Main reminder
+    await this.cancelNotification(5000 + idNum);
+    await this.cancelNotification(5500 + idNum);
+
+    await this.scheduleDailyReminder({
+      id: 5000 + idNum,
+      title: `🌱 Habit: ${habitName}`,
+      body: `Time to complete: ${habitName}`,
+      hour,
+      minute,
+    });
+
+    // Follow-up 3 hours later
+    const followHour = (hour + 3) % 24;
+    await this.scheduleDailyReminder({
+      id: 5500 + idNum,
+      title: `🌱 Habit Reminder: ${habitName}`,
+      body: `Did you complete "${habitName}" today?`,
+      hour: followHour,
+      minute,
+    });
+  },
+
+  /** Cancel a per-habit reminder */
+  async cancelHabitReminder(habitId: string) {
+    if (!isNative) return;
+    const idNum = Math.abs(hashCode(habitId)) % 50000;
+    await this.cancelNotification(5000 + idNum);
+    await this.cancelNotification(5500 + idNum);
+  },
+
+  /** Call on app start to set up all enabled reminders */
+  async setupDailyReminders() {
+    if (!isNative) return;
+    await this.setupDiaryReminder();
+    await this.setupJournalReminder();
+
+    // Legacy tasks/habits general reminder
+    const granted = await this.requestPermission();
+    if (!granted) return;
+
     await this.cancelNotification(1003);
     await this.cancelNotification(1004);
-
-    const diaryEnabled = localStorage.getItem("dailynova_notify_diary") === "true";
-    const journalEnabled = localStorage.getItem("dailynova_notify_journal") === "true";
-    const habitsEnabled = localStorage.getItem("dailynova_notify_habits") === "true";
-    const tasksEnabled = localStorage.getItem("dailynova_notify_tasks") === "true";
 
     const hour = parseInt(localStorage.getItem("dailynova_notify_hour") || "20", 10);
     const minute = parseInt(localStorage.getItem("dailynova_notify_minute") || "0", 10);
 
-    if (diaryEnabled) {
-      await this.scheduleDailyReminder({
-        id: 1001,
-        title: "📖 Write in your Diary",
-        body: "You haven't written in your diary today. Take a moment to reflect!",
-        hour,
-        minute,
-      });
-    }
-
-    if (journalEnabled) {
-      await this.scheduleDailyReminder({
-        id: 1002,
-        title: "✍️ Journal Time",
-        body: "Don't forget to write in your journal today!",
-        hour,
-        minute: Math.min(minute + 5, 59),
-      });
-    }
+    const habitsEnabled = localStorage.getItem("dailynova_notify_habits") === "true";
+    const tasksEnabled = localStorage.getItem("dailynova_notify_tasks") === "true";
 
     if (habitsEnabled) {
       await this.scheduleDailyReminder({
@@ -147,3 +231,13 @@ export const notificationService = {
     }
   },
 };
+
+function hashCode(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return hash;
+}
