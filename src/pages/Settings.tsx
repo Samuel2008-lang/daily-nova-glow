@@ -15,12 +15,10 @@ import {
   Send,
   Lock,
   ShieldCheck,
-  Fingerprint,
   Clock
 } from "lucide-react";
 import PinSetup from "@/components/PinSetup";
 import { notificationService } from "@/lib/notifications";
-import { biometricService } from "@/lib/biometric";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -55,10 +53,6 @@ const Settings = () => {
   const [lockEnabled, setLockEnabled] = useState(
     localStorage.getItem("dailynova_lock_enabled") === "true"
   );
-  const [biometricEnabled, setBiometricEnabled] = useState(
-    localStorage.getItem("dailynova_biometric_enabled") === "true"
-  );
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [diaryLock, setDiaryLock] = useState(
     localStorage.getItem("dailynova_diary_lock") === "true"
   );
@@ -67,10 +61,6 @@ const Settings = () => {
   );
   const [showPinSetup, setShowPinSetup] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    biometricService.isAvailable().then((r) => setBiometricAvailable(r.available));
-  }, []);
 
   const sendFeedback = () => {
     if (!feedbackText.trim()) return;
@@ -413,22 +403,6 @@ const Settings = () => {
                       }}
                     />
                   </div>
-                  {biometricAvailable && (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Fingerprint className="w-4 h-4 text-muted-foreground" />
-                        <Label htmlFor="biometric" className="cursor-pointer text-sm">Fingerprint Unlock</Label>
-                      </div>
-                      <Switch
-                        id="biometric"
-                        checked={biometricEnabled}
-                        onCheckedChange={(v) => {
-                          localStorage.setItem("dailynova_biometric_enabled", String(v));
-                          setBiometricEnabled(v);
-                        }}
-                      />
-                    </div>
-                  )}
                   <Button
                     variant="outline"
                     className="w-full"
@@ -439,7 +413,7 @@ const Settings = () => {
                 </>
               )}
               <p className="text-xs text-muted-foreground">
-                Require a 4-digit PIN or fingerprint when opening the app.
+                Require a 4-digit PIN when opening the app.
               </p>
             </div>
           </Card>

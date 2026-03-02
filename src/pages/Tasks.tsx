@@ -1,16 +1,36 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Check, Mic } from "lucide-react";
+import { Plus, Trash2, Check, Mic, Bell, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { storage, Task } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { notificationService } from "@/lib/notifications";
+
+const REMINDER_OPTIONS = [
+  { label: "5 min before", value: 5 },
+  { label: "10 min before", value: 10 },
+  { label: "30 min before", value: 30 },
+  { label: "1 hour before", value: 60 },
+];
+
+const FOLLOWUP_OPTIONS = [
+  { label: "10 min after", value: 10 },
+  { label: "30 min after", value: 30 },
+  { label: "1 hour after", value: 60 },
+];
 
 const Tasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState("");
+  const [showAlarmForm, setShowAlarmForm] = useState(false);
+  const [alarmDate, setAlarmDate] = useState("");
+  const [alarmTime, setAlarmTime] = useState("");
+  const [reminderBefore, setReminderBefore] = useState<number | undefined>();
+  const [reminderAfter, setReminderAfter] = useState<number | undefined>();
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening } = useSpeechRecognition({
@@ -23,13 +43,65 @@ const Tasks = () => {
     setTasks(storage.getTasks());
   }, []);
 
-  const addTask = () => {
+  const scheduleTaskNotifications = async (task: Task) => {
+    if (!task.dueDate || !task.dueTime) return;
+
+    const taskTime = new Date(`${task.dueDate}T${task.dueTime}`);
+    if (isNaN(taskTime.getTime()) || taskTime <= new Date()) return;
+
+    const taskIdNum = parseInt(task.id) % 100000;
+
+    // On-time notification
+    await notificationService.scheduleTaskAlarm({
+      id: 2000 + taskIdNum,
+      title: "🔔 It's time!",
+      body: `${task.title} — now.`,
+      at: taskTime,
+    });
+
+    // Before reminder
+    if (task.reminderBefore) {
+      const beforeTime = new Date(taskTime.getTime() - task.reminderBefore * 60000);
+      if (beforeTime > new Date()) {
+        await notificationService.scheduleTaskAlarm({
+          id: 3000 + taskIdNum,
+          title: "⏰ Upcoming Task",
+          body: `${task.title} in ${task.reminderBefore} minutes.`,
+          at: beforeTime,
+        });
+      }
+    }
+
+    // After follow-up
+    if (task.reminderAfter) {
+      const afterTime = new Date(taskTime.getTime() + task.reminderAfter * 60000);
+      await notificationService.scheduleTaskAlarm({
+        id: 4000 + taskIdNum,
+        title: "⚠️ Did you complete it?",
+        body: `${task.title} — check it off!`,
+        at: afterTime,
+      });
+    }
+  };
+
+  const cancelTaskNotifications = async (task: Task) => {
+    const taskIdNum = parseInt(task.id) % 100000;
+    await notificationService.cancelNotification(2000 + taskIdNum);
+    await notificationService.cancelNotification(3000 + taskIdNum);
+    await notificationService.cancelNotification(4000 + taskIdNum);
+  };
+
+  const addTask = async () => {
     if (!newTask.trim()) return;
 
     const task: Task = {
       id: Date.now().toString(),
       title: newTask,
       completed: false,
+      dueDate: alarmDate || undefined,
+      dueTime: alarmTime || undefined,
+      reminderBefore,
+      reminderAfter,
       createdAt: new Date().toISOString(),
     };
 
@@ -37,14 +109,27 @@ const Tasks = () => {
     setTasks(updatedTasks);
     storage.saveTasks(updatedTasks);
     setNewTask("");
+    setAlarmDate("");
+    setAlarmTime("");
+    setReminderBefore(undefined);
+    setReminderAfter(undefined);
+    setShowAlarmForm(false);
 
-    toast({
-      title: "Task added",
-      description: "Your task has been created.",
-    });
+    if (task.dueDate && task.dueTime) {
+      await scheduleTaskNotifications(task);
+      toast({
+        title: "Task added with alarm",
+        description: `Reminder set for ${task.dueDate} at ${task.dueTime}.`,
+      });
+    } else {
+      toast({
+        title: "Task added",
+        description: "Your task has been created.",
+      });
+    }
   };
 
-  const toggleTask = (id: string) => {
+  const toggleTask = async (id: string) => {
     const updatedTasks = tasks.map((task) =>
       task.id === id ? { ...task, completed: !task.completed } : task
     );
@@ -53,6 +138,7 @@ const Tasks = () => {
 
     const task = updatedTasks.find((t) => t.id === id);
     if (task?.completed) {
+      await cancelTaskNotifications(task);
       toast({
         title: "Task completed!",
         description: "Great job! Keep up the momentum.",
@@ -60,7 +146,10 @@ const Tasks = () => {
     }
   };
 
-  const deleteTask = (id: string) => {
+  const deleteTask = async (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (task) await cancelTaskNotifications(task);
+
     const updatedTasks = tasks.filter((task) => task.id !== id);
     setTasks(updatedTasks);
     storage.saveTasks(updatedTasks);
@@ -84,10 +173,10 @@ const Tasks = () => {
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Input
-                placeholder="Add a new task or use voice..."
+                placeholder="Add a new task..."
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && addTask()}
+                onKeyPress={(e) => e.key === "Enter" && !showAlarmForm && addTask()}
                 className="bg-background/50 border-border/50 focus:border-secondary pr-12"
               />
               {isSupported && (
@@ -104,10 +193,86 @@ const Tasks = () => {
                 </Button>
               )}
             </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowAlarmForm(!showAlarmForm)}
+              className={showAlarmForm ? "text-secondary border-secondary" : ""}
+            >
+              <Bell className="w-4 h-4" />
+            </Button>
             <Button onClick={addTask} className="glow-purple">
               <Plus className="w-4 h-4" />
             </Button>
           </div>
+
+          {/* Alarm scheduling form */}
+          {showAlarmForm && (
+            <div className="mt-4 p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-secondary" />
+                  <span className="text-sm font-medium">Set Alarm</span>
+                </div>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowAlarmForm(false)}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Date</Label>
+                  <Input
+                    type="date"
+                    value={alarmDate}
+                    onChange={(e) => setAlarmDate(e.target.value)}
+                    className="bg-background/50 border-border/50 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Time</Label>
+                  <Input
+                    type="time"
+                    value={alarmTime}
+                    onChange={(e) => setAlarmTime(e.target.value)}
+                    className="bg-background/50 border-border/50 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Remind before</Label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {REMINDER_OPTIONS.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      size="sm"
+                      variant={reminderBefore === opt.value ? "default" : "outline"}
+                      className="text-xs h-7"
+                      onClick={() => setReminderBefore(reminderBefore === opt.value ? undefined : opt.value)}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Follow-up after</Label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {FOLLOWUP_OPTIONS.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      size="sm"
+                      variant={reminderAfter === opt.value ? "default" : "outline"}
+                      className="text-xs h-7"
+                      onClick={() => setReminderAfter(reminderAfter === opt.value ? undefined : opt.value)}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {isListening && (
             <div className="flex items-center gap-2 mt-3 px-4 py-2 bg-secondary/20 rounded-lg animate-pulse-glow">
               <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
@@ -133,7 +298,17 @@ const Tasks = () => {
                       onCheckedChange={() => toggleTask(task.id)}
                       className="border-secondary data-[state=checked]:bg-secondary"
                     />
-                    <span className="flex-1 text-foreground">{task.title}</span>
+                    <div className="flex-1">
+                      <span className="text-foreground">{task.title}</span>
+                      {task.dueDate && task.dueTime && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Bell className="w-3 h-3 text-secondary" />
+                          <span className="text-xs text-muted-foreground">
+                            {task.dueDate} at {task.dueTime}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     <Button
                       size="icon"
                       variant="ghost"
