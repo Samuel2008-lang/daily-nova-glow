@@ -28,6 +28,9 @@ export interface Habit {
   completedDates: string[];
   lastMarkedDate?: string;
   streak: number;
+  reminderEnabled?: boolean;
+  reminderHour?: number;
+  reminderMinute?: number;
   createdAt: string;
 }
 

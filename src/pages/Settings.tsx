@@ -48,6 +48,10 @@ const Settings = () => {
   const [notifyTasks, setNotifyTasks] = useState(localStorage.getItem("dailynova_notify_tasks") === "true");
   const [notifyHour, setNotifyHour] = useState(localStorage.getItem("dailynova_notify_hour") || "20");
   const [notifyMinute, setNotifyMinute] = useState(localStorage.getItem("dailynova_notify_minute") || "0");
+  const [diaryHour, setDiaryHour] = useState(localStorage.getItem("dailynova_diary_hour") || "21");
+  const [diaryMinute, setDiaryMinute] = useState(localStorage.getItem("dailynova_diary_minute") || "0");
+  const [journalHour, setJournalHour] = useState(localStorage.getItem("dailynova_journal_hour") || "21");
+  const [journalMinute, setJournalMinute] = useState(localStorage.getItem("dailynova_journal_minute") || "0");
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(
@@ -289,58 +293,100 @@ const Settings = () => {
               <Bell className="w-5 h-5 text-primary" />
               <h2 className="text-xl font-semibold">Reminders</h2>
             </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="notify-diary" className="cursor-pointer text-sm">Diary Reminder</Label>
-                <Switch id="notify-diary" checked={notifyDiary} onCheckedChange={(v) => {
-                  localStorage.setItem("dailynova_notify_diary", String(v));
-                  setNotifyDiary(v);
-                  notificationService.setupDailyReminders();
-                }} />
+            <div className="space-y-5">
+              {/* Diary Reminder */}
+              <div className="space-y-2 p-3 rounded-lg bg-background/30 border border-border/20">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notify-diary" className="cursor-pointer text-sm font-medium">📖 Diary Reminder</Label>
+                  <Switch id="notify-diary" checked={notifyDiary} onCheckedChange={(v) => {
+                    localStorage.setItem("dailynova_notify_diary", String(v));
+                    setNotifyDiary(v);
+                    notificationService.setupDiaryReminder();
+                  }} />
+                </div>
+                {notifyDiary && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Time:</span>
+                    <select className="bg-background border border-border rounded px-2 py-1 text-xs" value={diaryHour}
+                      onChange={(e) => { localStorage.setItem("dailynova_diary_hour", e.target.value); setDiaryHour(e.target.value); notificationService.setupDiaryReminder(); }}>
+                      {Array.from({ length: 24 }, (_, i) => <option key={i} value={String(i)}>{String(i).padStart(2, "0")}</option>)}
+                    </select>
+                    <span className="text-xs">:</span>
+                    <select className="bg-background border border-border rounded px-2 py-1 text-xs" value={diaryMinute}
+                      onChange={(e) => { localStorage.setItem("dailynova_diary_minute", e.target.value); setDiaryMinute(e.target.value); notificationService.setupDiaryReminder(); }}>
+                      {[0, 15, 30, 45].map(m => <option key={m} value={String(m)}>{String(m).padStart(2, "0")}</option>)}
+                    </select>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Reminds you to write + 1 follow-up 2hrs later.</p>
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="notify-journal" className="cursor-pointer text-sm">Journal Reminder</Label>
-                <Switch id="notify-journal" checked={notifyJournal} onCheckedChange={(v) => {
-                  localStorage.setItem("dailynova_notify_journal", String(v));
-                  setNotifyJournal(v);
-                  notificationService.setupDailyReminders();
-                }} />
+
+              {/* Journal Reminder */}
+              <div className="space-y-2 p-3 rounded-lg bg-background/30 border border-border/20">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notify-journal" className="cursor-pointer text-sm font-medium">✍️ Journal Reminder</Label>
+                  <Switch id="notify-journal" checked={notifyJournal} onCheckedChange={(v) => {
+                    localStorage.setItem("dailynova_notify_journal", String(v));
+                    setNotifyJournal(v);
+                    notificationService.setupJournalReminder();
+                  }} />
+                </div>
+                {notifyJournal && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Time:</span>
+                    <select className="bg-background border border-border rounded px-2 py-1 text-xs" value={journalHour}
+                      onChange={(e) => { localStorage.setItem("dailynova_journal_hour", e.target.value); setJournalHour(e.target.value); notificationService.setupJournalReminder(); }}>
+                      {Array.from({ length: 24 }, (_, i) => <option key={i} value={String(i)}>{String(i).padStart(2, "0")}</option>)}
+                    </select>
+                    <span className="text-xs">:</span>
+                    <select className="bg-background border border-border rounded px-2 py-1 text-xs" value={journalMinute}
+                      onChange={(e) => { localStorage.setItem("dailynova_journal_minute", e.target.value); setJournalMinute(e.target.value); notificationService.setupJournalReminder(); }}>
+                      {[0, 15, 30, 45].map(m => <option key={m} value={String(m)}>{String(m).padStart(2, "0")}</option>)}
+                    </select>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Reminds you to journal + 1 follow-up 2hrs later.</p>
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="notify-habits" className="cursor-pointer text-sm">Habits Reminder</Label>
-                <Switch id="notify-habits" checked={notifyHabits} onCheckedChange={(v) => {
-                  localStorage.setItem("dailynova_notify_habits", String(v));
-                  setNotifyHabits(v);
-                  notificationService.setupDailyReminders();
-                }} />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="notify-tasks" className="cursor-pointer text-sm">Tasks Reminder</Label>
-                <Switch id="notify-tasks" checked={notifyTasks} onCheckedChange={(v) => {
-                  localStorage.setItem("dailynova_notify_tasks", String(v));
-                  setNotifyTasks(v);
-                  notificationService.setupDailyReminders();
-                }} />
-              </div>
-              <div className="flex items-center gap-3">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                <Label className="text-sm">Reminder Time</Label>
-                <select
-                  className="bg-background border border-border rounded px-2 py-1 text-sm"
-                  value={notifyHour}
-                  onChange={(e) => {
-                    localStorage.setItem("dailynova_notify_hour", e.target.value);
-                    setNotifyHour(e.target.value);
+
+              {/* Habits General Reminder */}
+              <div className="space-y-2 p-3 rounded-lg bg-background/30 border border-border/20">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notify-habits" className="cursor-pointer text-sm font-medium">🎯 Habits Reminder</Label>
+                  <Switch id="notify-habits" checked={notifyHabits} onCheckedChange={(v) => {
+                    localStorage.setItem("dailynova_notify_habits", String(v));
+                    setNotifyHabits(v);
                     notificationService.setupDailyReminders();
-                  }}
-                >
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <option key={i} value={String(i)}>{String(i).padStart(2, "0")}:00</option>
-                  ))}
+                  }} />
+                </div>
+                <p className="text-xs text-muted-foreground">General daily reminder. Set per-habit times in the Habit Tracker.</p>
+              </div>
+
+              {/* Tasks General Reminder */}
+              <div className="space-y-2 p-3 rounded-lg bg-background/30 border border-border/20">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notify-tasks" className="cursor-pointer text-sm font-medium">✅ Tasks Reminder</Label>
+                  <Switch id="notify-tasks" checked={notifyTasks} onCheckedChange={(v) => {
+                    localStorage.setItem("dailynova_notify_tasks", String(v));
+                    setNotifyTasks(v);
+                    notificationService.setupDailyReminders();
+                  }} />
+                </div>
+                <p className="text-xs text-muted-foreground">Per-task alarms are set when creating tasks.</p>
+              </div>
+
+              {/* General fallback time */}
+              <div className="flex items-center gap-3 pt-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <Label className="text-sm">Default Reminder Time</Label>
+                <select className="bg-background border border-border rounded px-2 py-1 text-sm" value={notifyHour}
+                  onChange={(e) => { localStorage.setItem("dailynova_notify_hour", e.target.value); setNotifyHour(e.target.value); notificationService.setupDailyReminders(); }}>
+                  {Array.from({ length: 24 }, (_, i) => <option key={i} value={String(i)}>{String(i).padStart(2, "0")}:00</option>)}
                 </select>
               </div>
               <p className="text-xs text-muted-foreground">
-                Daily reminders at your chosen time. Works in native app.
+                Used for habits & tasks general reminders. Works in native app only.
               </p>
             </div>
           </Card>
