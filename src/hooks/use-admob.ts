@@ -27,7 +27,8 @@ export const useAdMob = () => {
       try {
         const { AdMob } = await import("@capacitor-community/admob");
         await AdMob.initialize({
-          initializeForTesting: false,
+          testingDevices: ['CF4709BF-3238-466B-9A7A-CF622DB060C2'],
+          initializeForTesting: true,
         });
         console.log("AdMob initialized successfully");
       } catch (error) {

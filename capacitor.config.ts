@@ -2,7 +2,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'app.lovable.9c63e22898864d0491ab1e60a8b46615',
-  appName: 'daily-nova-glow',
+  appName: 'Daily Nova',
   webDir: 'dist',
   server: {
     cleartext: true

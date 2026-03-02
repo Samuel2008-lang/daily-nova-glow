@@ -15,6 +15,9 @@ export interface Task {
   description?: string;
   completed: boolean;
   dueDate?: string;
+  dueTime?: string;
+  reminderBefore?: number; // minutes before
+  reminderAfter?: number; // minutes after
   createdAt: string;
 }
 
