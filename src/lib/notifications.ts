@@ -46,6 +46,7 @@ export const notificationService = {
     title: string;
     body: string;
     at: Date;
+    sound?: string;
   }) {
     if (!isNative) return;
     try {
@@ -55,6 +56,7 @@ export const notificationService = {
             id: config.id,
             title: config.title,
             body: config.body,
+            sound: config.sound || undefined,
             schedule: { at: config.at, allowWhileIdle: true },
           },
         ],
