@@ -32,6 +32,7 @@ export interface Habit {
   reminderEnabled?: boolean;
   reminderHour?: number;
   reminderMinute?: number;
+  reminderSound?: string;
   createdAt: string;
 }
 

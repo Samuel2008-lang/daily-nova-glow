@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Check, Mic, Bell, Clock } from "lucide-react";
+import { Plus, Trash2, Check, Mic, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { AmPmTimePicker } from "@/components/AmPmTimePicker";
+import { AlarmSoundPicker } from "@/components/AlarmSoundPicker";
 import { storage, Habit } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -297,26 +299,34 @@ const Habits = () => {
                       </div>
                       
                       {/* Per-habit reminder */}
-                      <div className="flex items-center gap-2 mt-2">
-                        <Bell className="w-3 h-3 text-muted-foreground" />
-                        <Switch
-                          checked={habit.reminderEnabled || false}
-                          onCheckedChange={(v) => toggleHabitReminder(habit.id, v)}
-                          className="scale-75"
-                        />
+                      <div className="flex flex-col gap-2 mt-2">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-3 h-3 text-muted-foreground" />
+                          <Switch
+                            checked={habit.reminderEnabled || false}
+                            onCheckedChange={(v) => toggleHabitReminder(habit.id, v)}
+                            className="scale-75"
+                          />
+                          <span className="text-xs text-muted-foreground">Reminder</span>
+                        </div>
                         {habit.reminderEnabled && (
-                          <div className="flex items-center gap-1">
-                            <select className="bg-background border border-border rounded px-1 py-0.5 text-xs"
-                              value={String(habit.reminderHour ?? 8)}
-                              onChange={(e) => updateHabitReminderTime(habit.id, parseInt(e.target.value), habit.reminderMinute ?? 0)}>
-                              {Array.from({ length: 24 }, (_, i) => <option key={i} value={String(i)}>{String(i).padStart(2, "0")}</option>)}
-                            </select>
-                            <span className="text-xs">:</span>
-                            <select className="bg-background border border-border rounded px-1 py-0.5 text-xs"
-                              value={String(habit.reminderMinute ?? 0)}
-                              onChange={(e) => updateHabitReminderTime(habit.id, habit.reminderHour ?? 8, parseInt(e.target.value))}>
-                              {[0, 15, 30, 45].map(m => <option key={m} value={String(m)}>{String(m).padStart(2, "0")}</option>)}
-                            </select>
+                          <div className="flex flex-wrap items-center gap-2 ml-5">
+                            <AmPmTimePicker
+                              hour={String(habit.reminderHour ?? 8)}
+                              minute={String(habit.reminderMinute ?? 0)}
+                              onTimeChange={(h, m) => updateHabitReminderTime(habit.id, parseInt(h), parseInt(m))}
+                            />
+                            <AlarmSoundPicker
+                              value={habit.reminderSound || "default"}
+                              onChange={(s) => {
+                                const updatedHabits = habits.map(hb =>
+                                  hb.id === habit.id ? { ...hb, reminderSound: s } : hb
+                                );
+                                setHabits(updatedHabits);
+                                storage.saveHabits(updatedHabits);
+                              }}
+                              compact
+                            />
                           </div>
                         )}
                       </div>

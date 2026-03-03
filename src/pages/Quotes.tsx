@@ -22,8 +22,10 @@ const fallbackQuotes: Quote[] = [
 const ALL_QUOTES_KEY = "daily-quotes-all";
 const QUOTES_DATE_KEY = "daily-quotes-date";
 const QUOTE_INDEX_KEY = "daily-quote-index";
+const QUOTES_CLEANUP_KEY = "daily-quotes-cleanup-date";
 const MAX_STORED_QUOTES = 21;
-const CLEANUP_THRESHOLD = 10; // delete oldest 10 when exceeding max
+const CLEANUP_COUNT = 9; // delete oldest 9 when cleanup triggers
+const CLEANUP_INTERVAL_DAYS = 7;
 
 const Quotes = () => {
   const [allQuotes, setAllQuotes] = useState<Quote[]>(fallbackQuotes);
@@ -74,14 +76,28 @@ const Quotes = () => {
     }
   };
 
-  /** Enforce max stored quotes - delete oldest when exceeding limit */
+  /** Enforce max stored quotes + weekly auto-cleanup of oldest 9 */
   const enforceStorageLimit = (quotes: Quote[]): Quote[] => {
-    if (quotes.length > MAX_STORED_QUOTES) {
-      const trimmed = quotes.slice(CLEANUP_THRESHOLD);
-      localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(trimmed));
-      return trimmed;
+    let result = quotes;
+
+    // Weekly cleanup: remove oldest 9 every 7 days
+    const lastCleanup = localStorage.getItem(QUOTES_CLEANUP_KEY);
+    const now = Date.now();
+    const lastCleanupTime = lastCleanup ? parseInt(lastCleanup, 10) : 0;
+    const daysSinceCleanup = (now - lastCleanupTime) / (1000 * 60 * 60 * 24);
+
+    if (daysSinceCleanup >= CLEANUP_INTERVAL_DAYS && result.length > CLEANUP_COUNT) {
+      result = result.slice(CLEANUP_COUNT);
+      localStorage.setItem(QUOTES_CLEANUP_KEY, String(now));
     }
-    return quotes;
+
+    // Hard cap at 21
+    if (result.length > MAX_STORED_QUOTES) {
+      result = result.slice(result.length - MAX_STORED_QUOTES);
+    }
+
+    localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(result));
+    return result;
   };
 
   const checkAndFetchDailyQuotes = async () => {
