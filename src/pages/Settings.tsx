@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import PinSetup from "@/components/PinSetup";
 import { notificationService } from "@/lib/notifications";
+import { AmPmTimePicker } from "@/components/AmPmTimePicker";
+import { AlarmSoundPicker } from "@/components/AlarmSoundPicker";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -54,6 +56,8 @@ const Settings = () => {
   const [journalMinute, setJournalMinute] = useState(localStorage.getItem("dailynova_journal_minute") || "0");
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const [diarySoundSetting, setDiarySoundSetting] = useState(localStorage.getItem("dailynova_diary_sound") || "default");
+  const [journalSoundSetting, setJournalSoundSetting] = useState(localStorage.getItem("dailynova_journal_sound") || "default");
   const [lockEnabled, setLockEnabled] = useState(
     localStorage.getItem("dailynova_lock_enabled") === "true"
   );
@@ -305,18 +309,14 @@ const Settings = () => {
                   }} />
                 </div>
                 {notifyDiary && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3 h-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Time:</span>
-                    <select className="bg-background border border-border rounded px-2 py-1 text-xs" value={diaryHour}
-                      onChange={(e) => { localStorage.setItem("dailynova_diary_hour", e.target.value); setDiaryHour(e.target.value); notificationService.setupDiaryReminder(); }}>
-                      {Array.from({ length: 24 }, (_, i) => <option key={i} value={String(i)}>{String(i).padStart(2, "0")}</option>)}
-                    </select>
-                    <span className="text-xs">:</span>
-                    <select className="bg-background border border-border rounded px-2 py-1 text-xs" value={diaryMinute}
-                      onChange={(e) => { localStorage.setItem("dailynova_diary_minute", e.target.value); setDiaryMinute(e.target.value); notificationService.setupDiaryReminder(); }}>
-                      {[0, 15, 30, 45].map(m => <option key={m} value={String(m)}>{String(m).padStart(2, "0")}</option>)}
-                    </select>
+                  <div className="space-y-2">
+                    <AmPmTimePicker hour={diaryHour} minute={diaryMinute} onTimeChange={(h, m) => {
+                      localStorage.setItem("dailynova_diary_hour", h); localStorage.setItem("dailynova_diary_minute", m);
+                      setDiaryHour(h); setDiaryMinute(m); notificationService.setupDiaryReminder();
+                    }} />
+                    <AlarmSoundPicker value={diarySoundSetting} onChange={(s) => {
+                      localStorage.setItem("dailynova_diary_sound", s); setDiarySoundSetting(s);
+                    }} compact />
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">Reminds you to write + 1 follow-up 2hrs later.</p>
@@ -333,18 +333,14 @@ const Settings = () => {
                   }} />
                 </div>
                 {notifyJournal && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3 h-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Time:</span>
-                    <select className="bg-background border border-border rounded px-2 py-1 text-xs" value={journalHour}
-                      onChange={(e) => { localStorage.setItem("dailynova_journal_hour", e.target.value); setJournalHour(e.target.value); notificationService.setupJournalReminder(); }}>
-                      {Array.from({ length: 24 }, (_, i) => <option key={i} value={String(i)}>{String(i).padStart(2, "0")}</option>)}
-                    </select>
-                    <span className="text-xs">:</span>
-                    <select className="bg-background border border-border rounded px-2 py-1 text-xs" value={journalMinute}
-                      onChange={(e) => { localStorage.setItem("dailynova_journal_minute", e.target.value); setJournalMinute(e.target.value); notificationService.setupJournalReminder(); }}>
-                      {[0, 15, 30, 45].map(m => <option key={m} value={String(m)}>{String(m).padStart(2, "0")}</option>)}
-                    </select>
+                  <div className="space-y-2">
+                    <AmPmTimePicker hour={journalHour} minute={journalMinute} onTimeChange={(h, m) => {
+                      localStorage.setItem("dailynova_journal_hour", h); localStorage.setItem("dailynova_journal_minute", m);
+                      setJournalHour(h); setJournalMinute(m); notificationService.setupJournalReminder();
+                    }} />
+                    <AlarmSoundPicker value={journalSoundSetting} onChange={(s) => {
+                      localStorage.setItem("dailynova_journal_sound", s); setJournalSoundSetting(s);
+                    }} compact />
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">Reminds you to journal + 1 follow-up 2hrs later.</p>
@@ -377,13 +373,13 @@ const Settings = () => {
               </div>
 
               {/* General fallback time */}
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <Clock className="w-4 h-4 text-muted-foreground" />
                 <Label className="text-sm">Default Reminder Time</Label>
-                <select className="bg-background border border-border rounded px-2 py-1 text-sm" value={notifyHour}
-                  onChange={(e) => { localStorage.setItem("dailynova_notify_hour", e.target.value); setNotifyHour(e.target.value); notificationService.setupDailyReminders(); }}>
-                  {Array.from({ length: 24 }, (_, i) => <option key={i} value={String(i)}>{String(i).padStart(2, "0")}:00</option>)}
-                </select>
+                <AmPmTimePicker hour={notifyHour} minute={notifyMinute} onTimeChange={(h, m) => {
+                  localStorage.setItem("dailynova_notify_hour", h); localStorage.setItem("dailynova_notify_minute", m);
+                  setNotifyHour(h); setNotifyMinute(m); notificationService.setupDailyReminders();
+                }} />
               </div>
               <p className="text-xs text-muted-foreground">
                 Used for habits & tasks general reminders. Works in native app only.
