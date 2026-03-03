@@ -1,14 +1,24 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Check, Mic, Bell, Clock, X } from "lucide-react";
+import { Plus, Trash2, Check, Mic, Bell, Clock, X, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { storage, Task } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { notificationService } from "@/lib/notifications";
+
+const ALARM_SOUNDS = [
+  { label: "Default", value: "default" },
+  { label: "Gentle Bell", value: "gentle_bell" },
+  { label: "Classic Alarm", value: "classic_alarm" },
+  { label: "Digital Beep", value: "digital_beep" },
+  { label: "Soft Chime", value: "soft_chime" },
+  { label: "Urgent Ring", value: "urgent_ring" },
+];
 
 const REMINDER_OPTIONS = [
   { label: "5 min before", value: 5 },
@@ -31,6 +41,7 @@ const Tasks = () => {
   const [alarmTime, setAlarmTime] = useState("");
   const [reminderBefore, setReminderBefore] = useState<number | undefined>();
   const [reminderAfter, setReminderAfter] = useState<number | undefined>();
+  const [alarmSound, setAlarmSound] = useState("default");
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening } = useSpeechRecognition({
@@ -52,11 +63,13 @@ const Tasks = () => {
     const taskIdNum = parseInt(task.id) % 100000;
 
     // On-time notification
+    const sound = task.alarmSound && task.alarmSound !== "default" ? task.alarmSound : undefined;
     await notificationService.scheduleTaskAlarm({
       id: 2000 + taskIdNum,
       title: "🔔 It's time!",
       body: `${task.title} — now.`,
       at: taskTime,
+      sound,
     });
 
     // Before reminder
@@ -68,6 +81,7 @@ const Tasks = () => {
           title: "⏰ Upcoming Task",
           body: `${task.title} in ${task.reminderBefore} minutes.`,
           at: beforeTime,
+          sound,
         });
       }
     }
@@ -80,6 +94,7 @@ const Tasks = () => {
         title: "⚠️ Did you complete it?",
         body: `${task.title} — check it off!`,
         at: afterTime,
+        sound,
       });
     }
   };
@@ -102,6 +117,7 @@ const Tasks = () => {
       dueTime: alarmTime || undefined,
       reminderBefore,
       reminderAfter,
+      alarmSound: alarmSound !== "default" ? alarmSound : undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -113,6 +129,7 @@ const Tasks = () => {
     setAlarmTime("");
     setReminderBefore(undefined);
     setReminderAfter(undefined);
+    setAlarmSound("default");
     setShowAlarmForm(false);
 
     if (task.dueDate && task.dueTime) {
@@ -269,6 +286,23 @@ const Tasks = () => {
                     </Button>
                   ))}
                 </div>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Volume2 className="w-3 h-3" /> Alarm Sound
+                </Label>
+                <Select value={alarmSound} onValueChange={setAlarmSound}>
+                  <SelectTrigger className="mt-1 h-8 text-xs bg-background/50 border-border/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALARM_SOUNDS.map((s) => (
+                      <SelectItem key={s.value} value={s.value} className="text-xs">
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}

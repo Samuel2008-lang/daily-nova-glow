@@ -10,6 +10,7 @@ import { storage, DiaryEntry } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
+import { DiaryNotificationBell } from "@/components/DiaryNotificationBell";
 
 const Diary = () => {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
@@ -416,7 +417,10 @@ Help them transform daily reflections into meaningful self-understanding, emotio
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
       <div className="max-w-4xl mx-auto animate-fade-in">
-        <h1 className="text-4xl font-bold mb-8 text-success">Daily Diary</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-4xl font-bold text-success">Daily Diary</h1>
+          <DiaryNotificationBell />
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-6">

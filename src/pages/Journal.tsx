@@ -10,6 +10,7 @@ import { storage, JournalEntry } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
+import { JournalNotificationBell } from "@/components/JournalNotificationBell";
 
 const Journal = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -403,7 +404,10 @@ Help them use journaling as a tool for profound self-discovery, creative express
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
       <div className="max-w-4xl mx-auto animate-fade-in">
-        <h1 className="text-4xl font-bold mb-8 text-secondary">Journal</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-4xl font-bold text-secondary">Journal</h1>
+          <JournalNotificationBell />
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           {viewMode === 'write' && (

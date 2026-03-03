@@ -19,9 +19,11 @@ const fallbackQuotes: Quote[] = [
   { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
 ];
 
+const ALL_QUOTES_KEY = "daily-quotes-all";
 const QUOTES_DATE_KEY = "daily-quotes-date";
 const QUOTE_INDEX_KEY = "daily-quote-index";
-const ALL_QUOTES_KEY = "daily-quotes-all";
+const MAX_STORED_QUOTES = 21;
+const CLEANUP_THRESHOLD = 10; // delete oldest 10 when exceeding max
 
 const Quotes = () => {
   const [allQuotes, setAllQuotes] = useState<Quote[]>(fallbackQuotes);
@@ -29,6 +31,7 @@ const Quotes = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isLoading, setIsLoading] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
+  const [dailyQuotesFetched, setDailyQuotesFetched] = useState(false);
   const { toast } = useToast();
   const { shareAsImage } = useQuoteShareImage();
 
@@ -48,7 +51,7 @@ const Quotes = () => {
   }, []);
 
   useEffect(() => {
-    if (isOnline) {
+    if (isOnline && !dailyQuotesFetched) {
       checkAndFetchDailyQuotes();
     }
   }, [isOnline]);
@@ -62,9 +65,23 @@ const Quotes = () => {
         if (Array.isArray(parsed) && parsed.length > 0) setAllQuotes(parsed);
       }
       if (savedIndex) setCurrentIndex(parseInt(savedIndex, 10));
+      // Check if already fetched today
+      const today = new Date().toDateString();
+      const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
+      if (lastFetchDate === today) setDailyQuotesFetched(true);
     } catch (error) {
       console.error("Error loading quotes:", error);
     }
+  };
+
+  /** Enforce max stored quotes - delete oldest when exceeding limit */
+  const enforceStorageLimit = (quotes: Quote[]): Quote[] => {
+    if (quotes.length > MAX_STORED_QUOTES) {
+      const trimmed = quotes.slice(CLEANUP_THRESHOLD);
+      localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(trimmed));
+      return trimmed;
+    }
+    return quotes;
   };
 
   const checkAndFetchDailyQuotes = async () => {
@@ -73,12 +90,13 @@ const Quotes = () => {
     if (lastFetchDate !== today) {
       await fetchNewQuotes();
       localStorage.setItem(QUOTES_DATE_KEY, today);
+      setDailyQuotesFetched(true);
       setCurrentIndex(0);
       localStorage.setItem(QUOTE_INDEX_KEY, "0");
     }
   };
 
-  const fetchNewQuotes = async () => {
+  const fetchNewQuotes = async (retries = 2): Promise<boolean> => {
     if (!isOnline) {
       toast({ title: "Offline", description: "Connect to the internet to get new quotes.", variant: "destructive" });
       return false;
@@ -86,10 +104,17 @@ const Quotes = () => {
 
     setIsLoading(true);
     try {
-      // Use edge function to avoid CORS issues
       const { data, error } = await supabase.functions.invoke("fetch-quotes");
 
-      if (error) throw error;
+      if (error) {
+        if (retries > 0) {
+          console.log(`Retrying fetch-quotes... (${retries} left)`);
+          await new Promise(r => setTimeout(r, 1500));
+          setIsLoading(false);
+          return fetchNewQuotes(retries - 1);
+        }
+        throw error;
+      }
 
       if (data?.quotes && Array.isArray(data.quotes) && data.quotes.length > 0) {
         const newQuotes: Quote[] = data.quotes.map((q: any) => ({
@@ -98,8 +123,16 @@ const Quotes = () => {
         })).filter((q: Quote) => q.text);
 
         if (newQuotes.length > 0) {
-          setAllQuotes(newQuotes);
-          localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(newQuotes));
+          // Append to existing quotes for offline scrolling
+          const existing = allQuotes.filter(q => q.text !== fallbackQuotes[0].text || q.author !== fallbackQuotes[0].author);
+          const merged = [...existing, ...newQuotes];
+          // Deduplicate by text
+          const unique = merged.filter((q, i, arr) => arr.findIndex(x => x.text === q.text) === i);
+          const final = enforceStorageLimit(unique);
+          setAllQuotes(final);
+          localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(final));
+          setCurrentIndex(Math.max(0, final.length - newQuotes.length));
+          localStorage.setItem(QUOTE_INDEX_KEY, String(Math.max(0, final.length - newQuotes.length)));
           toast({ title: "New quotes loaded!", description: `${newQuotes.length} fresh quotes ready.` });
           return true;
         }
@@ -108,11 +141,24 @@ const Quotes = () => {
       throw new Error("No quotes returned");
     } catch (error) {
       console.error("Error fetching quotes:", error);
+      if (retries > 0) {
+        await new Promise(r => setTimeout(r, 1500));
+        setIsLoading(false);
+        return fetchNewQuotes(retries - 1);
+      }
       toast({ title: "Couldn't fetch new quotes", description: "Using cached quotes instead.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
     return false;
+  };
+
+  const handleBonusQuoteReward = async () => {
+    const success = await fetchNewQuotes();
+    if (!success) {
+      // Even if fetch fails, give the user something from fallbacks
+      toast({ title: "Using cached quotes", description: "New quotes will load when connection is available." });
+    }
   };
 
   const seeMoreQuotes = () => setShowNavigation(true);
@@ -123,8 +169,7 @@ const Quotes = () => {
       if (isOnline) {
         const success = await fetchNewQuotes();
         if (success) {
-          setCurrentIndex(0);
-          localStorage.setItem(QUOTE_INDEX_KEY, "0");
+          // Index already set by fetchNewQuotes
         }
       } else {
         setCurrentIndex(0);
@@ -167,7 +212,7 @@ const Quotes = () => {
               <WifiOff className="w-4 h-4 text-muted-foreground" />
             )}
             <span className="text-xs text-muted-foreground">
-              {isOnline ? "Online" : "Offline"}
+              {isOnline ? "Online" : "Offline — browsing cached quotes"}
             </span>
           </div>
         </div>
@@ -214,7 +259,7 @@ const Quotes = () => {
         </div>
 
         <div className="flex justify-center mt-4">
-          <RewardedAdButton onReward={() => fetchNewQuotes()} label="Watch Ad for Bonus Quotes" />
+          <RewardedAdButton onReward={handleBonusQuoteReward} label="Watch Ad for Bonus Quotes" />
         </div>
 
         {showNavigation && (

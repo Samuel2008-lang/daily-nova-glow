@@ -18,6 +18,7 @@ export interface Task {
   dueTime?: string;
   reminderBefore?: number; // minutes before
   reminderAfter?: number; // minutes after
+  alarmSound?: string; // alarm sound name
   createdAt: string;
 }
 
