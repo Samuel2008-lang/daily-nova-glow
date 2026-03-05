@@ -16,9 +16,8 @@ export interface Task {
   completed: boolean;
   dueDate?: string;
   dueTime?: string;
-  reminderBefore?: number; // minutes before
-  reminderAfter?: number; // minutes after
-  alarmSound?: string; // alarm sound name
+  reminderBefore?: number;
+  reminderAfter?: number;
   createdAt: string;
 }
 
@@ -32,7 +31,6 @@ export interface Habit {
   reminderEnabled?: boolean;
   reminderHour?: number;
   reminderMinute?: number;
-  reminderSound?: string;
   createdAt: string;
 }
 

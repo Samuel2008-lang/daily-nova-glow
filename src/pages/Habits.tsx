@@ -5,9 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
-import { AlarmSoundPicker } from "@/components/AlarmSoundPicker";
 import { storage, Habit } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -25,14 +23,11 @@ const Habits = () => {
   });
 
   useEffect(() => {
-    // Normalize any legacy date formats in completedDates
     const raw = storage.getHabits();
     const normalized = raw.map(h => ({
       ...h,
       completedDates: h.completedDates.map(d => {
-        // If date is already YYYY-MM-DD, keep it
         if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-        // Otherwise parse and convert
         const parsed = new Date(d);
         if (isNaN(parsed.getTime())) return d;
         return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
@@ -44,7 +39,6 @@ const Habits = () => {
 
   const addHabit = () => {
     if (!newHabit.trim()) return;
-
     const habit: Habit = {
       id: Date.now().toString(),
       name: newHabit,
@@ -53,16 +47,11 @@ const Habits = () => {
       streak: 0,
       createdAt: new Date().toISOString(),
     };
-
     const updatedHabits = [...habits, habit];
     setHabits(updatedHabits);
     storage.saveHabits(updatedHabits);
     setNewHabit("");
-
-    toast({
-      title: "Habit added",
-      description: "Start building your streak!",
-    });
+    toast({ title: "Habit added", description: "Start building your streak!" });
   };
 
   const getLocalDateString = () => {
@@ -72,47 +61,26 @@ const Habits = () => {
 
   const toggleHabitToday = (id: string) => {
     const today = getLocalDateString();
-    
     const updatedHabits = habits.map((habit) => {
       if (habit.id !== id) return habit;
-
       const isCompletedToday = habit.completedDates.includes(today);
-      
       if (isCompletedToday) {
-        // Unmark - remove today from completed dates
         const completedDates = habit.completedDates.filter((date) => date !== today);
-        // Recalculate streak
         const streak = calculateStreak(completedDates);
-        return { 
-          ...habit, 
-          completedDates, 
-          lastMarkedDate: completedDates.length > 0 ? completedDates[completedDates.length - 1] : undefined,
-          streak 
-        };
+        return { ...habit, completedDates, lastMarkedDate: completedDates.length > 0 ? completedDates[completedDates.length - 1] : undefined, streak };
       } else {
-        // Mark as done - only increment streak once per day
         const completedDates = [...habit.completedDates, today].sort();
         const streak = calculateStreak(completedDates);
-        return { 
-          ...habit, 
-          completedDates, 
-          lastMarkedDate: today,
-          streak 
-        };
+        return { ...habit, completedDates, lastMarkedDate: today, streak };
       }
     });
-
     setHabits(updatedHabits);
     storage.saveHabits(updatedHabits);
-
     const habit = updatedHabits.find((h) => h.id === id);
     const isNowCompleted = habit?.completedDates.includes(today);
-
     toast({
       title: isNowCompleted ? "Great job!" : "Unmarked",
-      description: isNowCompleted
-        ? `Keep building your streak! Current: ${habit?.streak || 0} days`
-        : "Habit unmarked for today.",
+      description: isNowCompleted ? `Keep building your streak! Current: ${habit?.streak || 0} days` : "Habit unmarked for today.",
     });
   };
 
@@ -121,11 +89,7 @@ const Habits = () => {
     const updatedHabits = habits.filter((habit) => habit.id !== id);
     setHabits(updatedHabits);
     storage.saveHabits(updatedHabits);
-
-    toast({
-      title: "Habit deleted",
-      description: "Your habit has been removed.",
-    });
+    toast({ title: "Habit deleted", description: "Your habit has been removed." });
   };
 
   const toggleHabitReminder = async (id: string, enabled: boolean) => {
@@ -158,7 +122,6 @@ const Habits = () => {
 
   const calculateStreak = (completedDates: string[]): number => {
     if (completedDates.length === 0) return 0;
-
     const sorted = [...completedDates].sort().reverse();
     const today = getLocalDateString();
     const yesterday = (() => {
@@ -166,25 +129,15 @@ const Habits = () => {
       d.setDate(d.getDate() - 1);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     })();
-
-    // Streak must include today or yesterday to be active
-    if (sorted[0] !== today && sorted[0] !== yesterday) {
-      return 0;
-    }
-
+    if (sorted[0] !== today && sorted[0] !== yesterday) return 0;
     let streak = 1;
     for (let i = 0; i < sorted.length - 1; i++) {
       const current = new Date(sorted[i]);
       const next = new Date(sorted[i + 1]);
       const diffDays = Math.floor((current.getTime() - next.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 1) {
-        streak++;
-      } else {
-        break;
-      }
+      if (diffDays === 1) streak++;
+      else break;
     }
-
     return streak;
   };
 
@@ -203,18 +156,14 @@ const Habits = () => {
           <div className="mb-4">
             <div className="flex justify-between mb-2">
               <span className="text-sm font-medium text-accent">Today's Progress</span>
-              <span className="text-sm font-bold text-accent">
-                {completedToday}/{totalHabits}
-              </span>
+              <span className="text-sm font-bold text-accent">{completedToday}/{totalHabits}</span>
             </div>
             <Progress value={completionPercentage} className="h-3" />
           </div>
           <p className="text-sm text-muted-foreground text-center">
             {completedToday === totalHabits && totalHabits > 0
               ? "Perfect! All habits completed today!"
-              : `Keep going! ${totalHabits - completedToday} habit${
-                  totalHabits - completedToday !== 1 ? "s" : ""
-                } left.`}
+              : `Keep going! ${totalHabits - completedToday} habit${totalHabits - completedToday !== 1 ? "s" : ""} left.`}
           </p>
         </Card>
 
@@ -269,20 +218,14 @@ const Habits = () => {
               return (
                 <Card
                   key={habit.id}
-                  className={`glass p-6 group transition-all duration-300 ${
-                    isCompletedToday ? "glow-pink border-accent/50" : ""
-                  }`}
+                  className={`glass p-6 group transition-all duration-300 ${isCompletedToday ? "glow-pink border-accent/50" : ""}`}
                 >
                   <div className="flex items-center gap-4">
                     <Button
                       size="icon"
                       variant={isCompletedToday ? "default" : "outline"}
                       onClick={() => toggleHabitToday(habit.id)}
-                      className={`${
-                        isCompletedToday
-                          ? "bg-accent text-accent-foreground"
-                          : "border-border/50"
-                      } transition-all duration-300`}
+                      className={`${isCompletedToday ? "bg-accent text-accent-foreground" : "border-border/50"} transition-all duration-300`}
                     >
                       <Check className="w-4 h-4" />
                     </Button>
@@ -290,12 +233,8 @@ const Habits = () => {
                     <div className="flex-1">
                       <h3 className="font-semibold text-foreground">{habit.name}</h3>
                       <div className="flex gap-4 mt-1">
-                        <span className="text-xs text-muted-foreground">
-                          {streak} day streak 🔥
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {habit.completedDates.length} total completions
-                        </span>
+                        <span className="text-xs text-muted-foreground">{streak} day streak 🔥</span>
+                        <span className="text-xs text-muted-foreground">{habit.completedDates.length} total completions</span>
                       </div>
                       
                       {/* Per-habit reminder */}
@@ -310,23 +249,13 @@ const Habits = () => {
                           <span className="text-xs text-muted-foreground">Reminder</span>
                         </div>
                         {habit.reminderEnabled && (
-                          <div className="flex flex-wrap items-center gap-2 ml-5">
+                          <div className="ml-5">
                             <AmPmTimePicker
                               hour={String(habit.reminderHour ?? 8)}
                               minute={String(habit.reminderMinute ?? 0)}
                               onTimeChange={(h, m) => updateHabitReminderTime(habit.id, parseInt(h), parseInt(m))}
                             />
-                            <AlarmSoundPicker
-                              value={habit.reminderSound || "default"}
-                              onChange={(s) => {
-                                const updatedHabits = habits.map(hb =>
-                                  hb.id === habit.id ? { ...hb, reminderSound: s } : hb
-                                );
-                                setHabits(updatedHabits);
-                                storage.saveHabits(updatedHabits);
-                              }}
-                              compact
-                            />
+                            <p className="text-xs text-muted-foreground mt-1">Uses phone's default notification sound</p>
                           </div>
                         )}
                       </div>
