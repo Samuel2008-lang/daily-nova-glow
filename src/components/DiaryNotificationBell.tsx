@@ -5,7 +5,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
-import { AlarmSoundPicker } from "@/components/AlarmSoundPicker";
 import { notificationService } from "@/lib/notifications";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,7 +12,6 @@ export const DiaryNotificationBell = () => {
   const [enabled, setEnabled] = useState(localStorage.getItem("dailynova_notify_diary") === "true");
   const [hour, setHour] = useState(localStorage.getItem("dailynova_diary_hour") || "21");
   const [minute, setMinute] = useState(localStorage.getItem("dailynova_diary_minute") || "0");
-  const [sound, setSound] = useState(localStorage.getItem("dailynova_diary_sound") || "default");
   const { toast } = useToast();
 
   const toggleEnabled = (v: boolean) => {
@@ -31,11 +29,6 @@ export const DiaryNotificationBell = () => {
     notificationService.setupDiaryReminder();
   };
 
-  const updateSound = (s: string) => {
-    localStorage.setItem("dailynova_diary_sound", s);
-    setSound(s);
-  };
-
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -49,12 +42,9 @@ export const DiaryNotificationBell = () => {
           <Switch checked={enabled} onCheckedChange={toggleEnabled} />
         </div>
         {enabled && (
-          <>
-            <AmPmTimePicker hour={hour} minute={minute} onTimeChange={updateTime} />
-            <AlarmSoundPicker value={sound} onChange={updateSound} compact />
-          </>
+          <AmPmTimePicker hour={hour} minute={minute} onTimeChange={updateTime} />
         )}
-        <p className="text-xs text-muted-foreground">Daily reminder + follow-up 2hrs later.</p>
+        <p className="text-xs text-muted-foreground">Daily reminder + follow-up 2hrs later. Uses your phone's default notification sound.</p>
       </PopoverContent>
     </Popover>
   );

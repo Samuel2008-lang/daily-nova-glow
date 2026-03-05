@@ -20,7 +20,7 @@ import {
 import PinSetup from "@/components/PinSetup";
 import { notificationService } from "@/lib/notifications";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
-import { AlarmSoundPicker } from "@/components/AlarmSoundPicker";
+
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -56,8 +56,6 @@ const Settings = () => {
   const [journalMinute, setJournalMinute] = useState(localStorage.getItem("dailynova_journal_minute") || "0");
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
-  const [diarySoundSetting, setDiarySoundSetting] = useState(localStorage.getItem("dailynova_diary_sound") || "default");
-  const [journalSoundSetting, setJournalSoundSetting] = useState(localStorage.getItem("dailynova_journal_sound") || "default");
   const [lockEnabled, setLockEnabled] = useState(
     localStorage.getItem("dailynova_lock_enabled") === "true"
   );
@@ -309,15 +307,10 @@ const Settings = () => {
                   }} />
                 </div>
                 {notifyDiary && (
-                  <div className="space-y-2">
-                    <AmPmTimePicker hour={diaryHour} minute={diaryMinute} onTimeChange={(h, m) => {
-                      localStorage.setItem("dailynova_diary_hour", h); localStorage.setItem("dailynova_diary_minute", m);
-                      setDiaryHour(h); setDiaryMinute(m); notificationService.setupDiaryReminder();
-                    }} />
-                    <AlarmSoundPicker value={diarySoundSetting} onChange={(s) => {
-                      localStorage.setItem("dailynova_diary_sound", s); setDiarySoundSetting(s);
-                    }} compact />
-                  </div>
+                  <AmPmTimePicker hour={diaryHour} minute={diaryMinute} onTimeChange={(h, m) => {
+                    localStorage.setItem("dailynova_diary_hour", h); localStorage.setItem("dailynova_diary_minute", m);
+                    setDiaryHour(h); setDiaryMinute(m); notificationService.setupDiaryReminder();
+                  }} />
                 )}
                 <p className="text-xs text-muted-foreground">Reminds you to write + 1 follow-up 2hrs later.</p>
               </div>
@@ -333,15 +326,10 @@ const Settings = () => {
                   }} />
                 </div>
                 {notifyJournal && (
-                  <div className="space-y-2">
-                    <AmPmTimePicker hour={journalHour} minute={journalMinute} onTimeChange={(h, m) => {
-                      localStorage.setItem("dailynova_journal_hour", h); localStorage.setItem("dailynova_journal_minute", m);
-                      setJournalHour(h); setJournalMinute(m); notificationService.setupJournalReminder();
-                    }} />
-                    <AlarmSoundPicker value={journalSoundSetting} onChange={(s) => {
-                      localStorage.setItem("dailynova_journal_sound", s); setJournalSoundSetting(s);
-                    }} compact />
-                  </div>
+                  <AmPmTimePicker hour={journalHour} minute={journalMinute} onTimeChange={(h, m) => {
+                    localStorage.setItem("dailynova_journal_hour", h); localStorage.setItem("dailynova_journal_minute", m);
+                    setJournalHour(h); setJournalMinute(m); notificationService.setupJournalReminder();
+                  }} />
                 )}
                 <p className="text-xs text-muted-foreground">Reminds you to journal + 1 follow-up 2hrs later.</p>
               </div>
@@ -382,7 +370,7 @@ const Settings = () => {
                 }} />
               </div>
               <p className="text-xs text-muted-foreground">
-                Used for habits & tasks general reminders. Works in native app only.
+                Used for habits & tasks general reminders. Uses phone's default notification sound. Works in native app only.
               </p>
             </div>
           </Card>

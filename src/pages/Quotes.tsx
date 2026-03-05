@@ -22,10 +22,11 @@ const fallbackQuotes: Quote[] = [
 const ALL_QUOTES_KEY = "daily-quotes-all";
 const QUOTES_DATE_KEY = "daily-quotes-date";
 const QUOTE_INDEX_KEY = "daily-quote-index";
-const QUOTES_CLEANUP_KEY = "daily-quotes-cleanup-date";
+const SEEN_QUOTES_KEY = "daily-quotes-seen"; // tracks deleted quote texts to prevent re-appearance
 const MAX_STORED_QUOTES = 21;
-const CLEANUP_COUNT = 9; // delete oldest 9 when cleanup triggers
+const CLEANUP_COUNT = 9;
 const CLEANUP_INTERVAL_DAYS = 7;
+const QUOTES_CLEANUP_KEY = "daily-quotes-cleanup-date";
 
 const Quotes = () => {
   const [allQuotes, setAllQuotes] = useState<Quote[]>(fallbackQuotes);
@@ -67,7 +68,6 @@ const Quotes = () => {
         if (Array.isArray(parsed) && parsed.length > 0) setAllQuotes(parsed);
       }
       if (savedIndex) setCurrentIndex(parseInt(savedIndex, 10));
-      // Check if already fetched today
       const today = new Date().toDateString();
       const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
       if (lastFetchDate === today) setDailyQuotesFetched(true);
@@ -76,23 +76,43 @@ const Quotes = () => {
     }
   };
 
+  /** Get set of previously-deleted quote texts */
+  const getSeenQuotes = (): Set<string> => {
+    try {
+      const raw = localStorage.getItem(SEEN_QUOTES_KEY);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  };
+
+  const addToSeen = (texts: string[]) => {
+    const seen = getSeenQuotes();
+    texts.forEach(t => seen.add(t));
+    // Keep seen list manageable (max 200)
+    const arr = Array.from(seen);
+    if (arr.length > 200) arr.splice(0, arr.length - 200);
+    localStorage.setItem(SEEN_QUOTES_KEY, JSON.stringify(arr));
+  };
+
   /** Enforce max stored quotes + weekly auto-cleanup of oldest 9 */
   const enforceStorageLimit = (quotes: Quote[]): Quote[] => {
     let result = quotes;
 
-    // Weekly cleanup: remove oldest 9 every 7 days
     const lastCleanup = localStorage.getItem(QUOTES_CLEANUP_KEY);
     const now = Date.now();
     const lastCleanupTime = lastCleanup ? parseInt(lastCleanup, 10) : 0;
     const daysSinceCleanup = (now - lastCleanupTime) / (1000 * 60 * 60 * 24);
 
     if (daysSinceCleanup >= CLEANUP_INTERVAL_DAYS && result.length > CLEANUP_COUNT) {
+      const removed = result.slice(0, CLEANUP_COUNT);
+      addToSeen(removed.map(q => q.text));
       result = result.slice(CLEANUP_COUNT);
       localStorage.setItem(QUOTES_CLEANUP_KEY, String(now));
     }
 
     // Hard cap at 21
     if (result.length > MAX_STORED_QUOTES) {
+      const removed = result.slice(0, result.length - MAX_STORED_QUOTES);
+      addToSeen(removed.map(q => q.text));
       result = result.slice(result.length - MAX_STORED_QUOTES);
     }
 
@@ -112,7 +132,7 @@ const Quotes = () => {
     }
   };
 
-  const fetchNewQuotes = async (retries = 2): Promise<boolean> => {
+  const fetchNewQuotes = async (retries = 3): Promise<boolean> => {
     if (!isOnline) {
       toast({ title: "Offline", description: "Connect to the internet to get new quotes.", variant: "destructive" });
       return false;
@@ -125,7 +145,7 @@ const Quotes = () => {
       if (error) {
         if (retries > 0) {
           console.log(`Retrying fetch-quotes... (${retries} left)`);
-          await new Promise(r => setTimeout(r, 1500));
+          await new Promise(r => setTimeout(r, 2000));
           setIsLoading(false);
           return fetchNewQuotes(retries - 1);
         }
@@ -133,16 +153,15 @@ const Quotes = () => {
       }
 
       if (data?.quotes && Array.isArray(data.quotes) && data.quotes.length > 0) {
+        const seen = getSeenQuotes();
         const newQuotes: Quote[] = data.quotes.map((q: any) => ({
           text: q.text || q.q || "",
           author: q.author || q.a || "Unknown",
-        })).filter((q: Quote) => q.text);
+        })).filter((q: Quote) => q.text && !seen.has(q.text)); // filter out previously-seen quotes
 
         if (newQuotes.length > 0) {
-          // Append to existing quotes for offline scrolling
           const existing = allQuotes.filter(q => q.text !== fallbackQuotes[0].text || q.author !== fallbackQuotes[0].author);
           const merged = [...existing, ...newQuotes];
-          // Deduplicate by text
           const unique = merged.filter((q, i, arr) => arr.findIndex(x => x.text === q.text) === i);
           const final = enforceStorageLimit(unique);
           setAllQuotes(final);
@@ -154,11 +173,17 @@ const Quotes = () => {
         }
       }
 
-      throw new Error("No quotes returned");
+      // If we got here, no new unique quotes — try again
+      if (retries > 0) {
+        await new Promise(r => setTimeout(r, 2000));
+        setIsLoading(false);
+        return fetchNewQuotes(retries - 1);
+      }
+      throw new Error("No new quotes available");
     } catch (error) {
       console.error("Error fetching quotes:", error);
       if (retries > 0) {
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 2000));
         setIsLoading(false);
         return fetchNewQuotes(retries - 1);
       }
@@ -172,7 +197,6 @@ const Quotes = () => {
   const handleBonusQuoteReward = async () => {
     const success = await fetchNewQuotes();
     if (!success) {
-      // Even if fetch fails, give the user something from fallbacks
       toast({ title: "Using cached quotes", description: "New quotes will load when connection is available." });
     }
   };
@@ -183,10 +207,7 @@ const Quotes = () => {
     const nextIdx = currentIndex + 1;
     if (nextIdx >= allQuotes.length) {
       if (isOnline) {
-        const success = await fetchNewQuotes();
-        if (success) {
-          // Index already set by fetchNewQuotes
-        }
+        await fetchNewQuotes();
       } else {
         setCurrentIndex(0);
         localStorage.setItem(QUOTE_INDEX_KEY, "0");

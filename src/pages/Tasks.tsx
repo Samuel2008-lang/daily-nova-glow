@@ -9,7 +9,7 @@ import { storage, Task } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { notificationService } from "@/lib/notifications";
-import { AlarmSoundPicker, ALARM_SOUNDS } from "@/components/AlarmSoundPicker";
+import { AmPmTimePicker } from "@/components/AmPmTimePicker";
 
 const REMINDER_OPTIONS = [
   { label: "5 min before", value: 5 },
@@ -29,10 +29,10 @@ const Tasks = () => {
   const [newTask, setNewTask] = useState("");
   const [showAlarmForm, setShowAlarmForm] = useState(false);
   const [alarmDate, setAlarmDate] = useState("");
-  const [alarmTime, setAlarmTime] = useState("");
+  const [alarmHour, setAlarmHour] = useState("12");
+  const [alarmMinute, setAlarmMinute] = useState("0");
   const [reminderBefore, setReminderBefore] = useState<number | undefined>();
   const [reminderAfter, setReminderAfter] = useState<number | undefined>();
-  const [alarmSound, setAlarmSound] = useState("default");
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening } = useSpeechRecognition({
@@ -53,14 +53,12 @@ const Tasks = () => {
 
     const taskIdNum = parseInt(task.id) % 100000;
 
-    // On-time notification
-    const sound = task.alarmSound && task.alarmSound !== "default" ? task.alarmSound : undefined;
+    // On-time notification (uses device default sound)
     await notificationService.scheduleTaskAlarm({
       id: 2000 + taskIdNum,
       title: "🔔 It's time!",
       body: `${task.title} — now.`,
       at: taskTime,
-      sound,
     });
 
     // Before reminder
@@ -72,7 +70,6 @@ const Tasks = () => {
           title: "⏰ Upcoming Task",
           body: `${task.title} in ${task.reminderBefore} minutes.`,
           at: beforeTime,
-          sound,
         });
       }
     }
@@ -85,7 +82,6 @@ const Tasks = () => {
         title: "⚠️ Did you complete it?",
         body: `${task.title} — check it off!`,
         at: afterTime,
-        sound,
       });
     }
   };
@@ -100,15 +96,19 @@ const Tasks = () => {
   const addTask = async () => {
     if (!newTask.trim()) return;
 
+    // Convert hour/minute to HH:MM for storage
+    const h24 = parseInt(alarmHour, 10);
+    const m = parseInt(alarmMinute, 10);
+    const timeStr = alarmDate ? `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}` : undefined;
+
     const task: Task = {
       id: Date.now().toString(),
       title: newTask,
       completed: false,
       dueDate: alarmDate || undefined,
-      dueTime: alarmTime || undefined,
+      dueTime: timeStr,
       reminderBefore,
       reminderAfter,
-      alarmSound: alarmSound !== "default" ? alarmSound : undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -117,10 +117,10 @@ const Tasks = () => {
     storage.saveTasks(updatedTasks);
     setNewTask("");
     setAlarmDate("");
-    setAlarmTime("");
+    setAlarmHour("12");
+    setAlarmMinute("0");
     setReminderBefore(undefined);
     setReminderAfter(undefined);
-    setAlarmSound("default");
     setShowAlarmForm(false);
 
     if (task.dueDate && task.dueTime) {
@@ -226,25 +226,22 @@ const Tasks = () => {
                   <X className="w-3 h-3" />
                 </Button>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Date</Label>
-                  <Input
-                    type="date"
-                    value={alarmDate}
-                    onChange={(e) => setAlarmDate(e.target.value)}
-                    className="bg-background/50 border-border/50 text-sm"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Time</Label>
-                  <Input
-                    type="time"
-                    value={alarmTime}
-                    onChange={(e) => setAlarmTime(e.target.value)}
-                    className="bg-background/50 border-border/50 text-sm"
-                  />
-                </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Date</Label>
+                <Input
+                  type="date"
+                  value={alarmDate}
+                  onChange={(e) => setAlarmDate(e.target.value)}
+                  className="bg-background/50 border-border/50 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Time</Label>
+                <AmPmTimePicker
+                  hour={alarmHour}
+                  minute={alarmMinute}
+                  onTimeChange={(h, m) => { setAlarmHour(h); setAlarmMinute(m); }}
+                />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Remind before</Label>
@@ -278,7 +275,7 @@ const Tasks = () => {
                   ))}
                 </div>
               </div>
-              <AlarmSoundPicker value={alarmSound} onChange={setAlarmSound} />
+              <p className="text-xs text-muted-foreground">🔔 Uses your phone's default notification sound.</p>
             </div>
           )}
 
