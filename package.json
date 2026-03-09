@@ -8,7 +8,9 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fix": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && npx cap sync",
+    "postinstall": "npx cap sync 2>/dev/null || true"
   },
   "dependencies": {
     "@capacitor-community/admob": "^7.2.0",
