@@ -15,7 +15,6 @@ export const useQuoteShareImage = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
 
-    // Vibrant gradient background
     const grad = ctx.createLinearGradient(0, 0, size, size);
     grad.addColorStop(0, "#0f0c29");
     grad.addColorStop(0.5, "#302b63");
@@ -23,17 +22,14 @@ export const useQuoteShareImage = () => {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, size, size);
 
-    // Accent glow border
     ctx.strokeStyle = "rgba(255, 105, 180, 0.4)";
     ctx.lineWidth = 6;
     ctx.strokeRect(40, 40, size - 80, size - 80);
 
-    // Inner subtle border
     ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
     ctx.lineWidth = 1;
     ctx.strokeRect(55, 55, size - 110, size - 110);
 
-    // Quote text
     ctx.fillStyle = "#f0f0f0";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -75,7 +71,6 @@ export const useQuoteShareImage = () => {
     ctx.font = `bold 36px 'Segoe UI', Arial, sans-serif`;
     ctx.fillText(`— ${author}`, size / 2, startY + totalTextHeight + 50);
 
-    // DailyNova branding - bigger and more visible
     ctx.fillStyle = "rgba(255, 105, 180, 0.7)";
     ctx.font = `bold 32px 'Segoe UI', Arial, sans-serif`;
     ctx.fillText("✦ DailyNova ✦", size / 2, size - 70);
@@ -93,7 +88,6 @@ export const useQuoteShareImage = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
-        // Remove the data:image/png;base64, prefix
         resolve(result.split(",")[1]);
       };
       reader.onerror = reject;
@@ -108,23 +102,18 @@ export const useQuoteShareImage = () => {
       return;
     }
 
-    // Native Capacitor share path
     if (Capacitor.isNativePlatform()) {
       try {
         const base64Data = await blobToBase64(blob);
-
-        // Write image to cache directory
         await Filesystem.writeFile({
           path: "quote.png",
           data: base64Data,
           directory: Directory.Cache,
         });
-
         const uriResult = await Filesystem.getUri({
           directory: Directory.Cache,
           path: "quote.png",
         });
-
         await Share.share({
           title: "Quote of the Day — DailyNova",
           text: `"${text}" — ${author}`,
@@ -134,7 +123,6 @@ export const useQuoteShareImage = () => {
         return;
       } catch (err) {
         console.error("Native share error:", err);
-        // Fall through to text-only share
         try {
           await Share.share({
             title: "Quote of the Day — DailyNova",
@@ -149,7 +137,6 @@ export const useQuoteShareImage = () => {
       return;
     }
 
-    // Web: try navigator.share with file
     const file = new File([blob], "quote.png", { type: "image/png" });
     try {
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
@@ -160,7 +147,6 @@ export const useQuoteShareImage = () => {
       if ((err as Error).name === "AbortError") return;
     }
 
-    // Web: text-only share
     try {
       if (navigator.share) {
         await navigator.share({
