@@ -1,4 +1,4 @@
-import { Home, FileText, CheckSquare, Target, BookOpen, Sparkles, BookMarked, Crown, Settings } from "lucide-react";
+import { Home, FileText, CheckSquare, Target, BookOpen, Sparkles, BookMarked, Settings, MessageSquare } from "lucide-react";
 import { NavLink } from "./NavLink";
 
 const Navigation = () => {
@@ -31,6 +31,16 @@ const Navigation = () => {
               </NavLink>
             );
           })}
+          {/* Feedback - small, non-dominant */}
+          <a
+            href="mailto:hopeegbon28@gmail.com?subject=DailyNova%20Feedback"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col md:flex-row items-center gap-1 md:gap-2 px-2 py-2 rounded-lg transition-all duration-300 text-muted-foreground/60 hover:text-primary opacity-70 hover:opacity-100"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span className="text-[10px] md:text-xs font-medium">Feedback</span>
+          </a>
         </div>
       </div>
     </nav>
