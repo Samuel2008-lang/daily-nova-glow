@@ -36,10 +36,10 @@ const Navigation = () => {
             href="mailto:hopeegbon28@gmail.com?subject=DailyNova%20Feedback"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-col md:flex-row items-center gap-1 md:gap-2 px-2 py-2 rounded-lg transition-all duration-300 text-muted-foreground/60 hover:text-primary opacity-70 hover:opacity-100"
+            className="flex flex-col md:flex-row items-center gap-1 md:gap-2 px-3 py-2 rounded-lg transition-all duration-300 text-muted-foreground hover:text-primary"
           >
-            <MessageSquare className="w-4 h-4" />
-            <span className="text-[10px] md:text-xs font-medium">Feedback</span>
+            <MessageSquare className="w-5 h-5" />
+            <span className="text-xs md:text-sm font-medium">Feedback</span>
           </a>
         </div>
       </div>
