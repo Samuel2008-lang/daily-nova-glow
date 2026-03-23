@@ -13,8 +13,11 @@ import Journal from "./pages/Journal";
 import Quotes from "./pages/Quotes";
 import Premium from "./pages/Premium";
 import Settings from "./pages/Settings";
+import Timeline from "./pages/Timeline";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
+import QuickCapture from "./components/QuickCapture";
+import DailyReset from "./components/DailyReset";
 import { InterstitialAdManager } from "./components/InterstitialAdManager";
 import SplashScreen from "./components/SplashScreen";
 import WelcomeScreen from "./components/WelcomeScreen";
@@ -41,7 +44,6 @@ const App = () => {
     if (pin && lockEnabled) {
       setIsLocked(true);
     }
-    // Setup daily reminders
     notificationService.setupDailyReminders();
   }, []);
 
@@ -77,12 +79,15 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Navigation />
-           <InterstitialAdManager />
-           <Routes>
+          <InterstitialAdManager />
+          <QuickCapture />
+          <DailyReset />
+          <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/habits" element={<Habits />} />
+            <Route path="/timeline" element={<Timeline />} />
             <Route path="/diary" element={<PinGate storageKey="dailynova_diary_lock"><Diary /></PinGate>} />
             <Route path="/journal" element={<PinGate storageKey="dailynova_journal_lock"><Journal /></PinGate>} />
             <Route path="/quotes" element={<Quotes />} />

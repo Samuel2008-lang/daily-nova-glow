@@ -1,4 +1,4 @@
-import { Home, FileText, CheckSquare, Target, BookOpen, Sparkles, BookMarked, Settings, MessageSquare } from "lucide-react";
+import { Home, FileText, CheckSquare, Target, BookOpen, Sparkles, BookMarked, Settings, MessageSquare, Clock } from "lucide-react";
 import { NavLink } from "./NavLink";
 
 const Navigation = () => {
@@ -7,6 +7,7 @@ const Navigation = () => {
     { to: "/notes", icon: FileText, label: "Notes" },
     { to: "/tasks", icon: CheckSquare, label: "Tasks" },
     { to: "/habits", icon: Target, label: "Habits" },
+    { to: "/timeline", icon: Clock, label: "Timeline" },
     { to: "/diary", icon: BookOpen, label: "Diary" },
     { to: "/journal", icon: BookMarked, label: "Journal" },
     { to: "/quotes", icon: Sparkles, label: "Quotes" },
@@ -15,31 +16,31 @@ const Navigation = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 glass border-t border-border z-50 md:top-0 md:bottom-auto">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-around md:justify-center md:gap-8 py-4">
+      <div className="container mx-auto px-2 md:px-4">
+        <div className="flex items-center justify-around md:justify-center md:gap-4 py-3 md:py-4 overflow-x-auto scrollbar-none">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
                 key={item.to}
                 to={item.to}
-                className="flex flex-col md:flex-row items-center gap-1 md:gap-2 px-3 py-2 rounded-lg transition-all duration-300 text-muted-foreground hover:text-primary"
+                className="flex flex-col md:flex-row items-center gap-0.5 md:gap-2 px-1.5 md:px-3 py-1.5 md:py-2 rounded-lg transition-all duration-300 text-muted-foreground hover:text-primary flex-shrink-0 min-w-0"
                 activeClassName="text-primary glow"
               >
                 <Icon className="w-5 h-5" />
-                <span className="text-xs md:text-sm font-medium">{item.label}</span>
+                <span className="text-[10px] md:text-sm font-medium truncate">{item.label}</span>
               </NavLink>
             );
           })}
-          {/* Feedback - small, non-dominant */}
+          {/* Feedback */}
           <a
             href="mailto:hopeegbon28@gmail.com?subject=DailyNova%20Feedback"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-col md:flex-row items-center gap-1 md:gap-2 px-3 py-2 rounded-lg transition-all duration-300 text-muted-foreground hover:text-primary"
+            className="flex flex-col md:flex-row items-center gap-0.5 md:gap-2 px-1.5 md:px-3 py-1.5 md:py-2 rounded-lg transition-all duration-300 text-muted-foreground hover:text-primary flex-shrink-0 min-w-0"
           >
             <MessageSquare className="w-5 h-5" />
-            <span className="text-xs md:text-sm font-medium">Feedback</span>
+            <span className="text-[10px] md:text-sm font-medium">Feedback</span>
           </a>
         </div>
       </div>
