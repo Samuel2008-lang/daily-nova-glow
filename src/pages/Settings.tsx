@@ -1,12 +1,9 @@
-import { useState, useEffect } from "react";
-import { 
-  Settings as SettingsIcon, 
-  Palette, 
-  Bell, 
-  Trash2, 
-  Download, 
-  Moon,
-  Sun,
+import { useState } from "react";
+import {
+  Settings as SettingsIcon,
+  Bell,
+  Trash2,
+  Download,
   Info,
   BookOpen,
   BookMarked,
@@ -15,12 +12,13 @@ import {
   Send,
   Lock,
   ShieldCheck,
-  Clock
+  ChevronDown,
+  ChevronUp,
+  Database,
 } from "lucide-react";
 import PinSetup from "@/components/PinSetup";
 import { notificationService } from "@/lib/notifications";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
-
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -37,52 +35,38 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { storage } from "@/lib/storage";
 import { format } from "date-fns";
 
 const Settings = () => {
-  const [isDarkMode, setIsDarkMode] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notifyDiary, setNotifyDiary] = useState(localStorage.getItem("dailynova_notify_diary") === "true");
   const [notifyJournal, setNotifyJournal] = useState(localStorage.getItem("dailynova_notify_journal") === "true");
   const [notifyHabits, setNotifyHabits] = useState(localStorage.getItem("dailynova_notify_habits") === "true");
   const [notifyTasks, setNotifyTasks] = useState(localStorage.getItem("dailynova_notify_tasks") === "true");
-  const [notifyHour, setNotifyHour] = useState(localStorage.getItem("dailynova_notify_hour") || "20");
-  const [notifyMinute, setNotifyMinute] = useState(localStorage.getItem("dailynova_notify_minute") || "0");
   const [diaryHour, setDiaryHour] = useState(localStorage.getItem("dailynova_diary_hour") || "21");
   const [diaryMinute, setDiaryMinute] = useState(localStorage.getItem("dailynova_diary_minute") || "0");
   const [journalHour, setJournalHour] = useState(localStorage.getItem("dailynova_journal_hour") || "21");
   const [journalMinute, setJournalMinute] = useState(localStorage.getItem("dailynova_journal_minute") || "0");
+  const [diaryTimeOpen, setDiaryTimeOpen] = useState(false);
+  const [journalTimeOpen, setJournalTimeOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
-  const [lockEnabled, setLockEnabled] = useState(
-    localStorage.getItem("dailynova_lock_enabled") === "true"
-  );
-  const [diaryLock, setDiaryLock] = useState(
-    localStorage.getItem("dailynova_diary_lock") === "true"
-  );
-  const [journalLock, setJournalLock] = useState(
-    localStorage.getItem("dailynova_journal_lock") === "true"
-  );
+  const [lockEnabled, setLockEnabled] = useState(localStorage.getItem("dailynova_lock_enabled") === "true");
+  const [diaryLock, setDiaryLock] = useState(localStorage.getItem("dailynova_diary_lock") === "true");
+  const [journalLock, setJournalLock] = useState(localStorage.getItem("dailynova_journal_lock") === "true");
   const [showPinSetup, setShowPinSetup] = useState(false);
   const { toast } = useToast();
 
   const sendFeedback = () => {
     if (!feedbackText.trim()) return;
-    // Store feedback locally (will sync to backend in native app)
     const feedbackLog = JSON.parse(localStorage.getItem("dailynova_user_feedback") || "[]");
-    feedbackLog.push({
-      message: feedbackText,
-      timestamp: new Date().toISOString(),
-    });
+    feedbackLog.push({ message: feedbackText, timestamp: new Date().toISOString() });
     localStorage.setItem("dailynova_user_feedback", JSON.stringify(feedbackLog));
     setFeedbackText("");
     setFeedbackSent(true);
-    toast({
-      title: "Thank you!",
-      description: "Your feedback has been recorded.",
-    });
+    toast({ title: "Thank you!", description: "Your feedback has been recorded." });
     setTimeout(() => setFeedbackSent(false), 3000);
   };
 
@@ -96,149 +80,51 @@ const Settings = () => {
         tasks: storage.getTasks(),
         exportedAt: new Date().toISOString(),
       };
-      
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dailynova-backup-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Export successful",
-        description: "Your data has been exported.",
-      });
-    } catch (error) {
-      toast({
-        title: "Export failed",
-        description: "Could not export data.",
-        variant: "destructive",
-      });
+      downloadFile(JSON.stringify(data, null, 2), `dailynova-backup-${new Date().toISOString().split("T")[0]}.json`, "application/json");
+      toast({ title: "Export successful", description: "Your data has been exported." });
+    } catch {
+      toast({ title: "Export failed", description: "Could not export data.", variant: "destructive" });
     }
   };
 
-  const exportDiary = async () => {
-    try {
-      const entries = storage.getDiaryEntries();
-      if (entries.length === 0) {
-        toast({ title: "No diary entries", description: "Nothing to export." });
-        return;
-      }
-      
-      const content = entries
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .map(e => `--- ${format(new Date(e.date), "MMMM d, yyyy")} ---\n\n${e.content}`)
-        .join("\n\n\n");
-      
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `diary-export-${format(new Date(), "yyyy-MM-dd")}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      toast({ title: "Diary exported", description: `${entries.length} entries saved.` });
-    } catch (error) {
-      toast({ title: "Export failed", variant: "destructive" });
-    }
-  };
-
-  const exportJournal = async () => {
-    try {
-      const entries = storage.getJournalEntries();
-      if (entries.length === 0) {
-        toast({ title: "No journal entries", description: "Nothing to export." });
-        return;
-      }
-      
-      const content = entries
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-        .map(e => `--- ${format(new Date(e.createdAt), "MMMM d, yyyy")} ---\n\n${e.content}`)
-        .join("\n\n\n");
-      
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `journal-export-${format(new Date(), "yyyy-MM-dd")}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      toast({ title: "Journal exported", description: `${entries.length} entries saved.` });
-    } catch (error) {
-      toast({ title: "Export failed", variant: "destructive" });
-    }
-  };
-
-  const shareDiary = async () => {
+  const exportDiary = () => {
     const entries = storage.getDiaryEntries();
-    if (entries.length === 0) {
-      toast({ title: "No diary entries", description: "Nothing to share." });
-      return;
-    }
-    
-    const latest = entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-    const shareText = `Diary Entry - ${format(new Date(latest.date), "MMMM d, yyyy")}\n\n${latest.content}\n\n— From DailyNova`;
-    
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "My Diary Entry", text: shareText });
-        return;
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return;
-      }
-    }
-    
-    await navigator.clipboard.writeText(shareText);
-    toast({ title: "Copied!", description: "Latest diary entry copied to clipboard." });
+    if (!entries.length) { toast({ title: "No diary entries" }); return; }
+    const content = entries
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map((e) => `--- ${format(new Date(e.date), "MMMM d, yyyy")} ---\n\n${e.content}`)
+      .join("\n\n\n");
+    downloadFile(content, `diary-export-${format(new Date(), "yyyy-MM-dd")}.txt`, "text/plain");
+    toast({ title: "Diary exported", description: `${entries.length} entries saved.` });
   };
 
-  const shareJournal = async () => {
+  const exportJournal = () => {
     const entries = storage.getJournalEntries();
-    if (entries.length === 0) {
-      toast({ title: "No journal entries", description: "Nothing to share." });
-      return;
-    }
-    
-    const latest = entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-    const shareText = `Journal Entry - ${format(new Date(latest.createdAt), "MMMM d, yyyy")}\n\n${latest.content}\n\n— From DailyNova`;
-    
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "My Journal Entry", text: shareText });
-        return;
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return;
-      }
-    }
-    
-    await navigator.clipboard.writeText(shareText);
-    toast({ title: "Copied!", description: "Latest journal entry copied to clipboard." });
+    if (!entries.length) { toast({ title: "No journal entries" }); return; }
+    const content = entries
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .map((e) => `--- ${format(new Date(e.createdAt), "MMMM d, yyyy")} ---\n\n${e.content}`)
+      .join("\n\n\n");
+    downloadFile(content, `journal-export-${format(new Date(), "yyyy-MM-dd")}.txt`, "text/plain");
+    toast({ title: "Journal exported", description: `${entries.length} entries saved.` });
+  };
+
+  const downloadFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const clearAllData = () => {
-    try {
-      localStorage.clear();
-      toast({
-        title: "Data cleared",
-        description: "All app data has been deleted.",
-      });
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Could not clear data.",
-        variant: "destructive",
-      });
-    }
+    localStorage.clear();
+    toast({ title: "Data cleared", description: "All app data has been deleted." });
+    setTimeout(() => window.location.reload(), 1000);
   };
 
   if (showPinSetup) {
@@ -260,246 +146,187 @@ const Settings = () => {
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
       <div className="max-w-2xl mx-auto animate-fade-in">
         <div className="flex items-center gap-3 mb-8">
-          <SettingsIcon className="w-8 h-8 text-primary" />
-          <h1 className="text-4xl font-bold text-primary">Settings</h1>
+          <SettingsIcon className="w-7 h-7 text-primary" />
+          <h1 className="text-3xl font-bold text-primary">Settings</h1>
         </div>
 
-        <div className="space-y-6">
-          {/* Appearance */}
-          <Card className="glass p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Palette className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">Appearance</h2>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {isDarkMode ? <Moon className="w-5 h-5 text-muted-foreground" /> : <Sun className="w-5 h-5 text-muted-foreground" />}
-                  <Label htmlFor="dark-mode" className="cursor-pointer">Dark Mode</Label>
-                </div>
-                <Switch 
-                  id="dark-mode" 
-                  checked={isDarkMode} 
-                  onCheckedChange={setIsDarkMode}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Dark mode is currently the default theme. Light mode coming soon.
-              </p>
-            </div>
-          </Card>
-
-          {/* Notifications & Reminders */}
-          <Card className="glass p-6">
+        <div className="space-y-5">
+          {/* Reminders — unified */}
+          <Card className="glass p-5">
             <div className="flex items-center gap-2 mb-4">
               <Bell className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">Reminders</h2>
+              <h2 className="text-lg font-semibold">Reminders</h2>
             </div>
-            <div className="space-y-5">
-              {/* Diary Reminder */}
-              <div className="space-y-2 p-3 rounded-lg bg-background/30 border border-border/20">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="notify-diary" className="cursor-pointer text-sm font-medium">📖 Diary Reminder</Label>
-                  <Switch id="notify-diary" checked={notifyDiary} onCheckedChange={(v) => {
-                    localStorage.setItem("dailynova_notify_diary", String(v));
-                    setNotifyDiary(v);
-                    notificationService.setupDiaryReminder();
-                  }} />
+            <div className="space-y-3">
+              {/* Diary */}
+              <Collapsible open={diaryTimeOpen} onOpenChange={setDiaryTimeOpen}>
+                <div className="p-3 rounded-lg bg-background/30 border border-border/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="notify-diary" className="cursor-pointer text-sm font-medium">📖 Diary</Label>
+                    <Switch id="notify-diary" checked={notifyDiary} onCheckedChange={(v) => {
+                      localStorage.setItem("dailynova_notify_diary", String(v));
+                      setNotifyDiary(v);
+                      if (v) setDiaryTimeOpen(true);
+                      notificationService.setupDiaryReminder();
+                    }} />
+                  </div>
+                  {notifyDiary && (
+                    <CollapsibleTrigger asChild>
+                      <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                        {diaryTimeOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        {diaryTimeOpen ? "Hide time" : "Set time"}
+                      </button>
+                    </CollapsibleTrigger>
+                  )}
+                  <CollapsibleContent>
+                    <AmPmTimePicker hour={diaryHour} minute={diaryMinute} onTimeChange={(h, m) => {
+                      localStorage.setItem("dailynova_diary_hour", h);
+                      localStorage.setItem("dailynova_diary_minute", m);
+                      setDiaryHour(h);
+                      setDiaryMinute(m);
+                      notificationService.setupDiaryReminder();
+                    }} />
+                  </CollapsibleContent>
                 </div>
-                {notifyDiary && (
-                  <AmPmTimePicker hour={diaryHour} minute={diaryMinute} onTimeChange={(h, m) => {
-                    localStorage.setItem("dailynova_diary_hour", h); localStorage.setItem("dailynova_diary_minute", m);
-                    setDiaryHour(h); setDiaryMinute(m); notificationService.setupDiaryReminder();
-                  }} />
-                )}
-                <p className="text-xs text-muted-foreground">Reminds you to write + 1 follow-up 2hrs later.</p>
-              </div>
+              </Collapsible>
 
-              {/* Journal Reminder */}
-              <div className="space-y-2 p-3 rounded-lg bg-background/30 border border-border/20">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="notify-journal" className="cursor-pointer text-sm font-medium">✍️ Journal Reminder</Label>
-                  <Switch id="notify-journal" checked={notifyJournal} onCheckedChange={(v) => {
-                    localStorage.setItem("dailynova_notify_journal", String(v));
-                    setNotifyJournal(v);
-                    notificationService.setupJournalReminder();
-                  }} />
+              {/* Journal */}
+              <Collapsible open={journalTimeOpen} onOpenChange={setJournalTimeOpen}>
+                <div className="p-3 rounded-lg bg-background/30 border border-border/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="notify-journal" className="cursor-pointer text-sm font-medium">✍️ Journal</Label>
+                    <Switch id="notify-journal" checked={notifyJournal} onCheckedChange={(v) => {
+                      localStorage.setItem("dailynova_notify_journal", String(v));
+                      setNotifyJournal(v);
+                      if (v) setJournalTimeOpen(true);
+                      notificationService.setupJournalReminder();
+                    }} />
+                  </div>
+                  {notifyJournal && (
+                    <CollapsibleTrigger asChild>
+                      <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                        {journalTimeOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        {journalTimeOpen ? "Hide time" : "Set time"}
+                      </button>
+                    </CollapsibleTrigger>
+                  )}
+                  <CollapsibleContent>
+                    <AmPmTimePicker hour={journalHour} minute={journalMinute} onTimeChange={(h, m) => {
+                      localStorage.setItem("dailynova_journal_hour", h);
+                      localStorage.setItem("dailynova_journal_minute", m);
+                      setJournalHour(h);
+                      setJournalMinute(m);
+                      notificationService.setupJournalReminder();
+                    }} />
+                  </CollapsibleContent>
                 </div>
-                {notifyJournal && (
-                  <AmPmTimePicker hour={journalHour} minute={journalMinute} onTimeChange={(h, m) => {
-                    localStorage.setItem("dailynova_journal_hour", h); localStorage.setItem("dailynova_journal_minute", m);
-                    setJournalHour(h); setJournalMinute(m); notificationService.setupJournalReminder();
-                  }} />
-                )}
-                <p className="text-xs text-muted-foreground">Reminds you to journal + 1 follow-up 2hrs later.</p>
-              </div>
+              </Collapsible>
 
-              {/* Habits General Reminder */}
-              <div className="space-y-2 p-3 rounded-lg bg-background/30 border border-border/20">
+              {/* Habits */}
+              <div className="p-3 rounded-lg bg-background/30 border border-border/20">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="notify-habits" className="cursor-pointer text-sm font-medium">🎯 Habits Reminder</Label>
+                  <Label htmlFor="notify-habits" className="cursor-pointer text-sm font-medium">🎯 Habits</Label>
                   <Switch id="notify-habits" checked={notifyHabits} onCheckedChange={(v) => {
                     localStorage.setItem("dailynova_notify_habits", String(v));
                     setNotifyHabits(v);
                     notificationService.setupDailyReminders();
                   }} />
                 </div>
-                <p className="text-xs text-muted-foreground">General daily reminder. Set per-habit times in the Habit Tracker.</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Per-habit times set in Habit Tracker.</p>
               </div>
 
-              {/* Tasks General Reminder */}
-              <div className="space-y-2 p-3 rounded-lg bg-background/30 border border-border/20">
+              {/* Tasks */}
+              <div className="p-3 rounded-lg bg-background/30 border border-border/20">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="notify-tasks" className="cursor-pointer text-sm font-medium">✅ Tasks Reminder</Label>
+                  <Label htmlFor="notify-tasks" className="cursor-pointer text-sm font-medium">✅ Tasks</Label>
                   <Switch id="notify-tasks" checked={notifyTasks} onCheckedChange={(v) => {
                     localStorage.setItem("dailynova_notify_tasks", String(v));
                     setNotifyTasks(v);
                     notificationService.setupDailyReminders();
                   }} />
                 </div>
-                <p className="text-xs text-muted-foreground">Per-task alarms are set when creating tasks.</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Per-task alarms set when creating tasks.</p>
               </div>
-
-              {/* General fallback time */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                <Label className="text-sm">Default Reminder Time</Label>
-                <AmPmTimePicker hour={notifyHour} minute={notifyMinute} onTimeChange={(h, m) => {
-                  localStorage.setItem("dailynova_notify_hour", h); localStorage.setItem("dailynova_notify_minute", m);
-                  setNotifyHour(h); setNotifyMinute(m); notificationService.setupDailyReminders();
-                }} />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Used for habits & tasks general reminders. Uses phone's default notification sound. Works in native app only.
-              </p>
             </div>
           </Card>
 
           {/* App Lock */}
-          <Card className="glass p-6">
+          <Card className="glass p-5">
             <div className="flex items-center gap-2 mb-4">
               <Lock className="w-5 h-5 text-accent" />
-              <h2 className="text-xl font-semibold">App Lock</h2>
+              <h2 className="text-lg font-semibold">App Lock</h2>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label htmlFor="app-lock" className="cursor-pointer">Enable PIN Lock</Label>
-                <Switch
-                  id="app-lock"
-                  checked={lockEnabled}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      const existingPin = localStorage.getItem("dailynova_app_pin");
-                      if (existingPin) {
-                        localStorage.setItem("dailynova_lock_enabled", "true");
-                        setLockEnabled(true);
-                      } else {
-                        setShowPinSetup(true);
-                      }
+                <Switch id="app-lock" checked={lockEnabled} onCheckedChange={(checked) => {
+                  if (checked) {
+                    const existingPin = localStorage.getItem("dailynova_app_pin");
+                    if (existingPin) {
+                      localStorage.setItem("dailynova_lock_enabled", "true");
+                      setLockEnabled(true);
                     } else {
-                      localStorage.setItem("dailynova_lock_enabled", "false");
-                      setLockEnabled(false);
+                      setShowPinSetup(true);
                     }
-                  }}
-                />
+                  } else {
+                    localStorage.setItem("dailynova_lock_enabled", "false");
+                    setLockEnabled(false);
+                  }
+                }} />
               </div>
               {lockEnabled && (
                 <>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <ShieldCheck className="w-4 h-4 text-muted-foreground" />
                       <Label htmlFor="diary-lock" className="cursor-pointer text-sm">Lock Diary</Label>
                     </div>
-                    <Switch
-                      id="diary-lock"
-                      checked={diaryLock}
-                      onCheckedChange={(v) => {
-                        localStorage.setItem("dailynova_diary_lock", String(v));
-                        setDiaryLock(v);
-                      }}
-                    />
+                    <Switch id="diary-lock" checked={diaryLock} onCheckedChange={(v) => {
+                      localStorage.setItem("dailynova_diary_lock", String(v));
+                      setDiaryLock(v);
+                    }} />
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <ShieldCheck className="w-4 h-4 text-muted-foreground" />
                       <Label htmlFor="journal-lock" className="cursor-pointer text-sm">Lock Journal</Label>
                     </div>
-                    <Switch
-                      id="journal-lock"
-                      checked={journalLock}
-                      onCheckedChange={(v) => {
-                        localStorage.setItem("dailynova_journal_lock", String(v));
-                        setJournalLock(v);
-                      }}
-                    />
+                    <Switch id="journal-lock" checked={journalLock} onCheckedChange={(v) => {
+                      localStorage.setItem("dailynova_journal_lock", String(v));
+                      setJournalLock(v);
+                    }} />
                   </div>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setShowPinSetup(true)}
-                  >
+                  <Button variant="outline" className="w-full" onClick={() => setShowPinSetup(true)}>
                     Change PIN
                   </Button>
                 </>
               )}
-              <p className="text-xs text-muted-foreground">
-                Require a 4-digit PIN when opening the app.
-              </p>
+              <p className="text-[11px] text-muted-foreground">Require a 4-digit PIN when opening the app.</p>
             </div>
           </Card>
 
-          {/* Diary & Journal Export */}
-          <Card className="glass p-6">
+          {/* Data Management — grouped */}
+          <Card className="glass p-5">
             <div className="flex items-center gap-2 mb-4">
-              <BookOpen className="w-5 h-5 text-success" />
-              <h2 className="text-xl font-semibold">Diary Export</h2>
+              <Database className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Data Management</h2>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={exportDiary} variant="outline" className="flex-1">
-                <Download className="w-4 h-4 mr-2" />
-                Export
+            <div className="space-y-2">
+              <Button onClick={exportAllData} variant="outline" className="w-full justify-start gap-2">
+                <Download className="w-4 h-4" /> Export All Data
               </Button>
-              <Button onClick={shareDiary} variant="outline" className="flex-1">
-                <Share2 className="w-4 h-4 mr-2" />
-                Share Latest
-              </Button>
-            </div>
-          </Card>
-
-          <Card className="glass p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <BookMarked className="w-5 h-5 text-secondary" />
-              <h2 className="text-xl font-semibold">Journal Export</h2>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={exportJournal} variant="outline" className="flex-1">
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-              <Button onClick={shareJournal} variant="outline" className="flex-1">
-                <Share2 className="w-4 h-4 mr-2" />
-                Share Latest
-              </Button>
-            </div>
-          </Card>
-
-          {/* Data Management */}
-          <Card className="glass p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Download className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">Data Management</h2>
-            </div>
-            <div className="space-y-4">
-              <Button onClick={exportAllData} variant="outline" className="w-full">
-                <Download className="w-4 h-4 mr-2" />
-                Export All Data
-              </Button>
-              
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={exportDiary} variant="outline" className="justify-start gap-2 text-sm">
+                  <BookOpen className="w-4 h-4" /> Export Diary
+                </Button>
+                <Button onClick={exportJournal} variant="outline" className="justify-start gap-2 text-sm">
+                  <BookMarked className="w-4 h-4" /> Export Journal
+                </Button>
+              </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" className="w-full">
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Clear All Data
+                  <Button variant="destructive" className="w-full gap-2">
+                    <Trash2 className="w-4 h-4" /> Clear All Data
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -520,42 +347,36 @@ const Settings = () => {
             </div>
           </Card>
 
-          {/* Send Feedback */}
-          <Card className="glass p-6">
+          {/* Feedback */}
+          <Card className="glass p-5">
             <div className="flex items-center gap-2 mb-4">
               <MessageCircle className="w-5 h-5 text-accent" />
-              <h2 className="text-xl font-semibold">Send Feedback</h2>
+              <h2 className="text-lg font-semibold">Send Feedback</h2>
             </div>
             <div className="space-y-3">
               <Textarea
                 placeholder="Tell us what you think, report bugs, or suggest features..."
                 value={feedbackText}
                 onChange={(e) => setFeedbackText(e.target.value)}
-                className="min-h-[100px] bg-background/50 border-border/50 focus:border-accent"
+                className="min-h-[80px] bg-background/50 border-border/50 focus:border-accent"
               />
-              <Button 
-                onClick={sendFeedback} 
-                disabled={!feedbackText.trim() || feedbackSent}
-                className="w-full"
-              >
-                <Send className="w-4 h-4 mr-2" />
+              <Button onClick={sendFeedback} disabled={!feedbackText.trim() || feedbackSent} className="w-full gap-2">
+                <Send className="w-4 h-4" />
                 {feedbackSent ? "Sent! Thank you ✓" : "Send Feedback"}
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Your feedback helps us improve DailyNova for everyone.
-              </p>
             </div>
           </Card>
 
-          <Card className="glass p-6">
-            <div className="flex items-center gap-2 mb-4">
+          {/* About */}
+          <Card className="glass p-5">
+            <div className="flex items-center gap-2 mb-3">
               <Info className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">About</h2>
+              <h2 className="text-lg font-semibold">About</h2>
             </div>
-            <div className="space-y-2 text-sm text-muted-foreground">
+            <div className="space-y-1 text-sm text-muted-foreground">
               <p><strong>DailyNova</strong> v1.0.0</p>
-              <p>Your personal productivity companion with Notes, Diary, Journal, Habits, Tasks, and Daily Quotes.</p>
-              <p className="pt-2">© 2024 DailyNova. All rights reserved.</p>
+              <p>Your personal life system — Notes, Tasks, Habits, Diary, Journal & more.</p>
+              <p className="pt-1">© 2024 DailyNova. All rights reserved.</p>
             </div>
           </Card>
         </div>
