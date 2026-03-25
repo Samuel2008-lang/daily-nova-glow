@@ -6,11 +6,12 @@ import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useOfflineAI } from "@/hooks/use-offline-ai";
 
-type EntryType = "note" | "task" | "journal";
+type EntryType = "note" | "task" | "journal" | "diary";
 
 const TYPE_CONFIG: Record<EntryType, { icon: typeof FileText; label: string; color: string }> = {
   note: { icon: FileText, label: "Note", color: "text-primary" },
   task: { icon: CheckSquare, label: "Task", color: "text-secondary" },
+  diary: { icon: BookOpen, label: "Diary", color: "text-orange-400" },
   journal: { icon: BookMarked, label: "Journal", color: "text-accent" },
 };
 
