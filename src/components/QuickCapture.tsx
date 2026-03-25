@@ -23,14 +23,20 @@ function detectTypeRegex(text: string): EntryType {
     /\b(need to|have to|must|should|gotta|gonna|will)\b/,
     /^[-•]\s/,
   ];
+  const diaryPatterns = [
+    /\b(dear diary|today i|this morning|this evening|woke up|went to|came home|had lunch|had dinner)\b/,
+    /\b(my day|what happened|i did|i went|i met|i saw|i ate)\b/,
+  ];
   const journalPatterns = [
     /\b(feel|felt|feeling|grateful|thankful|reflect|thought|realized|learned|wonder|hope|wish|dream)\b/,
     /\b(today was|i think|i feel|i realized|i learned|looking back|in retrospect)\b/,
     /[.!?].*[.!?]/,
   ];
   const taskScore = taskPatterns.filter((p) => p.test(lower)).length;
+  const diaryScore = diaryPatterns.filter((p) => p.test(lower)).length;
   const journalScore = journalPatterns.filter((p) => p.test(lower)).length;
-  if (taskScore > journalScore) return "task";
+  if (taskScore > journalScore && taskScore > diaryScore) return "task";
+  if (diaryScore > 0 && text.length > 40) return "diary";
   if (journalScore > 0 && text.length > 60) return "journal";
   return "note";
 }
