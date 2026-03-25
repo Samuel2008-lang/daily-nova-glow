@@ -57,7 +57,7 @@ const Navigation = () => {
       {moreOpen && (
         <>
           <div className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm" onClick={() => setMoreOpen(false)} />
-          <div className="fixed bottom-16 md:top-16 md:bottom-auto left-0 right-0 z-45 flex justify-center px-4 animate-fade-in">
+          <div className="fixed bottom-16 md:top-16 md:bottom-auto left-0 right-0 z-50 flex justify-center px-4 animate-fade-in">
             <div className="glass border border-border/50 rounded-2xl p-3 w-full max-w-sm grid grid-cols-4 gap-2"
               style={{ boxShadow: "0 0 30px hsl(var(--primary) / 0.1)" }}
             >
