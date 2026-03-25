@@ -70,11 +70,11 @@ const QuickCapture = () => {
         setAiDetecting(true);
         try {
           const result = await processText(
-            `Classify this text as exactly one of: "note", "task", "journal". Reply with only the single word.\n\nText: "${text}"`,
+            `Classify this text as exactly one of: "note", "task", "diary", "journal". Reply with only the single word.\n\nText: "${text}"`,
             { task: "organize" }
           );
           const cleaned = result.toLowerCase().trim();
-          if (cleaned === "note" || cleaned === "task" || cleaned === "journal") {
+          if (cleaned === "note" || cleaned === "task" || cleaned === "diary" || cleaned === "journal") {
             setSelectedType(cleaned);
           }
         } catch {
