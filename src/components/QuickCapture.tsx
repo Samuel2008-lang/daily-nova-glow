@@ -110,6 +110,12 @@ const QuickCapture = () => {
         storage.saveTasks(tasks);
         break;
       }
+      case "diary": {
+        const diaryEntries = storage.getDiaryEntries();
+        diaryEntries.push({ id: Date.now().toString(), content: text, date: now, createdAt: now, updatedAt: now });
+        storage.saveDiaryEntries(diaryEntries);
+        break;
+      }
       case "journal": {
         const entries = storage.getJournalEntries();
         entries.push({ id: Date.now().toString(), content: text, createdAt: now, updatedAt: now });
