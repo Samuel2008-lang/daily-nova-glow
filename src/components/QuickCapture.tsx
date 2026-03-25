@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, X, FileText, CheckSquare, BookMarked } from "lucide-react";
+import { Plus, X, FileText, CheckSquare, BookMarked, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useOfflineAI } from "@/hooks/use-offline-ai";
 
-type EntryType = "note" | "task" | "journal";
+type EntryType = "note" | "task" | "journal" | "diary";
 
 const TYPE_CONFIG: Record<EntryType, { icon: typeof FileText; label: string; color: string }> = {
   note: { icon: FileText, label: "Note", color: "text-primary" },
   task: { icon: CheckSquare, label: "Task", color: "text-secondary" },
+  diary: { icon: BookOpen, label: "Diary", color: "text-orange-400" },
   journal: { icon: BookMarked, label: "Journal", color: "text-accent" },
 };
 
@@ -22,14 +23,20 @@ function detectTypeRegex(text: string): EntryType {
     /\b(need to|have to|must|should|gotta|gonna|will)\b/,
     /^[-•]\s/,
   ];
+  const diaryPatterns = [
+    /\b(dear diary|today i|this morning|this evening|woke up|went to|came home|had lunch|had dinner)\b/,
+    /\b(my day|what happened|i did|i went|i met|i saw|i ate)\b/,
+  ];
   const journalPatterns = [
     /\b(feel|felt|feeling|grateful|thankful|reflect|thought|realized|learned|wonder|hope|wish|dream)\b/,
     /\b(today was|i think|i feel|i realized|i learned|looking back|in retrospect)\b/,
     /[.!?].*[.!?]/,
   ];
   const taskScore = taskPatterns.filter((p) => p.test(lower)).length;
+  const diaryScore = diaryPatterns.filter((p) => p.test(lower)).length;
   const journalScore = journalPatterns.filter((p) => p.test(lower)).length;
-  if (taskScore > journalScore) return "task";
+  if (taskScore > journalScore && taskScore > diaryScore) return "task";
+  if (diaryScore > 0 && text.length > 40) return "diary";
   if (journalScore > 0 && text.length > 60) return "journal";
   return "note";
 }
@@ -63,11 +70,11 @@ const QuickCapture = () => {
         setAiDetecting(true);
         try {
           const result = await processText(
-            `Classify this text as exactly one of: "note", "task", "journal". Reply with only the single word.\n\nText: "${text}"`,
+            `Classify this text as exactly one of: "note", "task", "diary", "journal". Reply with only the single word.\n\nText: "${text}"`,
             { task: "organize" }
           );
           const cleaned = result.toLowerCase().trim();
-          if (cleaned === "note" || cleaned === "task" || cleaned === "journal") {
+          if (cleaned === "note" || cleaned === "task" || cleaned === "diary" || cleaned === "journal") {
             setSelectedType(cleaned);
           }
         } catch {
@@ -101,6 +108,12 @@ const QuickCapture = () => {
         const tasks = storage.getTasks();
         tasks.push({ id: Date.now().toString(), title: text.trim(), completed: false, createdAt: now });
         storage.saveTasks(tasks);
+        break;
+      }
+      case "diary": {
+        const diaryEntries = storage.getDiaryEntries();
+        diaryEntries.push({ id: Date.now().toString(), content: text, date: now, createdAt: now, updatedAt: now });
+        storage.saveDiaryEntries(diaryEntries);
         break;
       }
       case "journal": {
