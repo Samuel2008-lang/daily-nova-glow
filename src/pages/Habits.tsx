@@ -237,8 +237,8 @@ const Habits = () => {
                         <span className="text-xs text-muted-foreground">{habit.completedDates.length} total completions</span>
                       </div>
                       
-                      {/* Per-habit reminder */}
-                      <div className="flex flex-col gap-2 mt-2">
+                      {/* Per-habit reminder — collapsible */}
+                      <div className="flex flex-col gap-1 mt-2">
                         <div className="flex items-center gap-2">
                           <Bell className="w-3 h-3 text-muted-foreground" />
                           <Switch
@@ -247,9 +247,20 @@ const Habits = () => {
                             className="scale-75"
                           />
                           <span className="text-xs text-muted-foreground">Reminder</span>
+                          {habit.reminderEnabled && (
+                            <button
+                              onClick={() => {
+                                const el = document.getElementById(`habit-time-${habit.id}`);
+                                if (el) el.classList.toggle("hidden");
+                              }}
+                              className="text-xs text-muted-foreground hover:text-foreground ml-auto"
+                            >
+                              {habit.reminderHour !== undefined ? `${String(habit.reminderHour).padStart(2,'0')}:${String(habit.reminderMinute ?? 0).padStart(2,'0')}` : "Set time"} ▾
+                            </button>
+                          )}
                         </div>
                         {habit.reminderEnabled && (
-                          <div className="ml-5">
+                          <div id={`habit-time-${habit.id}`} className="ml-5 hidden">
                             <AmPmTimePicker
                               hour={String(habit.reminderHour ?? 8)}
                               minute={String(habit.reminderMinute ?? 0)}

@@ -96,14 +96,15 @@ const LockScreen = ({ onUnlock }: LockScreenProps) => {
                 </Button>
               );
             return (
-              <Button
+              <button
                 key={i}
-                variant="outline"
-                className="w-16 h-16 rounded-full text-xl font-semibold glass border-border/50"
-                onClick={() => handleDigit(d)}
+                className="w-16 h-16 rounded-full text-xl font-semibold glass border border-border/50 text-foreground active:bg-primary active:text-primary-foreground active:scale-95 transition-transform duration-75"
+                onTouchEnd={() => handleDigit(d)}
+                onMouseUp={() => handleDigit(d)}
+                onMouseDown={(e) => e.preventDefault()}
               >
                 {d}
-              </Button>
+              </button>
             );
           })}
         </div>
