@@ -91,8 +91,9 @@ const Timeline = () => {
     });
 
     storage.getTasks().forEach((t) => {
-      if (new Date(t.createdAt).toDateString() === todayStr) {
-        timeline.push({ id: `task-${t.id}`, type: "task", title: t.title, time: formatTime(t.createdAt), timestamp: new Date(t.createdAt).getTime(), completed: t.completed });
+      const isToday = new Date(t.createdAt).toDateString() === todayStr || t.dueDate === todayLocal;
+      if (isToday) {
+        timeline.push({ id: `task-${t.id}`, type: "task", title: t.title, preview: t.description?.slice(0, 80), time: t.dueTime || formatTime(t.createdAt), timestamp: new Date(t.createdAt).getTime(), completed: t.completed });
       }
     });
 

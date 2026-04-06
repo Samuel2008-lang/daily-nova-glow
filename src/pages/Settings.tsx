@@ -61,12 +61,12 @@ const Settings = () => {
 
   const sendFeedback = () => {
     if (!feedbackText.trim()) return;
-    const feedbackLog = JSON.parse(localStorage.getItem("dailynova_user_feedback") || "[]");
-    feedbackLog.push({ message: feedbackText, timestamp: new Date().toISOString() });
-    localStorage.setItem("dailynova_user_feedback", JSON.stringify(feedbackLog));
+    const subject = encodeURIComponent("DailyNova Feedback");
+    const body = encodeURIComponent(feedbackText);
+    window.open(`mailto:hopeegbon28@gmail.com?subject=${subject}&body=${body}`, "_blank");
     setFeedbackText("");
     setFeedbackSent(true);
-    toast({ title: "Thank you!", description: "Your feedback has been recorded." });
+    toast({ title: "Thank you!", description: "Your email app should open with the feedback." });
     setTimeout(() => setFeedbackSent(false), 3000);
   };
 
