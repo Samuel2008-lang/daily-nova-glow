@@ -567,12 +567,24 @@ Help them transform daily reflections into meaningful self-understanding, emotio
           </Card>
           </div>
 
-          {/* AI Chat Assistant */}
-          <Card className="glass glow p-6 flex flex-col">
-            <h2 className="text-xl font-semibold mb-4 text-success flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              AI Assistant
-            </h2>
+          {/* AI Chat Assistant — Collapsible */}
+          {(() => {
+            const [aiOpen, setAiOpen] = useState(false);
+            return (
+              <Card className="glass glow p-4 flex flex-col">
+                <button
+                  onClick={() => setAiOpen(!aiOpen)}
+                  className="flex items-center justify-between w-full"
+                >
+                  <h2 className="text-lg font-semibold text-success flex items-center gap-2">
+                    <Sparkles className="w-5 h-5" />
+                    AI Assistant
+                    {aiMessages.length > 0 && (
+                      <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">{aiMessages.length}</span>
+                    )}
+                  </h2>
+                  {aiOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+                </button>
 
             <div className="flex-1 space-y-3 mb-4 overflow-y-auto max-h-[400px]">
               {aiMessages.length === 0 ? (
