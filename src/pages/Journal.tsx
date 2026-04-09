@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageSquare, Mic, Send, Sparkles } from "lucide-react";
+import { MessageSquare, Mic, Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

@@ -569,93 +569,94 @@ Help them transform daily reflections into meaningful self-understanding, emotio
           </div>
 
           {/* AI Chat Assistant — Collapsible */}
-          {(() => {
-            const [aiOpen, setAiOpen] = useState(false);
-            return (
-              <Card className="glass glow p-4 flex flex-col">
-                <button
-                  onClick={() => setAiOpen(!aiOpen)}
-                  className="flex items-center justify-between w-full"
-                >
-                  <h2 className="text-lg font-semibold text-success flex items-center gap-2">
-                    <Sparkles className="w-5 h-5" />
-                    AI Assistant
-                    {aiMessages.length > 0 && (
-                      <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">{aiMessages.length}</span>
-                    )}
-                  </h2>
-                  {aiOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
-                </button>
-
-            <div className="flex-1 space-y-3 mb-4 overflow-y-auto max-h-[400px]">
-              {aiMessages.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Ask me for prompts, reflections, or advice about your diary entry...
-                </p>
-              ) : (
-                <>
-                  {aiMessages.map((msg, idx) => (
-                    <AiMessageBubble
-                      key={idx}
-                      content={msg.content}
-                      role={msg.role}
-                      accentColor="success"
-                    />
-                  ))}
-                  {streamingContent && (
-                    <AiMessageBubble
-                      content={streamingContent}
-                      role="assistant"
-                      isStreaming
-                      accentColor="success"
-                    />
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Textarea
-                  placeholder="Ask for diary prompts or advice..."
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendAiMessage();
-                    }
-                  }}
-                  className="min-h-[60px] bg-background/50 pr-10"
-                />
-                {isSupported && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={async () => {
-                      if (isAiListening && aiRecognitionInstance) {
-                        stopAiListening(aiRecognitionInstance);
-                        setAiRecognitionInstance(null);
-                      } else {
-                        const inst = await startAiListening(true, "diary-chat");
-                        setAiRecognitionInstance(inst);
-                      }
-                    }}
-                    className={`absolute bottom-2 right-2 h-7 w-7 ${isAiListening ? "text-success animate-pulse" : "text-muted-foreground hover:text-success"}`}
-                  >
-                    <Mic className="w-4 h-4" />
-                  </Button>
+          <Card className="glass glow p-4 flex flex-col">
+            <button
+              onClick={() => setAiOpen(!aiOpen)}
+              className="flex items-center justify-between w-full"
+            >
+              <h2 className="text-lg font-semibold text-success flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                AI Assistant
+                {aiMessages.length > 0 && (
+                  <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">{aiMessages.length}</span>
                 )}
-              </div>
-              <Button
-                onClick={sendAiMessage}
-                disabled={!aiInput.trim() || isAiLoading}
-                size="icon"
-                className="shrink-0 glow"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
+              </h2>
+              {aiOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+            </button>
+
+            {aiOpen && (
+              <>
+                <div className="flex-1 space-y-3 mt-4 mb-4 overflow-y-auto max-h-[400px]">
+                  {aiMessages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      Ask me for prompts, reflections, or advice about your diary entry...
+                    </p>
+                  ) : (
+                    <>
+                      {aiMessages.map((msg, idx) => (
+                        <AiMessageBubble
+                          key={idx}
+                          content={msg.content}
+                          role={msg.role}
+                          accentColor="success"
+                        />
+                      ))}
+                      {streamingContent && (
+                        <AiMessageBubble
+                          content={streamingContent}
+                          role="assistant"
+                          isStreaming
+                          accentColor="success"
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Textarea
+                      placeholder="Ask for diary prompts or advice..."
+                      value={aiInput}
+                      onChange={(e) => setAiInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          sendAiMessage();
+                        }
+                      }}
+                      className="min-h-[60px] bg-background/50 pr-10"
+                    />
+                    {isSupported && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={async () => {
+                          if (isAiListening && aiRecognitionInstance) {
+                            stopAiListening(aiRecognitionInstance);
+                            setAiRecognitionInstance(null);
+                          } else {
+                            const inst = await startAiListening(true, "diary-chat");
+                            setAiRecognitionInstance(inst);
+                          }
+                        }}
+                        className={`absolute bottom-2 right-2 h-7 w-7 ${isAiListening ? "text-success animate-pulse" : "text-muted-foreground hover:text-success"}`}
+                      >
+                        <Mic className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <Button
+                    onClick={sendAiMessage}
+                    disabled={!aiInput.trim() || isAiLoading}
+                    size="icon"
+                    className="shrink-0 glow"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </>
+            )}
           </Card>
         </div>
       </div>
