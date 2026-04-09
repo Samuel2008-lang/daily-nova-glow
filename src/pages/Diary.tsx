@@ -28,6 +28,7 @@ const Diary = () => {
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
   const [aiRecognitionInstance, setAiRecognitionInstance] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
+  const [aiOpen, setAiOpen] = useState(false);
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
