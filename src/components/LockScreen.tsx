@@ -99,9 +99,7 @@ const LockScreen = ({ onUnlock }: LockScreenProps) => {
               <button
                 key={i}
                 className="w-16 h-16 rounded-full text-xl font-semibold glass border border-border/50 text-foreground active:bg-primary active:text-primary-foreground active:scale-95 transition-transform duration-75"
-                onTouchEnd={() => handleDigit(d)}
-                onMouseUp={() => handleDigit(d)}
-                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleDigit(d)}
               >
                 {d}
               </button>
