@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
-import { FileText, CheckSquare, Target, BookOpen, BookMarked, Clock, Sun, Sunset, Moon } from "lucide-react";
+import { FileText, CheckSquare, Target, BookOpen, BookMarked, Clock, Sun, Sunset, Moon, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { storage, Note, Task, Habit, JournalEntry, DiaryEntry } from "@/lib/storage";
 import { Link } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 interface TimelineItem {
   id: string;
+  rawId: string;
   type: "note" | "task" | "habit" | "diary" | "journal";
   title: string;
   preview?: string;
@@ -70,6 +72,7 @@ const PHASE_ACTIONS: Record<DayPhase, { to: string; label: string; icon: typeof 
 
 const Timeline = () => {
   const [items, setItems] = useState<TimelineItem[]>([]);
+  const { toast } = useToast();
   const phase = getDayPhase();
   const phaseConfig = PHASE_CONFIG[phase];
   const PhaseIcon = phaseConfig.icon;
@@ -86,32 +89,31 @@ const Timeline = () => {
 
     storage.getNotes().forEach((n) => {
       if (new Date(n.createdAt).toDateString() === todayStr) {
-        timeline.push({ id: `note-${n.id}`, type: "note", title: n.topic, preview: n.content.slice(0, 80), time: formatTime(n.createdAt), timestamp: new Date(n.createdAt).getTime() });
+        timeline.push({ id: `note-${n.id}`, rawId: n.id, type: "note", title: n.topic, preview: n.content.slice(0, 80), time: formatTime(n.createdAt), timestamp: new Date(n.createdAt).getTime() });
       }
     });
 
     storage.getTasks().forEach((t) => {
       const isToday = new Date(t.createdAt).toDateString() === todayStr || t.dueDate === todayLocal;
       if (isToday) {
-        timeline.push({ id: `task-${t.id}`, type: "task", title: t.title, preview: t.description?.slice(0, 80), time: t.dueTime || formatTime(t.createdAt), timestamp: new Date(t.createdAt).getTime(), completed: t.completed });
+        timeline.push({ id: `task-${t.id}`, rawId: t.id, type: "task", title: t.title, preview: t.description?.slice(0, 80), time: t.dueTime || formatTime(t.createdAt), timestamp: new Date(t.createdAt).getTime(), completed: t.completed });
       }
     });
 
     storage.getHabits().forEach((h) => {
-      if (h.completedDates.includes(todayLocal)) {
-        timeline.push({ id: `habit-${h.id}`, type: "habit", title: h.name, time: "Today", timestamp: now.getTime(), completed: true });
-      }
+      const done = h.completedDates.includes(todayLocal);
+      timeline.push({ id: `habit-${h.id}`, rawId: h.id, type: "habit", title: h.name, time: "Today", timestamp: now.getTime(), completed: done });
     });
 
     storage.getDiaryEntries().forEach((d) => {
       if (new Date(d.createdAt).toDateString() === todayStr) {
-        timeline.push({ id: `diary-${d.id}`, type: "diary", title: "Diary Entry", preview: d.content.slice(0, 80), time: formatTime(d.createdAt), timestamp: new Date(d.createdAt).getTime() });
+        timeline.push({ id: `diary-${d.id}`, rawId: d.id, type: "diary", title: "Diary Entry", preview: d.content.slice(0, 80), time: formatTime(d.createdAt), timestamp: new Date(d.createdAt).getTime() });
       }
     });
 
     storage.getJournalEntries().forEach((j) => {
       if (new Date(j.createdAt).toDateString() === todayStr) {
-        timeline.push({ id: `journal-${j.id}`, type: "journal", title: "Journal Entry", preview: j.content.slice(0, 80), time: formatTime(j.createdAt), timestamp: new Date(j.createdAt).getTime() });
+        timeline.push({ id: `journal-${j.id}`, rawId: j.id, type: "journal", title: "Journal Entry", preview: j.content.slice(0, 80), time: formatTime(j.createdAt), timestamp: new Date(j.createdAt).getTime() });
       }
     });
 
@@ -121,6 +123,35 @@ const Timeline = () => {
 
   const formatTime = (iso: string) => {
     return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  };
+
+  const toggleTask = (rawId: string) => {
+    const tasks = storage.getTasks();
+    const updated = tasks.map((t) => t.id === rawId ? { ...t, completed: !t.completed } : t);
+    storage.saveTasks(updated);
+    loadTimeline();
+    const task = updated.find((t) => t.id === rawId);
+    toast({ title: task?.completed ? "Task completed ✓" : "Task reopened" });
+  };
+
+  const toggleHabit = (rawId: string) => {
+    const now = new Date();
+    const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const habits = storage.getHabits();
+    const updated = habits.map((h) => {
+      if (h.id !== rawId) return h;
+      const done = h.completedDates.includes(todayLocal);
+      if (done) {
+        return { ...h, completedDates: h.completedDates.filter((d) => d !== todayLocal), streak: Math.max(0, h.streak - 1) };
+      } else {
+        return { ...h, completedDates: [...h.completedDates, todayLocal], lastMarkedDate: todayLocal, streak: h.streak + 1 };
+      }
+    });
+    storage.saveHabits(updated);
+    loadTimeline();
+    const habit = updated.find((h) => h.id === rawId);
+    const isDone = habit?.completedDates.includes(todayLocal);
+    toast({ title: isDone ? "Habit logged ✓" : "Habit unmarked" });
   };
 
   // Daily Reset data
@@ -150,7 +181,6 @@ const Timeline = () => {
             </div>
           </div>
 
-          {/* Quick stats */}
           <div className="flex gap-4 text-sm mb-3">
             <span className="text-muted-foreground">{items.length} activities today</span>
             {totalTasks > 0 && (
@@ -158,7 +188,6 @@ const Timeline = () => {
             )}
           </div>
 
-          {/* Phase-appropriate actions */}
           <div className="flex gap-2">
             {PHASE_ACTIONS[phase].map((action) => {
               const Icon = action.icon;
@@ -206,15 +235,37 @@ const Timeline = () => {
               {items.map((item) => {
                 const style = TYPE_STYLES[item.type];
                 const Icon = style.icon;
+                const isInteractive = item.type === "task" || item.type === "habit";
                 return (
                   <div key={item.id} className="relative flex gap-3 pl-2">
-                    <div className={`relative z-10 flex-shrink-0 w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center ${style.color}`}>
-                      <Icon className="w-3.5 h-3.5" />
+                    <div
+                      className={`relative z-10 flex-shrink-0 w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center ${style.color} ${isInteractive ? "cursor-pointer hover:scale-110 transition-transform" : ""}`}
+                      onClick={() => {
+                        if (item.type === "task") toggleTask(item.rawId);
+                        if (item.type === "habit") toggleHabit(item.rawId);
+                      }}
+                    >
+                      {item.completed ? <Check className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
                     </div>
                     <Card className={`flex-1 glass p-3 border-border/20 ${item.completed ? "opacity-60" : ""}`}>
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className={`text-[10px] font-semibold uppercase tracking-wider ${style.color}`}>{style.label}</span>
                         <span className="text-[10px] text-muted-foreground">{item.time}</span>
+                        {isInteractive && (
+                          <button
+                            onClick={() => {
+                              if (item.type === "task") toggleTask(item.rawId);
+                              if (item.type === "habit") toggleHabit(item.rawId);
+                            }}
+                            className={`ml-auto text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                              item.completed
+                                ? "border-primary/30 text-primary bg-primary/10"
+                                : "border-border/40 text-muted-foreground hover:text-primary hover:border-primary/40"
+                            }`}
+                          >
+                            {item.completed ? "Done ✓" : "Mark done"}
+                          </button>
+                        )}
                       </div>
                       <p className={`text-sm font-medium ${item.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{item.title}</p>
                       {item.preview && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.preview}</p>}
