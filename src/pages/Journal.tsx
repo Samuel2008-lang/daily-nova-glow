@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageSquare, Mic, Send, Sparkles } from "lucide-react";
+import { MessageSquare, Mic, Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,7 @@ const Journal = () => {
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
   const [aiRecognitionInstance, setAiRecognitionInstance] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
+  const [aiOpen, setAiOpen] = useState(false);
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
@@ -523,82 +524,95 @@ Help them use journaling as a tool for profound self-discovery, creative express
             </div>
           </Card>
 
-          {/* AI Chat Assistant */}
-          <Card className="glass glow-purple p-6 flex flex-col">
-            <h2 className="text-xl font-semibold mb-4 text-secondary flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              AI Assistant
-            </h2>
-
-            <div className="flex-1 space-y-3 mb-4 overflow-y-auto max-h-[400px]">
-              {aiMessages.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Ask me for advice, prompts, or reflections on your journal entries...
-                </p>
-              ) : (
-                <>
-                  {aiMessages.map((msg, idx) => (
-                    <AiMessageBubble
-                      key={idx}
-                      content={msg.content}
-                      role={msg.role}
-                      accentColor="secondary"
-                    />
-                  ))}
-                  {streamingContent && (
-                    <AiMessageBubble
-                      content={streamingContent}
-                      role="assistant"
-                      isStreaming
-                      accentColor="secondary"
-                    />
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Textarea
-                  placeholder="Ask for journaling advice..."
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendAiMessage();
-                    }
-                  }}
-                  className="min-h-[60px] bg-background/50 pr-10"
-                />
-                {isSupported && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={async () => {
-                      if (isAiListening && aiRecognitionInstance) {
-                        stopAiListening(aiRecognitionInstance);
-                        setAiRecognitionInstance(null);
-                      } else {
-                        const inst = await startAiListening(true, "journal-chat");
-                        setAiRecognitionInstance(inst);
-                      }
-                    }}
-                    className={`absolute bottom-2 right-2 h-7 w-7 ${isAiListening ? "text-secondary animate-pulse" : "text-muted-foreground hover:text-secondary"}`}
-                  >
-                    <Mic className="w-4 h-4" />
-                  </Button>
+          {/* AI Chat Assistant — Collapsible */}
+          <Card className="glass glow-purple p-4 flex flex-col">
+            <button
+              onClick={() => setAiOpen(!aiOpen)}
+              className="flex items-center justify-between w-full"
+            >
+              <h2 className="text-lg font-semibold text-secondary flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                AI Assistant
+                {aiMessages.length > 0 && (
+                  <span className="text-xs bg-secondary/20 text-secondary px-2 py-0.5 rounded-full">{aiMessages.length}</span>
                 )}
-              </div>
-              <Button
-                onClick={sendAiMessage}
-                disabled={!aiInput.trim() || isAiLoading}
-                size="icon"
-                className="shrink-0 glow-purple"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
+              </h2>
+              {aiOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+            </button>
+
+            {aiOpen && (
+              <>
+                <div className="flex-1 space-y-3 mt-4 mb-4 overflow-y-auto max-h-[400px]">
+                  {aiMessages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      Ask me for advice, prompts, or reflections on your journal entries...
+                    </p>
+                  ) : (
+                    <>
+                      {aiMessages.map((msg, idx) => (
+                        <AiMessageBubble
+                          key={idx}
+                          content={msg.content}
+                          role={msg.role}
+                          accentColor="secondary"
+                        />
+                      ))}
+                      {streamingContent && (
+                        <AiMessageBubble
+                          content={streamingContent}
+                          role="assistant"
+                          isStreaming
+                          accentColor="secondary"
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Textarea
+                      placeholder="Ask for journaling advice..."
+                      value={aiInput}
+                      onChange={(e) => setAiInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          sendAiMessage();
+                        }
+                      }}
+                      className="min-h-[60px] bg-background/50 pr-10"
+                    />
+                    {isSupported && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={async () => {
+                          if (isAiListening && aiRecognitionInstance) {
+                            stopAiListening(aiRecognitionInstance);
+                            setAiRecognitionInstance(null);
+                          } else {
+                            const inst = await startAiListening(true, "journal-chat");
+                            setAiRecognitionInstance(inst);
+                          }
+                        }}
+                        className={`absolute bottom-2 right-2 h-7 w-7 ${isAiListening ? "text-secondary animate-pulse" : "text-muted-foreground hover:text-secondary"}`}
+                      >
+                        <Mic className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <Button
+                    onClick={sendAiMessage}
+                    disabled={!aiInput.trim() || isAiLoading}
+                    size="icon"
+                    className="shrink-0 glow-purple"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </>
+            )}
           </Card>
         </div>
       </div>
