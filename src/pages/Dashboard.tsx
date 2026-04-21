@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FileText, CheckSquare, Target, BookOpen, Sparkles, BookMarked, ArrowRight } from "lucide-react";
+import { FileText, CheckSquare, Target, BookOpen, Sparkles, BookMarked } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { storage } from "@/lib/storage";
@@ -84,32 +84,26 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <Link to="/notes">
             <Card className="glass p-6 border-primary/20 cursor-pointer hover:scale-[1.02] transition-transform duration-300">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <FileText className="w-8 h-8 text-primary" />
-                  <div>
-                    <p className="text-2xl font-bold text-primary">{stats.notesToday}</p>
-                    <p className="text-sm text-muted-foreground">Notes Today</p>
-                  </div>
+              <div className="flex items-center gap-4">
+                <FileText className="w-8 h-8 text-primary" />
+                <div>
+                  <p className="text-2xl font-bold text-primary">{stats.notesToday}</p>
+                  <p className="text-sm text-muted-foreground">Notes Today</p>
                 </div>
-                <ArrowRight className="w-5 h-5 text-muted-foreground" />
               </div>
             </Card>
           </Link>
 
           <Link to="/habits">
             <Card className="glass p-6 border-accent/20 cursor-pointer hover:scale-[1.02] transition-transform duration-300">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Target className="w-8 h-8 text-accent" />
-                  <div>
-                    <p className="text-2xl font-bold text-accent">
-                      {stats.habitsCompleted}/{stats.totalHabits}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Habits Today</p>
-                  </div>
+              <div className="flex items-center gap-4">
+                <Target className="w-8 h-8 text-accent" />
+                <div>
+                  <p className="text-2xl font-bold text-accent">
+                    {stats.habitsCompleted}/{stats.totalHabits}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Habits Today</p>
                 </div>
-                <ArrowRight className="w-5 h-5 text-muted-foreground" />
               </div>
             </Card>
           </Link>
