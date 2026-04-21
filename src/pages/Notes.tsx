@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Mic, Calendar, ArrowLeft, ArrowRight, BookOpen, X, Edit2, Share2, Download } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Mic, Calendar, ArrowLeft, ArrowRight, BookOpen, X, Edit2, Share2, Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { format, isFuture, startOfDay, isToday } from "date-fns";
 import NoteItem from "@/components/NoteItem";
+import { BannerAd } from "@/components/BannerAd";
 
 const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -20,6 +21,7 @@ const Notes = () => {
   const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening } = useSpeechRecognition({
