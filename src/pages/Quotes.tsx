@@ -307,6 +307,7 @@ const Quotes = () => {
           </div>
         )}
       </div>
+      <BannerAd position="bottom" />
     </div>
   );
 };
