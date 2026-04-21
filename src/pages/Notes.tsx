@@ -361,30 +361,62 @@ const Notes = () => {
           </CardContent>
         </Card>
 
-        {/* Notes List */}
+        {/* Search */}
         {notes.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-muted-foreground mb-4">
-              Your Notes ({notes.length})
-            </h2>
-            {notes.map((note) => (
-              <NoteItem
-                key={note.id}
-                note={note}
-                onView={() => viewNote(note)}
-                onDelete={() => deleteNote(note.id)}
-              />
-            ))}
+          <div className="relative mb-4">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search your notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-background/50 border-border/50 focus:border-primary"
+            />
           </div>
         )}
 
-        {notes.length === 0 && (
-          <Card className="glass p-8 text-center">
-            <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No notes yet. Create your first note!</p>
-          </Card>
-        )}
+        {/* Notes List (with optional search filter) */}
+        {(() => {
+          const q = searchQuery.trim().toLowerCase();
+          const filtered = q
+            ? notes.filter(
+                (n) =>
+                  n.topic.toLowerCase().includes(q) ||
+                  n.content.toLowerCase().includes(q)
+              )
+            : notes;
+          if (notes.length === 0) {
+            return (
+              <Card className="glass p-8 text-center">
+                <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No notes yet. Create your first note!</p>
+              </Card>
+            );
+          }
+          if (filtered.length === 0) {
+            return (
+              <Card className="glass p-6 text-center">
+                <p className="text-sm text-muted-foreground">No notes match "{searchQuery}".</p>
+              </Card>
+            );
+          }
+          return (
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-muted-foreground mb-4">
+                {q ? `Results (${filtered.length})` : `Your Notes (${notes.length})`}
+              </h2>
+              {filtered.map((note) => (
+                <NoteItem
+                  key={note.id}
+                  note={note}
+                  onView={() => viewNote(note)}
+                  onDelete={() => deleteNote(note.id)}
+                />
+              ))}
+            </div>
+          );
+        })()}
       </div>
+      <BannerAd position="bottom" />
     </div>
   );
 };
