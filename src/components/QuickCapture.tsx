@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, X, FileText, CheckSquare, BookMarked, BookOpen } from "lucide-react";
+import { Plus, X, FileText, CheckSquare, BookMarked, BookOpen, Mic, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useOfflineAI } from "@/hooks/use-offline-ai";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 type EntryType = "note" | "task" | "journal" | "diary";
 
