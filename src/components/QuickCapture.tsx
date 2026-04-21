@@ -6,8 +6,7 @@ import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useOfflineAI } from "@/hooks/use-offline-ai";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-
-type EntryType = "note" | "task" | "journal" | "diary";
+import { recordCorrection, suggestFromLearning, type EntryType } from "@/lib/ai-learning";
 
 const TYPE_CONFIG: Record<EntryType, { icon: typeof FileText; label: string; color: string }> = {
   note: { icon: FileText, label: "Note", color: "text-primary" },
@@ -46,6 +45,7 @@ const QuickCapture = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [text, setText] = useState("");
   const [selectedType, setSelectedType] = useState<EntryType>("note");
+  const [predictedType, setPredictedType] = useState<EntryType>("note");
   const [autoDetected, setAutoDetected] = useState(true);
   const [aiDetecting, setAiDetecting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -63,14 +63,21 @@ const QuickCapture = () => {
     if (isOpen && textareaRef.current) textareaRef.current.focus();
   }, [isOpen]);
 
-  // Smart detection: try offline AI first, fallback to regex
+  // Smart detection: learned weights → regex → optional AI refinement.
   useEffect(() => {
     if (!autoDetected || !text.trim()) return;
 
-    // Immediate regex detection
-    setSelectedType(detectTypeRegex(text));
+    // 1. Regex baseline
+    let pick: EntryType = detectTypeRegex(text);
 
-    // If offline AI is available, also try AI classification with debounce
+    // 2. Learned bias from past corrections (offline, on-device)
+    const learned = suggestFromLearning(text);
+    if (learned) pick = learned;
+
+    setSelectedType(pick);
+    setPredictedType(pick);
+
+    // 3. Optional offline AI refinement
     if ((hasBuiltInAI || isNative) && text.length > 10) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(async () => {
@@ -82,10 +89,14 @@ const QuickCapture = () => {
           );
           const cleaned = result.toLowerCase().trim();
           if (cleaned === "note" || cleaned === "task" || cleaned === "diary" || cleaned === "journal") {
-            setSelectedType(cleaned);
+            // Only override if no strong learned signal
+            if (!learned) {
+              setSelectedType(cleaned);
+              setPredictedType(cleaned);
+            }
           }
         } catch {
-          // Regex fallback already applied
+          // Regex/learned fallback already applied
         } finally {
           setAiDetecting(false);
         }
@@ -102,6 +113,10 @@ const QuickCapture = () => {
 
   const handleSave = () => {
     if (!text.trim()) return;
+    // Record correction for offline learning if user changed the prediction
+    if (predictedType && predictedType !== selectedType) {
+      recordCorrection(text, predictedType, selectedType);
+    }
     const now = new Date().toISOString();
 
     switch (selectedType) {
