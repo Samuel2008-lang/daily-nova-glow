@@ -146,11 +146,16 @@ const Tasks = () => {
 
     const task = updatedTasks.find((t) => t.id === id);
     if (task?.completed) {
+      const { haptics } = await import("@/lib/haptics");
+      haptics.success();
       await cancelTaskNotifications(task);
       toast({
         title: "Task completed!",
         description: "Great job! Keep up the momentum.",
       });
+    } else {
+      const { haptics } = await import("@/lib/haptics");
+      haptics.light();
     }
   };
 
