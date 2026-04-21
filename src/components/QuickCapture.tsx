@@ -53,6 +53,12 @@ const QuickCapture = () => {
   const { toast } = useToast();
   const { processText, hasBuiltInAI, isNative } = useOfflineAI();
 
+  const handleSpeechResult = (transcript: string) => {
+    setText((prev) => (prev ? `${prev} ${transcript}` : transcript).trim());
+    setAutoDetected(true);
+  };
+  const speech = useSpeechRecognition({ onResult: handleSpeechResult });
+
   useEffect(() => {
     if (isOpen && textareaRef.current) textareaRef.current.focus();
   }, [isOpen]);
