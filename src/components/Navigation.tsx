@@ -5,15 +5,17 @@ import { NavLink } from "./NavLink";
 const Navigation = () => {
   const [moreOpen, setMoreOpen] = useState(false);
 
+  // Consolidated 4-item nav for thumb-reachability.
+  // Notes & Habits live as interactive cards on the Dashboard.
   const primaryItems = [
     { to: "/", icon: Home, label: "Home" },
-    { to: "/notes", icon: FileText, label: "Notes" },
     { to: "/tasks", icon: CheckSquare, label: "Tasks" },
-    { to: "/habits", icon: Target, label: "Habits" },
     { to: "/timeline", icon: Clock, label: "Timeline" },
   ];
 
   const moreItems = [
+    { to: "/notes", icon: FileText, label: "Notes" },
+    { to: "/habits", icon: Target, label: "Habits" },
     { to: "/diary", icon: BookOpen, label: "Diary" },
     { to: "/journal", icon: BookMarked, label: "Journal" },
     { to: "/quotes", icon: Sparkles, label: "Quotes" },
@@ -58,7 +60,7 @@ const Navigation = () => {
         <>
           <div className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm" onClick={() => setMoreOpen(false)} />
           <div className="fixed bottom-16 md:top-16 md:bottom-auto left-0 right-0 z-50 flex justify-center px-4 animate-fade-in">
-            <div className="glass border border-border/50 rounded-2xl p-3 w-full max-w-sm grid grid-cols-4 gap-2"
+            <div className="glass border border-border/50 rounded-2xl p-3 w-full max-w-sm grid grid-cols-4 gap-2 max-h-[80vh] overflow-y-auto"
               style={{ boxShadow: "0 0 30px hsl(var(--primary) / 0.1)" }}
             >
               {moreItems.map((item) => {
