@@ -3,7 +3,6 @@ import { Sparkles, RefreshCw, Wifi, WifiOff, Share2, ChevronLeft, ChevronRight }
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { BannerAd } from "@/components/BannerAd";
 import { RewardedAdButton } from "@/components/RewardedAdButton";
 import { useQuoteShareImage } from "@/components/QuoteShareImage";
 import { supabase } from "@/integrations/supabase/client";
@@ -307,7 +306,6 @@ const Quotes = () => {
           </div>
         )}
       </div>
-      <BannerAd position="bottom" />
     </div>
   );
 };

@@ -10,7 +10,6 @@ import { storage, Note } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { format, isFuture, startOfDay, isToday } from "date-fns";
-import { BannerAd } from "@/components/BannerAd";
 import NoteItem from "@/components/NoteItem";
 
 const Notes = () => {
@@ -230,7 +229,6 @@ const Notes = () => {
             </div>
           </Card>
         </div>
-        <BannerAd position="bottom" />
       </div>
     );
   }
@@ -306,7 +304,6 @@ const Notes = () => {
             </div>
           </Card>
         </div>
-        <BannerAd position="bottom" />
       </div>
     );
   }
@@ -383,7 +380,6 @@ const Notes = () => {
           </Card>
         )}
       </div>
-      <BannerAd position="bottom" />
     </div>
   );
 };
