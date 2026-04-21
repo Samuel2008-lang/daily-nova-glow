@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Mic, Calendar, ArrowLeft, ArrowRight, BookOpen, X, Edit2, Share2, Download } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Mic, Calendar, ArrowLeft, ArrowRight, BookOpen, X, Edit2, Share2, Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { format, isFuture, startOfDay, isToday } from "date-fns";
 import NoteItem from "@/components/NoteItem";
+import { BannerAd } from "@/components/BannerAd";
 
 const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -20,6 +21,7 @@ const Notes = () => {
   const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening } = useSpeechRecognition({
@@ -233,76 +235,79 @@ const Notes = () => {
     );
   }
 
-  // Write mode view
+  // Write mode view — full-screen immersive editor with bottom-anchored actions
   if (viewMode === 'write') {
     return (
-      <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
-        <div className="max-w-4xl mx-auto animate-fade-in">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigateDay('prev')}>
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <h1 className="text-xl font-bold text-primary">
-                {format(selectedDate, "MMMM d, yyyy")}
-              </h1>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => navigateDay('next')}
-                disabled={isToday(selectedDate)}
-              >
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </div>
+      <div className="fixed inset-0 z-40 flex flex-col bg-background animate-fade-in">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 shrink-0">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigateDay('prev')}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h1 className="text-base font-semibold text-primary">
+              {format(selectedDate, "MMM d, yyyy")}
+            </h1>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigateDay('next')}
+              disabled={isToday(selectedDate)}
+            >
+              <ArrowRight className="w-5 h-5" />
+            </Button>
           </div>
+          {isSupported && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => startListening(true, "note")}
+              disabled={isListening}
+              className={isListening ? "animate-pulse-glow text-primary" : "text-muted-foreground hover:text-primary"}
+              aria-label="Voice input"
+            >
+              <Mic className="w-5 h-5" />
+            </Button>
+          )}
+        </div>
 
-          <Card className="glass glow p-6">
-            <Input
-              placeholder="Note topic (e.g., Meeting Notes, Ideas, etc.)"
-              value={noteTopic}
-              onChange={(e) => setNoteTopic(e.target.value)}
-              className="mb-4 bg-background/50 border-border/50 focus:border-primary text-lg font-semibold"
-            />
-            
-            <div className="relative">
-              <Textarea
-                placeholder="Write your note here..."
-                value={noteContent}
-                onChange={(e) => setNoteContent(e.target.value)}
-                className="mb-4 min-h-[300px] bg-background/50 border-border/50 focus:border-primary pr-14 text-lg"
-              />
-              {isSupported && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => startListening(true, "note")}
-                  disabled={isListening}
-                  className={`absolute top-3 right-3 ${
-                    isListening ? "animate-pulse-glow text-primary" : "text-muted-foreground hover:text-primary"
-                  }`}
-                >
-                  <Mic className="w-5 h-5" />
-                </Button>
-              )}
+        {/* Editor — fills available space */}
+        <div className="flex-1 flex flex-col px-4 pt-4 pb-2 overflow-hidden">
+          <Input
+            placeholder="Note topic..."
+            value={noteTopic}
+            onChange={(e) => setNoteTopic(e.target.value)}
+            className="mb-3 bg-transparent border-0 border-b border-border/30 rounded-none px-0 text-xl font-semibold focus-visible:ring-0 focus-visible:border-primary"
+          />
+          <Textarea
+            placeholder="Start writing..."
+            value={noteContent}
+            onChange={(e) => setNoteContent(e.target.value)}
+            className="flex-1 resize-none bg-transparent border-0 px-0 text-base leading-relaxed focus-visible:ring-0"
+          />
+          {isListening && (
+            <div className="flex items-center gap-2 px-3 py-2 mb-2 bg-primary/10 rounded-lg shrink-0">
+              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+              <span className="text-xs text-primary font-medium">Listening… Tap mic to stop</span>
             </div>
+          )}
+        </div>
 
-            {isListening && (
-              <div className="flex items-center gap-2 mb-4 px-4 py-2 bg-primary/20 rounded-lg animate-pulse-glow">
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                <span className="text-sm text-primary font-medium">Listening... Tap mic to stop</span>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button onClick={saveNote} className="flex-1 glow" disabled={!noteContent.trim()}>
-                Save Note
-              </Button>
-              <Button variant="outline" onClick={() => { setViewMode('closed'); setSelectedNote(null); setNoteTopic(""); setNoteContent(""); }}>
-                Cancel
-              </Button>
-            </div>
-          </Card>
+        {/* Bottom action bar */}
+        <div
+          className="flex gap-2 px-4 pt-3 pb-6 border-t border-border/30 bg-background/95 backdrop-blur-sm shrink-0"
+          style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+        >
+          <Button
+            variant="outline"
+            onClick={() => { setViewMode('closed'); setSelectedNote(null); setNoteTopic(""); setNoteContent(""); }}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button onClick={saveNote} className="flex-1 glow" disabled={!noteContent.trim()}>
+            Save Note
+          </Button>
         </div>
       </div>
     );
@@ -356,30 +361,62 @@ const Notes = () => {
           </CardContent>
         </Card>
 
-        {/* Notes List */}
+        {/* Search */}
         {notes.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-muted-foreground mb-4">
-              Your Notes ({notes.length})
-            </h2>
-            {notes.map((note) => (
-              <NoteItem
-                key={note.id}
-                note={note}
-                onView={() => viewNote(note)}
-                onDelete={() => deleteNote(note.id)}
-              />
-            ))}
+          <div className="relative mb-4">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search your notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-background/50 border-border/50 focus:border-primary"
+            />
           </div>
         )}
 
-        {notes.length === 0 && (
-          <Card className="glass p-8 text-center">
-            <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No notes yet. Create your first note!</p>
-          </Card>
-        )}
+        {/* Notes List (with optional search filter) */}
+        {(() => {
+          const q = searchQuery.trim().toLowerCase();
+          const filtered = q
+            ? notes.filter(
+                (n) =>
+                  n.topic.toLowerCase().includes(q) ||
+                  n.content.toLowerCase().includes(q)
+              )
+            : notes;
+          if (notes.length === 0) {
+            return (
+              <Card className="glass p-8 text-center">
+                <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No notes yet. Create your first note!</p>
+              </Card>
+            );
+          }
+          if (filtered.length === 0) {
+            return (
+              <Card className="glass p-6 text-center">
+                <p className="text-sm text-muted-foreground">No notes match "{searchQuery}".</p>
+              </Card>
+            );
+          }
+          return (
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-muted-foreground mb-4">
+                {q ? `Results (${filtered.length})` : `Your Notes (${notes.length})`}
+              </h2>
+              {filtered.map((note) => (
+                <NoteItem
+                  key={note.id}
+                  note={note}
+                  onView={() => viewNote(note)}
+                  onDelete={() => deleteNote(note.id)}
+                />
+              ))}
+            </div>
+          );
+        })()}
       </div>
+      <BannerAd position="bottom" />
     </div>
   );
 };

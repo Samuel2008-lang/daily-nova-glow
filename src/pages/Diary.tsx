@@ -415,6 +415,68 @@ Help them transform daily reflections into meaningful self-understanding, emotio
     );
   }
 
+  // Full-screen immersive write mode
+  if (viewMode === 'write') {
+    return (
+      <div className="fixed inset-0 z-40 flex flex-col bg-background animate-fade-in">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 shrink-0">
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={goToPreviousDay} className="hover:text-success">
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+            <h1 className="text-base font-semibold text-success">
+              {currentDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            </h1>
+            <Button variant="ghost" size="icon" onClick={goToNextDay} disabled={isToday} className="hover:text-success">
+              <ChevronRight className="w-5 h-5" />
+            </Button>
+          </div>
+          {isSupported && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={handleVoiceClick}
+              className={isListening ? "animate-pulse-glow text-success" : "text-muted-foreground hover:text-success"}
+              aria-label="Voice input"
+            >
+              <Mic className="w-5 h-5" />
+            </Button>
+          )}
+        </div>
+
+        <div className="flex-1 flex flex-col px-4 pt-4 pb-2 overflow-hidden">
+          <Textarea
+            placeholder="What's on your mind today? Write your thoughts, experiences, or reflections..."
+            value={currentEntry}
+            onChange={(e) => setCurrentEntry(e.target.value)}
+            className="flex-1 resize-none bg-transparent border-0 px-0 text-base leading-relaxed focus-visible:ring-0"
+          />
+          <div className="flex items-center justify-between text-xs text-muted-foreground mt-2 shrink-0">
+            <span>{currentEntry.length} characters</span>
+            {isListening && (
+              <div className="flex items-center gap-2 px-2 py-1 bg-success/10 rounded">
+                <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
+                <span className="text-success font-medium">Recording…</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div
+          className="flex gap-2 px-4 pt-3 pb-6 border-t border-border/30 bg-background/95 backdrop-blur-sm shrink-0"
+          style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+        >
+          <Button variant="outline" onClick={() => setViewMode('closed')} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={() => { saveEntry(); setViewMode('closed'); }} disabled={!currentEntry.trim()} className="flex-1 glow">
+            Save Entry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
       <div className="max-w-4xl mx-auto animate-fade-in">
@@ -425,91 +487,6 @@ Help them transform daily reflections into meaningful self-understanding, emotio
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-6">
-        {viewMode === 'write' && (
-          <Card className="glass glow p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={goToPreviousDay}
-                className="hover:text-success"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </Button>
-
-              <div className="text-center">
-                <div className="flex items-center gap-2 justify-center mb-1">
-                  <CalendarIcon className="w-4 h-4 text-success" />
-                  <h2 className="text-2xl font-bold text-success">
-                    {currentDate.toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </h2>
-                </div>
-                {!isToday && (
-                  <Button variant="link" onClick={goToToday} className="text-xs text-success">
-                    Go to today
-                  </Button>
-                )}
-              </div>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={goToNextDay}
-                className="hover:text-success"
-                disabled={isToday}
-              >
-                <ChevronRight className="w-5 h-5" />
-              </Button>
-            </div>
-
-            <div className="relative">
-              <Textarea
-                placeholder="What's on your mind today? Write your thoughts, experiences, or reflections..."
-                value={currentEntry}
-                onChange={(e) => setCurrentEntry(e.target.value)}
-                className="min-h-[300px] bg-background/50 border-border/50 focus:border-success resize-none pr-14"
-              />
-              {isSupported && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={handleVoiceClick}
-                  className={`${
-                    isListening ? "animate-pulse-glow text-success" : "text-muted-foreground hover:text-success"
-                  } absolute top-3 right-3`}
-                >
-                  <Mic className="w-5 h-5" />
-                </Button>
-              )}
-            </div>
-
-            <div className="flex justify-between items-center mt-4">
-              <div className="flex items-center gap-4">
-                <span className="text-xs text-muted-foreground">
-                  {currentEntry.length} characters
-                </span>
-                {isListening && (
-                  <div className="flex items-center gap-2 px-3 py-1 bg-success/20 rounded-lg animate-pulse-glow">
-                    <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
-                    <span className="text-xs text-success font-medium">Recording... Tap mic to stop</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button onClick={saveEntry} disabled={!currentEntry.trim()} className="glow">
-                  Save Entry
-                </Button>
-                <Button variant="outline" onClick={() => { saveEntry(); setViewMode('closed'); }}>
-                  Save & Close
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
 
           {/* Entry Stats */}
           <Card className="glass p-6">

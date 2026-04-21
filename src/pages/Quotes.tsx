@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { RewardedAdButton } from "@/components/RewardedAdButton";
+import { BannerAd } from "@/components/BannerAd";
 import { useQuoteShareImage } from "@/components/QuoteShareImage";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -306,6 +307,7 @@ const Quotes = () => {
           </div>
         )}
       </div>
+      <BannerAd position="bottom" />
     </div>
   );
 };

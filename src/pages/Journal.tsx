@@ -402,6 +402,80 @@ Help them use journaling as a tool for profound self-discovery, creative express
     );
   }
 
+  // Full-screen immersive write mode
+  if (viewMode === 'write') {
+    const isToday = currentDate.toDateString() === new Date().toDateString();
+    return (
+      <div className="fixed inset-0 z-40 flex flex-col bg-background animate-fade-in">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 shrink-0">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCurrentDate(new Date(currentDate.getTime() - 86400000))}
+              className="hover:text-secondary"
+            >
+              <span className="sr-only">Previous day</span>‹
+            </Button>
+            <h1 className="text-base font-semibold text-secondary">
+              {currentDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            </h1>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCurrentDate(new Date(currentDate.getTime() + 86400000))}
+              disabled={isToday}
+              className="hover:text-secondary"
+            >
+              <span className="sr-only">Next day</span>›
+            </Button>
+          </div>
+          {isSupported && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={handleVoiceClick}
+              className={isListening ? "animate-pulse-glow text-secondary" : "text-muted-foreground hover:text-secondary"}
+              aria-label="Voice input"
+            >
+              <Mic className="w-5 h-5" />
+            </Button>
+          )}
+        </div>
+
+        <div className="flex-1 flex flex-col px-4 pt-4 pb-2 overflow-hidden">
+          <Textarea
+            placeholder="What's on your mind? Write freely..."
+            value={currentEntry}
+            onChange={(e) => setCurrentEntry(e.target.value)}
+            className="flex-1 resize-none bg-transparent border-0 px-0 text-base leading-relaxed focus-visible:ring-0"
+          />
+          <div className="flex items-center justify-between text-xs text-muted-foreground mt-2 shrink-0">
+            <span>{currentEntry.length} characters</span>
+            {isListening && (
+              <div className="flex items-center gap-2 px-2 py-1 bg-secondary/10 rounded">
+                <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
+                <span className="text-secondary font-medium">Recording…</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div
+          className="flex gap-2 px-4 pt-3 pb-6 border-t border-border/30 bg-background/95 backdrop-blur-sm shrink-0"
+          style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
+        >
+          <Button variant="outline" onClick={() => setViewMode('closed')} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={() => { saveEntry(); setViewMode('closed'); }} disabled={!currentEntry.trim()} className="flex-1 glow-purple">
+            Save Entry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
       <div className="max-w-4xl mx-auto animate-fade-in">
@@ -411,79 +485,6 @@ Help them use journaling as a tool for profound self-discovery, creative express
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          {viewMode === 'write' && (
-            <Card className="glass glow-purple p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-secondary flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5" />
-                  Write Entry
-                </h2>
-              </div>
-
-              {/* Date Navigation */}
-              <div className="flex items-center justify-between mb-4">
-                <Button variant="ghost" size="icon" onClick={() => setCurrentDate(new Date(currentDate.getTime() - 86400000))}>
-                  <span className="sr-only">Previous day</span>‹
-                </Button>
-                <div className="text-center">
-                  <h3 className="text-lg font-bold text-secondary">
-                    {currentDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                  </h3>
-                  {currentDate.toDateString() !== new Date().toDateString() && (
-                    <Button variant="link" onClick={() => setCurrentDate(new Date())} className="text-xs text-secondary">
-                      Go to today
-                    </Button>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setCurrentDate(new Date(currentDate.getTime() + 86400000))}
-                  disabled={currentDate.toDateString() === new Date().toDateString()}
-                >
-                  <span className="sr-only">Next day</span>›
-                </Button>
-              </div>
-
-              <div className="relative mb-4">
-                <Textarea
-                  placeholder="What's on your mind? Write freely..."
-                  value={currentEntry}
-                  onChange={(e) => setCurrentEntry(e.target.value)}
-                  className="min-h-[300px] bg-background/50 border-border/50 focus:border-secondary resize-none pr-14"
-                />
-                {isSupported && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={handleVoiceClick}
-                    className={`${
-                      isListening ? "animate-pulse-glow text-secondary" : "text-muted-foreground hover:text-secondary"
-                    } absolute top-3 right-3`}
-                  >
-                    <Mic className="w-5 h-5" />
-                  </Button>
-                )}
-              </div>
-
-              {isListening && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/20 rounded-lg animate-pulse-glow mb-4">
-                  <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
-                  <span className="text-xs text-secondary font-medium">Recording... Tap mic to stop</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2">
-                <Button onClick={saveEntry} disabled={!currentEntry.trim()} className="glow-purple">
-                  Save Entry
-                </Button>
-                <Button variant="outline" onClick={() => { saveEntry(); setViewMode('closed'); }}>
-                  Save & Close
-                </Button>
-              </div>
-
-            </Card>
-          )}
 
           {/* Quick Access */}
           <Card className="glass p-6">
