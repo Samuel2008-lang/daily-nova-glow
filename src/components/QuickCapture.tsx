@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, X, FileText, CheckSquare, BookMarked, BookOpen } from "lucide-react";
+import { Plus, X, FileText, CheckSquare, BookMarked, BookOpen, Mic, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useOfflineAI } from "@/hooks/use-offline-ai";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 type EntryType = "note" | "task" | "journal" | "diary";
 
@@ -51,6 +52,12 @@ const QuickCapture = () => {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const { toast } = useToast();
   const { processText, hasBuiltInAI, isNative } = useOfflineAI();
+
+  const handleSpeechResult = (transcript: string) => {
+    setText((prev) => (prev ? `${prev} ${transcript}` : transcript).trim());
+    setAutoDetected(true);
+  };
+  const speech = useSpeechRecognition({ onResult: handleSpeechResult });
 
   useEffect(() => {
     if (isOpen && textareaRef.current) textareaRef.current.focus();
@@ -156,14 +163,29 @@ const QuickCapture = () => {
             </Button>
           </div>
 
-          <Textarea
-            ref={textareaRef}
-            placeholder="Type anything... I'll figure out what it is"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            className="bg-background/50 border-border/30 resize-none min-h-[80px] max-h-[200px] text-sm"
-            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSave(); }}
-          />
+          <div className="relative">
+            <Textarea
+              ref={textareaRef}
+              placeholder={speech.isListening ? "Listening..." : "Type or tap mic to speak..."}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              className="bg-background/50 border-border/30 resize-none min-h-[80px] max-h-[200px] text-sm pr-12"
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSave(); }}
+            />
+            {speech.isSupported && (
+              <Button
+                type="button"
+                size="icon"
+                variant={speech.isListening ? "default" : "ghost"}
+                className={`absolute bottom-2 right-2 h-8 w-8 rounded-full ${speech.isListening ? "bg-primary text-primary-foreground animate-pulse" : ""}`}
+                onClick={() => (speech.isListening ? speech.stopListening() : speech.startListening(true, "general"))}
+                disabled={speech.isProcessing}
+                aria-label={speech.isListening ? "Stop recording" : "Start voice input"}
+              >
+                {speech.isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+              </Button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             {(Object.entries(TYPE_CONFIG) as [EntryType, typeof TYPE_CONFIG.note][]).map(([type, config]) => {
