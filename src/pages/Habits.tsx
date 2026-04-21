@@ -10,6 +10,7 @@ import { storage, Habit } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { notificationService } from "@/lib/notifications";
+import { haptics } from "@/lib/haptics";
 
 const Habits = () => {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -78,6 +79,7 @@ const Habits = () => {
     storage.saveHabits(updatedHabits);
     const habit = updatedHabits.find((h) => h.id === id);
     const isNowCompleted = habit?.completedDates.includes(today);
+    if (isNowCompleted) haptics.success(); else haptics.light();
     toast({
       title: isNowCompleted ? "Great job!" : "Unmarked",
       description: isNowCompleted ? `Keep building your streak! Current: ${habit?.streak || 0} days` : "Habit unmarked for today.",

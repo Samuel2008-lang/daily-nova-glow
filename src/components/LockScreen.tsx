@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Lock, Delete, Fingerprint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { biometricService } from "@/lib/biometric";
+import { haptics } from "@/lib/haptics";
 
 interface LockScreenProps {
   onUnlock: () => void;
@@ -32,14 +33,17 @@ const LockScreen = ({ onUnlock }: LockScreenProps) => {
 
   const handleDigit = (digit: string) => {
     if (pin.length >= 4) return;
+    haptics.light();
     const newPin = pin + digit;
     setPin(newPin);
     setError(false);
 
     if (newPin.length === 4) {
       if (newPin === savedPin) {
+        haptics.success();
         onUnlock();
       } else {
+        haptics.error();
         setError(true);
         setTimeout(() => {
           setPin("");
@@ -50,6 +54,7 @@ const LockScreen = ({ onUnlock }: LockScreenProps) => {
   };
 
   const handleDelete = () => {
+    haptics.light();
     setPin((prev) => prev.slice(0, -1));
     setError(false);
   };

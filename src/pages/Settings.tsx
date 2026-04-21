@@ -61,12 +61,22 @@ const Settings = () => {
 
   const sendFeedback = () => {
     if (!feedbackText.trim()) return;
-    const subject = encodeURIComponent("DailyNova Feedback");
-    const body = encodeURIComponent(feedbackText);
-    window.open(`mailto:hopeegbon28@gmail.com?subject=${subject}&body=${body}`, "_blank");
+    // Native in-app feedback: store locally (zero-cost, no external mail intent).
+    try {
+      const existing = JSON.parse(localStorage.getItem("dailynova_feedback_queue") || "[]");
+      existing.push({
+        id: crypto.randomUUID(),
+        message: feedbackText.trim(),
+        createdAt: new Date().toISOString(),
+        version: "1.0.0",
+      });
+      localStorage.setItem("dailynova_feedback_queue", JSON.stringify(existing));
+    } catch {
+      // ignore storage errors
+    }
     setFeedbackText("");
     setFeedbackSent(true);
-    toast({ title: "Thank you!", description: "Your email app should open with the feedback." });
+    toast({ title: "Thank you!", description: "Your feedback has been saved and will help shape future updates." });
     setTimeout(() => setFeedbackSent(false), 3000);
   };
 

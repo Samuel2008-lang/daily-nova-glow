@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FileText, CheckSquare, Target, BookOpen, Sparkles, BookMarked } from "lucide-react";
+import { FileText, CheckSquare, Target, BookOpen, Sparkles, BookMarked, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { storage } from "@/lib/storage";
@@ -40,11 +40,28 @@ const Dashboard = () => {
     });
   }, []);
 
-  const primaryActions = [
-    { to: "/notes", icon: FileText, label: "Add Note" },
-    { to: "/tasks", icon: CheckSquare, label: "New Task" },
-    { to: "/habits", icon: Target, label: "Track Habit" },
-  ];
+  // Time-aware primary actions for proactive dashboard
+  const hour = new Date().getHours();
+  const isEvening = hour >= 18;
+  const isMorning = hour < 12;
+
+  const primaryActions = isEvening
+    ? [
+        { to: "/diary", icon: BookOpen, label: "Daily Reset" },
+        { to: "/journal", icon: BookMarked, label: "Reflect" },
+        { to: "/tasks", icon: CheckSquare, label: "Plan Tomorrow" },
+      ]
+    : isMorning
+      ? [
+          { to: "/tasks", icon: CheckSquare, label: "Plan Tasks" },
+          { to: "/habits", icon: Target, label: "Track Habit" },
+          { to: "/notes", icon: FileText, label: "Capture Thought" },
+        ]
+      : [
+          { to: "/notes", icon: FileText, label: "Add Note" },
+          { to: "/tasks", icon: CheckSquare, label: "New Task" },
+          { to: "/habits", icon: Target, label: "Track Habit" },
+        ];
 
   const secondaryActions = [
     { to: "/diary", icon: BookOpen, label: "Write Diary" },
@@ -63,42 +80,53 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="glass glow p-6 border-primary/20">
-            <div className="flex items-center gap-4">
-              <FileText className="w-8 h-8 text-primary" />
-              <div>
-                <p className="text-2xl font-bold text-primary">{stats.notesToday}</p>
-                <p className="text-sm text-muted-foreground">Notes Today</p>
+        {/* Notes & Habits — interactive Dashboard cards (moved from bottom nav) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <Link to="/notes">
+            <Card className="glass p-6 border-primary/20 cursor-pointer hover:scale-[1.02] transition-transform duration-300">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <FileText className="w-8 h-8 text-primary" />
+                  <div>
+                    <p className="text-2xl font-bold text-primary">{stats.notesToday}</p>
+                    <p className="text-sm text-muted-foreground">Notes Today</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-muted-foreground" />
               </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
 
-          <Card className="glass glow-purple p-6 border-secondary/20">
-            <div className="flex items-center gap-4">
-              <CheckSquare className="w-8 h-8 text-secondary" />
-              <div>
-                <p className="text-sm font-medium text-secondary truncate max-w-[200px]">
-                  {stats.nextTask}
-                </p>
-                <p className="text-sm text-muted-foreground">Next Task</p>
+          <Link to="/habits">
+            <Card className="glass p-6 border-accent/20 cursor-pointer hover:scale-[1.02] transition-transform duration-300">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Target className="w-8 h-8 text-accent" />
+                  <div>
+                    <p className="text-2xl font-bold text-accent">
+                      {stats.habitsCompleted}/{stats.totalHabits}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Habits Today</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-muted-foreground" />
               </div>
-            </div>
-          </Card>
-
-          <Card className="glass glow-pink p-6 border-accent/20">
-            <div className="flex items-center gap-4">
-              <Target className="w-8 h-8 text-accent" />
-              <div>
-                <p className="text-2xl font-bold text-accent">
-                  {stats.habitsCompleted}/{stats.totalHabits}
-                </p>
-                <p className="text-sm text-muted-foreground">Habits Today</p>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
         </div>
+
+        {/* Next Task */}
+        <Card className="glass p-6 mb-8 border-secondary/20">
+          <div className="flex items-center gap-4">
+            <CheckSquare className="w-8 h-8 text-secondary" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-secondary truncate">
+                {stats.nextTask}
+              </p>
+              <p className="text-sm text-muted-foreground">Next Task</p>
+            </div>
+          </div>
+        </Card>
 
         {/* Quick Actions */}
         <Card className="glass glow p-6 mb-8">
