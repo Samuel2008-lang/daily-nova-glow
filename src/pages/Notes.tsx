@@ -422,6 +422,37 @@ const Notes = () => {
           );
         })()}
       </div>
+
+      {/* Empty-date prompt — mirrors Diary behavior */}
+      {emptyDatePromptOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setEmptyDatePromptOpen(false)} />
+          <Card className="relative glass glow p-6 max-w-sm w-full text-center">
+            <h3 className="text-lg font-semibold text-primary mb-2">No entry yet</h3>
+            <p className="text-sm text-muted-foreground mb-5">
+              You don't have a note for {format(selectedDate, "MMMM d, yyyy")}.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setEmptyDatePromptOpen(false)}>
+                Close
+              </Button>
+              <Button
+                className="flex-1 glow"
+                onClick={() => {
+                  setNoteTopic("");
+                  setNoteContent("");
+                  setSelectedNote(null);
+                  setEmptyDatePromptOpen(false);
+                  setViewMode('write');
+                }}
+              >
+                Write
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <BannerAd position="bottom" />
     </div>
   );
