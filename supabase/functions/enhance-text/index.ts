@@ -63,19 +63,17 @@ Return ONLY the cleaned transcription, nothing else. No explanations.`;
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits." }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      throw new Error(`AI gateway error: ${response.status}`);
+      // Never propagate non-2xx to the client — the app falls back to original text.
+      // This prevents blank-screen runtime errors triggered by 429/5xx responses.
+      console.warn(`AI gateway returned ${response.status}; returning original text as fallback.`);
+      return new Response(
+        JSON.stringify({
+          enhanced: text,
+          fallback: true,
+          reason: response.status === 429 ? "rate_limited" : response.status === 402 ? "credits_exhausted" : "upstream_error",
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const data = await response.json();
@@ -90,10 +88,15 @@ Return ONLY the cleaned transcription, nothing else. No explanations.`;
 
   } catch (error) {
     console.error("Error in enhance-text function:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    // Always respond 200 with the original text so the client never crashes.
+    let originalText = "";
+    try {
+      const body = await req.clone().json().catch(() => ({}));
+      originalText = typeof body?.text === "string" ? body.text : "";
+    } catch { /* ignore */ }
     return new Response(
-      JSON.stringify({ error: errorMessage, enhanced: "" }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ enhanced: originalText, fallback: true, reason: "exception" }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
