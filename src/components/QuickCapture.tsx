@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, X, FileText, CheckSquare, BookMarked, BookOpen, Mic, Loader2 } from "lucide-react";
+import { Plus, X, FileText, CheckSquare, BookMarked, BookOpen, Target, Mic, Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { storage } from "@/lib/storage";
@@ -7,16 +7,22 @@ import { useToast } from "@/hooks/use-toast";
 import { useOfflineAI } from "@/hooks/use-offline-ai";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { recordCorrection, suggestFromLearning, type EntryType } from "@/lib/ai-learning";
+import { haptics } from "@/lib/haptics";
 
 const TYPE_CONFIG: Record<EntryType, { icon: typeof FileText; label: string; color: string }> = {
   note: { icon: FileText, label: "Note", color: "text-primary" },
   task: { icon: CheckSquare, label: "Task", color: "text-secondary" },
+  habit: { icon: Target, label: "Habit", color: "text-accent" },
   diary: { icon: BookOpen, label: "Diary", color: "text-orange-400" },
   journal: { icon: BookMarked, label: "Journal", color: "text-accent" },
 };
 
 function detectTypeRegex(text: string): EntryType {
   const lower = text.toLowerCase().trim();
+  const habitPatterns = [
+    /\b(every day|daily|each day|each morning|each night|every morning|every night|habit|routine)\b/,
+    /\b(meditate|exercise|workout|read|drink water|stretch|practice|journal daily)\b/,
+  ];
   const taskPatterns = [
     /^(buy|get|call|email|send|fix|do|finish|complete|submit|schedule|remind|pick up|set up|make|clean|pay|book|cancel|return|check)/,
     /\b(by|before|deadline|due|tomorrow|today|tonight|asap|urgent)\b/,
@@ -32,9 +38,11 @@ function detectTypeRegex(text: string): EntryType {
     /\b(today was|i think|i feel|i realized|i learned|looking back|in retrospect)\b/,
     /[.!?].*[.!?]/,
   ];
+  const habitScore = habitPatterns.filter((p) => p.test(lower)).length;
   const taskScore = taskPatterns.filter((p) => p.test(lower)).length;
   const diaryScore = diaryPatterns.filter((p) => p.test(lower)).length;
   const journalScore = journalPatterns.filter((p) => p.test(lower)).length;
+  if (habitScore > taskScore && habitScore > 0) return "habit";
   if (taskScore > journalScore && taskScore > diaryScore) return "task";
   if (diaryScore > 0 && text.length > 40) return "diary";
   if (journalScore > 0 && text.length > 60) return "journal";
@@ -48,6 +56,7 @@ const QuickCapture = () => {
   const [predictedType, setPredictedType] = useState<EntryType>("note");
   const [autoDetected, setAutoDetected] = useState(true);
   const [aiDetecting, setAiDetecting] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<"up" | "down" | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const { toast } = useToast();
@@ -63,57 +72,77 @@ const QuickCapture = () => {
     if (isOpen && textareaRef.current) textareaRef.current.focus();
   }, [isOpen]);
 
-  // Smart detection: learned weights → regex → optional AI refinement.
+  // Reset feedback whenever the prediction changes
+  useEffect(() => { setFeedbackGiven(null); }, [predictedType, text]);
+
+  // Smart detection: learned weights → regex → optional AI refinement (faster debounce).
   useEffect(() => {
     if (!autoDetected || !text.trim()) return;
 
-    // 1. Regex baseline
     let pick: EntryType = detectTypeRegex(text);
-
-    // 2. Learned bias from past corrections (offline, on-device)
     const learned = suggestFromLearning(text);
     if (learned) pick = learned;
 
     setSelectedType(pick);
     setPredictedType(pick);
 
-    // 3. Optional offline AI refinement
     if ((hasBuiltInAI || isNative) && text.length > 10) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(async () => {
         setAiDetecting(true);
         try {
           const result = await processText(
-            `Classify this text as exactly one of: "note", "task", "diary", "journal". Reply with only the single word.\n\nText: "${text}"`,
+            `Classify this text as exactly one of: "note", "task", "habit", "diary", "journal". Reply with only the single word.\n\nText: "${text}"`,
             { task: "organize" }
           );
-          const cleaned = result.toLowerCase().trim();
-          if (cleaned === "note" || cleaned === "task" || cleaned === "diary" || cleaned === "journal") {
-            // Only override if no strong learned signal
+          const cleaned = result.toLowerCase().trim() as EntryType;
+          if (["note", "task", "habit", "diary", "journal"].includes(cleaned)) {
             if (!learned) {
               setSelectedType(cleaned);
               setPredictedType(cleaned);
             }
           }
         } catch {
-          // Regex/learned fallback already applied
+          /* fallback applied */
         } finally {
           setAiDetecting(false);
         }
-      }, 800);
+      }, 350); // faster — was 800ms
     }
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [text, autoDetected, hasBuiltInAI, isNative, processText]);
 
   const handleTypeSelect = (type: EntryType) => {
+    // Manual selection that differs from prediction is itself a learning signal
+    if (type !== predictedType && text.trim()) {
+      recordCorrection(text, predictedType, type);
+    }
     setSelectedType(type);
     setAutoDetected(false);
   };
 
+  const giveFeedback = (kind: "up" | "down") => {
+    haptics.light();
+    setFeedbackGiven(kind);
+    if (kind === "down" && text.trim()) {
+      // Weak negative signal — slightly weaken predicted type without choosing a new one yet
+      // Re-using recordCorrection by mapping "down" to a self-pair drops weight slightly.
+      // We pick the next-best type heuristically: opposite of prediction.
+      const fallback: EntryType = predictedType === "note" ? "task" : "note";
+      recordCorrection(text, predictedType, fallback);
+    }
+    toast({
+      title: kind === "up" ? "Thanks! 👍" : "Got it 👎",
+      description:
+        kind === "up"
+          ? "The AI will keep doing this."
+          : "The AI will adjust. Pick the right type below to teach it faster.",
+    });
+  };
+
   const handleSave = () => {
     if (!text.trim()) return;
-    // Record correction for offline learning if user changed the prediction
     if (predictedType && predictedType !== selectedType) {
       recordCorrection(text, predictedType, selectedType);
     }
@@ -132,6 +161,18 @@ const QuickCapture = () => {
         storage.saveTasks(tasks);
         break;
       }
+      case "habit": {
+        const habits = storage.getHabits();
+        habits.push({
+          id: Date.now().toString(),
+          name: text.trim().slice(0, 80),
+          completedDates: [],
+          streak: 0,
+          createdAt: now,
+        });
+        storage.saveHabits(habits);
+        break;
+      }
       case "diary": {
         const diaryEntries = storage.getDiaryEntries();
         diaryEntries.push({ id: Date.now().toString(), content: text, date: now, createdAt: now, updatedAt: now });
@@ -146,10 +187,12 @@ const QuickCapture = () => {
       }
     }
 
+    haptics.success();
     toast({ title: `${TYPE_CONFIG[selectedType].label} saved!`, description: `Your ${TYPE_CONFIG[selectedType].label.toLowerCase()} has been captured.` });
     setText("");
     setAutoDetected(true);
     setSelectedType("note");
+    setFeedbackGiven(null);
     setIsOpen(false);
   };
 
@@ -202,7 +245,7 @@ const QuickCapture = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {(Object.entries(TYPE_CONFIG) as [EntryType, typeof TYPE_CONFIG.note][]).map(([type, config]) => {
               const Icon = config.icon;
               const isActive = selectedType === type;
@@ -219,12 +262,36 @@ const QuickCapture = () => {
                 </button>
               );
             })}
-            {autoDetected && text.trim() && (
-              <span className="text-[10px] text-muted-foreground ml-auto">
-                {aiDetecting ? "AI detecting..." : "auto-detected"}
-              </span>
-            )}
           </div>
+
+          {/* AI feedback row — separate from app-level feedback; teaches the auto-detector */}
+          {autoDetected && text.trim() && (
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/20 pt-2">
+              <span>{aiDetecting ? "AI detecting…" : `Auto-detected: ${TYPE_CONFIG[predictedType].label}`}</span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => giveFeedback("up")}
+                  disabled={!!feedbackGiven}
+                  className={`h-7 w-7 rounded-full flex items-center justify-center transition-colors ${
+                    feedbackGiven === "up" ? "bg-success/20 text-success" : "hover:bg-muted text-muted-foreground"
+                  }`}
+                  aria-label="Auto-detection was correct"
+                >
+                  <ThumbsUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => giveFeedback("down")}
+                  disabled={!!feedbackGiven}
+                  className={`h-7 w-7 rounded-full flex items-center justify-center transition-colors ${
+                    feedbackGiven === "down" ? "bg-destructive/20 text-destructive" : "hover:bg-muted text-muted-foreground"
+                  }`}
+                  aria-label="Auto-detection was wrong"
+                >
+                  <ThumbsDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
 
           <Button onClick={handleSave} disabled={!text.trim()} className="w-full">
             Save as {TYPE_CONFIG[selectedType].label}
