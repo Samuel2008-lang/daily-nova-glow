@@ -22,6 +22,7 @@ const Notes = () => {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [emptyDatePromptOpen, setEmptyDatePromptOpen] = useState(false);
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening } = useSpeechRecognition({
@@ -95,19 +96,24 @@ const Notes = () => {
     }
     setSelectedDate(date);
     setCalendarOpen(false);
-    
-    // Auto-open notes for that date
+
     const dKey = format(date, "yyyy-MM-dd");
     const dateNotes = notes.filter(n => format(new Date(n.createdAt), "yyyy-MM-dd") === dKey);
+
     if (dateNotes.length === 1) {
       viewNote(dateNotes[0]);
-    } else if (dateNotes.length === 0 && isToday(date)) {
-      setNoteTopic("");
-      setNoteContent("");
-      setSelectedNote(null);
-      setViewMode('write');
+    } else if (dateNotes.length === 0) {
+      // Mirror Diary behaviour — offer to write or close
+      if (isToday(date)) {
+        setNoteTopic("");
+        setNoteContent("");
+        setSelectedNote(null);
+        setViewMode('write');
+      } else {
+        setEmptyDatePromptOpen(true);
+      }
     }
-    // If multiple notes, just show the list filtered by date (default behavior)
+    // If multiple notes, just show the list filtered by date
   };
 
   const navigateDay = (direction: 'prev' | 'next') => {
@@ -238,7 +244,7 @@ const Notes = () => {
   // Write mode view — full-screen immersive editor with bottom-anchored actions
   if (viewMode === 'write') {
     return (
-      <div className="fixed inset-0 z-40 flex flex-col bg-background animate-fade-in">
+      <div className="fixed inset-0 z-[60] flex flex-col bg-background animate-fade-in">
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 shrink-0">
           <div className="flex items-center gap-2">
@@ -416,6 +422,37 @@ const Notes = () => {
           );
         })()}
       </div>
+
+      {/* Empty-date prompt — mirrors Diary behavior */}
+      {emptyDatePromptOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setEmptyDatePromptOpen(false)} />
+          <Card className="relative glass glow p-6 max-w-sm w-full text-center">
+            <h3 className="text-lg font-semibold text-primary mb-2">No entry yet</h3>
+            <p className="text-sm text-muted-foreground mb-5">
+              You don't have a note for {format(selectedDate, "MMMM d, yyyy")}.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setEmptyDatePromptOpen(false)}>
+                Close
+              </Button>
+              <Button
+                className="flex-1 glow"
+                onClick={() => {
+                  setNoteTopic("");
+                  setNoteContent("");
+                  setSelectedNote(null);
+                  setEmptyDatePromptOpen(false);
+                  setViewMode('write');
+                }}
+              >
+                Write
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <BannerAd position="bottom" />
     </div>
   );

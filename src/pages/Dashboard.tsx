@@ -80,36 +80,32 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* Notes & Habits — interactive Dashboard cards (moved from bottom nav) */}
+        {/* Notes & Habits — view-only stat cards (interaction belongs to Quick Actions) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Link to="/notes">
-            <Card className="glass p-6 border-primary/20 cursor-pointer hover:scale-[1.02] transition-transform duration-300">
-              <div className="flex items-center gap-4">
-                <FileText className="w-8 h-8 text-primary" />
-                <div>
-                  <p className="text-2xl font-bold text-primary">{stats.notesToday}</p>
-                  <p className="text-sm text-muted-foreground">Notes Today</p>
-                </div>
+          <Card className="glass p-6 border-primary/20">
+            <div className="flex items-center gap-4">
+              <FileText className="w-8 h-8 text-primary" />
+              <div>
+                <p className="text-2xl font-bold text-primary">{stats.notesToday}</p>
+                <p className="text-sm text-muted-foreground">Notes Today</p>
               </div>
-            </Card>
-          </Link>
+            </div>
+          </Card>
 
-          <Link to="/habits">
-            <Card className="glass p-6 border-accent/20 cursor-pointer hover:scale-[1.02] transition-transform duration-300">
-              <div className="flex items-center gap-4">
-                <Target className="w-8 h-8 text-accent" />
-                <div>
-                  <p className="text-2xl font-bold text-accent">
-                    {stats.habitsCompleted}/{stats.totalHabits}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Habits Today</p>
-                </div>
+          <Card className="glass p-6 border-accent/20">
+            <div className="flex items-center gap-4">
+              <Target className="w-8 h-8 text-accent" />
+              <div>
+                <p className="text-2xl font-bold text-accent">
+                  {stats.habitsCompleted}/{stats.totalHabits}
+                </p>
+                <p className="text-sm text-muted-foreground">Habits Today</p>
               </div>
-            </Card>
-          </Link>
+            </div>
+          </Card>
         </div>
 
-        {/* Next Task */}
+        {/* Next Task — view-only */}
         <Card className="glass p-6 mb-8 border-secondary/20">
           <div className="flex items-center gap-4">
             <CheckSquare className="w-8 h-8 text-secondary" />

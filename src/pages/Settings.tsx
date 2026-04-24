@@ -7,7 +7,6 @@ import {
   Info,
   BookOpen,
   BookMarked,
-  Share2,
   MessageCircle,
   Send,
   Lock,
@@ -15,8 +14,6 @@ import {
   ChevronDown,
   ChevronUp,
   Database,
-  Brain,
-  Inbox,
 } from "lucide-react";
 import PinSetup from "@/components/PinSetup";
 import { notificationService } from "@/lib/notifications";
@@ -26,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { getCorrectionRecords, clearLearning } from "@/lib/ai-learning";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -380,9 +376,6 @@ const Settings = () => {
             </div>
           </Card>
 
-          {/* Feedback Review — internal */}
-          <FeedbackReviewSection />
-
           {/* About */}
           <Card className="glass p-5">
             <div className="flex items-center gap-2 mb-3">
@@ -400,109 +393,5 @@ const Settings = () => {
     </div>
   );
 };
-
-/* ---- Feedback & AI-Learning Review ---- */
-function FeedbackReviewSection() {
-  const [open, setOpen] = useState(false);
-  const [feedback, setFeedback] = useState<any[]>([]);
-  const [corrections, setCorrections] = useState<any[]>([]);
-  const { toast } = useToast();
-
-  const refresh = () => {
-    try {
-      setFeedback(JSON.parse(localStorage.getItem("dailynova_feedback_queue") || "[]"));
-    } catch { setFeedback([]); }
-    setCorrections(getCorrectionRecords());
-  };
-
-  const handleToggle = (next: boolean) => {
-    setOpen(next);
-    if (next) refresh();
-  };
-
-  const clearFeedback = () => {
-    localStorage.removeItem("dailynova_feedback_queue");
-    setFeedback([]);
-    toast({ title: "Feedback cleared" });
-  };
-
-  const resetLearning = () => {
-    clearLearning();
-    setCorrections([]);
-    toast({ title: "AI learning reset", description: "Auto-detection will start fresh." });
-  };
-
-  return (
-    <Card className="glass p-5">
-      <Collapsible open={open} onOpenChange={handleToggle}>
-        <CollapsibleTrigger asChild>
-          <button className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
-              <Inbox className="w-5 h-5 text-accent" />
-              <h2 className="text-lg font-semibold">Feedback Review</h2>
-            </div>
-            {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="mt-4 space-y-5">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <MessageCircle className="w-4 h-4 text-accent" />
-                Saved Feedback ({feedback.length})
-              </h3>
-              {feedback.length > 0 && (
-                <Button size="sm" variant="ghost" onClick={clearFeedback} className="h-7 text-xs">Clear</Button>
-              )}
-            </div>
-            {feedback.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No feedback submitted yet.</p>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {feedback.slice().reverse().map((f) => (
-                  <div key={f.id} className="p-2 rounded bg-background/40 border border-border/20">
-                    <p className="text-xs text-foreground whitespace-pre-wrap">{f.message}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {new Date(f.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <Brain className="w-4 h-4 text-primary" />
-                AI Auto-Detect Corrections ({corrections.length})
-              </h3>
-              {corrections.length > 0 && (
-                <Button size="sm" variant="ghost" onClick={resetLearning} className="h-7 text-xs">Reset</Button>
-              )}
-            </div>
-            {corrections.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                The AI learns from your Quick Capture corrections — none recorded yet.
-              </p>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {corrections.slice().reverse().slice(0, 30).map((c, i) => (
-                  <div key={i} className="p-2 rounded bg-background/40 border border-border/20">
-                    <p className="text-xs text-foreground line-clamp-2">{c.text}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      Predicted <span className="text-destructive">{c.predicted}</span> → corrected to{" "}
-                      <span className="text-success">{c.chosen}</span>
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
-  );
-}
 
 export default Settings;

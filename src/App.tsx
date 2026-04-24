@@ -14,6 +14,7 @@ import Quotes from "./pages/Quotes";
 import Premium from "./pages/Premium";
 import Settings from "./pages/Settings";
 import Timeline from "./pages/Timeline";
+import Feedback from "./pages/Feedback";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
 import QuickCapture from "./components/QuickCapture";
@@ -93,6 +94,7 @@ const App = () => {
             <Route path="/quotes" element={<Quotes />} />
             <Route path="/premium" element={<Premium />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/feedback" element={<Feedback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
