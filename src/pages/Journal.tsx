@@ -144,18 +144,42 @@ const Journal = () => {
     setIsAiLoading(true);
     setStreamingContent("");
 
-    // Command: Transfer/Upload chat to journal
+    // Command: Transfer/Upload chat to journal — supports "this chat", "last N", "from X to Y", "last reply"
     try {
       const lower = aiInput.toLowerCase();
-      
-      // Check for "transfer chat" or "upload chat" or "save chat" commands
-      const isTransferChatCmd = /(transfer|upload|save|add)\s*(our|this|the)?\s*(chat|conversation|dialogue)/i.test(lower) && 
-                                 /(journal|today|entry)/i.test(lower);
-      
+
+      const isTransferChatCmd =
+        /(transfer|upload|save|add|copy|move)\b[\s\S]{0,40}\b(chat|conversation|dialogue|message|messages|reply|replies|exchange)/i.test(lower) &&
+        /(journal|today|entry|here)/i.test(lower);
+
       if (isTransferChatCmd && updatedMessages.length > 1) {
-        // Format the entire conversation beautifully
-        const formattedChat = formatChatForJournal(updatedMessages.slice(0, -1)); // Exclude the transfer command itself
-        
+        const history = updatedMessages.slice(0, -1);
+        let slice = history;
+
+        const lastN = lower.match(/last\s+(\d+)\s+(message|reply|exchange)/);
+        if (lastN) {
+          const n = Math.min(parseInt(lastN[1], 10) || history.length, history.length);
+          slice = history.slice(-n);
+        }
+
+        const range = aiInput.match(/from\s+"([^"]+)"\s+to\s+"([^"]+)"/i);
+        if (range) {
+          const [, fromText, toText] = range;
+          const fromIdx = history.findIndex((m) => m.content.toLowerCase().includes(fromText.toLowerCase()));
+          const toIdx = history.findIndex((m) => m.content.toLowerCase().includes(toText.toLowerCase()));
+          if (fromIdx !== -1 && toIdx !== -1) {
+            const [a, b] = [fromIdx, toIdx].sort((x, y) => x - y);
+            slice = history.slice(a, b + 1);
+          }
+        }
+
+        if (/(this|your|the)\s+(last|previous)\s+(reply|response|message)/i.test(lower)) {
+          const lastAssistant = [...history].reverse().find((m) => m.role === "assistant");
+          if (lastAssistant) slice = [lastAssistant];
+        }
+
+        const formattedChat = formatChatForJournal(slice);
+
         const dateStr = currentDate.toDateString();
         const existingEntry = entries.find((e) => new Date(e.createdAt).toDateString() === dateStr);
         let updatedEntries: JournalEntry[];
@@ -180,9 +204,9 @@ const Journal = () => {
         storage.saveJournalEntries(updatedEntries);
         setCurrentEntry(updatedEntries.find(e => new Date(e.createdAt).toDateString() === dateStr)?.content || "");
 
-        setAiMessages([...updatedMessages, { 
-          role: "assistant", 
-          content: `✓ I've transferred our conversation to your journal for ${dateStr}. The chat has been beautifully formatted with timestamps and clear speaker labels. You can view it in your journal entry now! 📓` 
+        setAiMessages([...updatedMessages, {
+          role: "assistant",
+          content: `✓ Transferred ${slice.length} message${slice.length === 1 ? "" : "s"} to your journal for ${dateStr}. 📓`
         }]);
         setIsAiLoading(false);
         return;
