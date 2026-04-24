@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
-import { useOfflineAI } from "@/hooks/use-offline-ai";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { recordCorrection, suggestFromLearning, type EntryType } from "@/lib/ai-learning";
 import { haptics } from "@/lib/haptics";
