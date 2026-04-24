@@ -88,10 +88,15 @@ Return ONLY the cleaned transcription, nothing else. No explanations.`;
 
   } catch (error) {
     console.error("Error in enhance-text function:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    // Always respond 200 with the original text so the client never crashes.
+    let originalText = "";
+    try {
+      const body = await req.clone().json().catch(() => ({}));
+      originalText = typeof body?.text === "string" ? body.text : "";
+    } catch { /* ignore */ }
     return new Response(
-      JSON.stringify({ error: errorMessage, enhanced: "" }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ enhanced: originalText, fallback: true, reason: "exception" }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
