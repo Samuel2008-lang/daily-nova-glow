@@ -72,43 +72,15 @@ const QuickCapture = () => {
   // Reset feedback whenever the prediction changes
   useEffect(() => { setFeedbackGiven(null); }, [predictedType, text]);
 
-  // Smart detection: learned weights → regex → optional AI refinement (faster debounce).
+  // Smart detection: 100% offline (regex + learned weights). No cloud calls — keeps it free, fast and rate-limit-proof.
   useEffect(() => {
     if (!autoDetected || !text.trim()) return;
-
     let pick: EntryType = detectTypeRegex(text);
     const learned = suggestFromLearning(text);
     if (learned) pick = learned;
-
     setSelectedType(pick);
     setPredictedType(pick);
-
-    if ((hasBuiltInAI || isNative) && text.length > 10) {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(async () => {
-        setAiDetecting(true);
-        try {
-          const result = await processText(
-            `Classify this text as exactly one of: "note", "task", "habit", "diary", "journal". Reply with only the single word.\n\nText: "${text}"`,
-            { task: "organize" }
-          );
-          const cleaned = result.toLowerCase().trim() as EntryType;
-          if (["note", "task", "habit", "diary", "journal"].includes(cleaned)) {
-            if (!learned) {
-              setSelectedType(cleaned);
-              setPredictedType(cleaned);
-            }
-          }
-        } catch {
-          /* fallback applied */
-        } finally {
-          setAiDetecting(false);
-        }
-      }, 350); // faster — was 800ms
-    }
-
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [text, autoDetected, hasBuiltInAI, isNative, processText]);
+  }, [text, autoDetected]);
 
   const handleTypeSelect = (type: EntryType) => {
     // Manual selection that differs from prediction is itself a learning signal
