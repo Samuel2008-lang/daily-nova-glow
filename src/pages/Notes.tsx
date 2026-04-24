@@ -22,6 +22,7 @@ const Notes = () => {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [emptyDatePromptOpen, setEmptyDatePromptOpen] = useState(false);
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening } = useSpeechRecognition({
@@ -95,19 +96,24 @@ const Notes = () => {
     }
     setSelectedDate(date);
     setCalendarOpen(false);
-    
-    // Auto-open notes for that date
+
     const dKey = format(date, "yyyy-MM-dd");
     const dateNotes = notes.filter(n => format(new Date(n.createdAt), "yyyy-MM-dd") === dKey);
+
     if (dateNotes.length === 1) {
       viewNote(dateNotes[0]);
-    } else if (dateNotes.length === 0 && isToday(date)) {
-      setNoteTopic("");
-      setNoteContent("");
-      setSelectedNote(null);
-      setViewMode('write');
+    } else if (dateNotes.length === 0) {
+      // Mirror Diary behaviour — offer to write or close
+      if (isToday(date)) {
+        setNoteTopic("");
+        setNoteContent("");
+        setSelectedNote(null);
+        setViewMode('write');
+      } else {
+        setEmptyDatePromptOpen(true);
+      }
     }
-    // If multiple notes, just show the list filtered by date (default behavior)
+    // If multiple notes, just show the list filtered by date
   };
 
   const navigateDay = (direction: 'prev' | 'next') => {
