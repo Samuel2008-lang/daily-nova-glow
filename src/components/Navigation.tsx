@@ -78,9 +78,9 @@ const Navigation = () => {
                   </NavLink>
                 );
               })}
-              {/* Feedback in More — links to Settings */}
+              {/* Feedback in More — dedicated page (not Settings) */}
               <NavLink
-                to="/settings"
+                to="/feedback"
                 className="flex flex-col items-center gap-1 py-3 px-1 rounded-xl transition-all duration-200 text-muted-foreground hover:text-primary hover:bg-muted/50"
                 activeClassName="text-primary bg-muted/50"
                 onClick={() => setMoreOpen(false)}
