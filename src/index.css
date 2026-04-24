@@ -62,12 +62,27 @@ All colors MUST be HSL.
 @layer base {
   * {
     @apply border-border;
+    /* Remove iOS/Android sticky tap highlight; we use explicit :active states instead */
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     background-image: radial-gradient(ellipse at top, hsl(240 8% 10%), hsl(240 10% 3.9%));
     min-height: 100vh;
+  }
+
+  /* On touch devices, hover styles "stick" after tap. Disable hover-only effects there. */
+  @media (hover: none) {
+    button:hover, a:hover, [role="button"]:hover {
+      background-color: revert;
+      color: revert;
+    }
+  }
+
+  /* Provide a quick visual press feedback that fades immediately on release */
+  button:active, [role="button"]:active, a:active {
+    opacity: 0.85;
   }
 }
 
