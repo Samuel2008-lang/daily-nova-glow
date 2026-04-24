@@ -570,7 +570,7 @@ Help them use journaling as a tool for profound self-discovery, creative express
                 <div className="flex-1 space-y-3 mt-4 mb-4 overflow-y-auto max-h-[400px]">
                   {aiMessages.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
-                      Ask me for advice, prompts, or reflections on your journal entries...
+                      Ask me for advice, prompts, or reflections. 🔒 Please don't share private credentials, passwords, or sensitive personal info.
                     </p>
                   ) : (
                     <>

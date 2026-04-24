@@ -596,7 +596,7 @@ Help them transform daily reflections into meaningful self-understanding, emotio
                 <div className="flex-1 space-y-3 mt-4 mb-4 overflow-y-auto max-h-[400px]">
                   {aiMessages.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
-                      Ask me for prompts, reflections, or advice about your diary entry...
+                      Ask me for prompts, reflections, or advice. 🔒 Your private credentials, passwords, and sensitive info should never be shared here.
                     </p>
                   ) : (
                     <>
