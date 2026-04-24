@@ -55,12 +55,9 @@ const QuickCapture = () => {
   const [selectedType, setSelectedType] = useState<EntryType>("note");
   const [predictedType, setPredictedType] = useState<EntryType>("note");
   const [autoDetected, setAutoDetected] = useState(true);
-  const [aiDetecting, setAiDetecting] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<"up" | "down" | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const { toast } = useToast();
-  const { processText, hasBuiltInAI, isNative } = useOfflineAI();
 
   const handleSpeechResult = (transcript: string) => {
     setText((prev) => (prev ? `${prev} ${transcript}` : transcript).trim());
