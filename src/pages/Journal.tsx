@@ -406,7 +406,7 @@ Help them use journaling as a tool for profound self-discovery, creative express
   if (viewMode === 'write') {
     const isToday = currentDate.toDateString() === new Date().toDateString();
     return (
-      <div className="fixed inset-0 z-40 flex flex-col bg-background animate-fade-in">
+      <div className="fixed inset-0 z-[60] flex flex-col bg-background animate-fade-in">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 shrink-0">
           <div className="flex items-center gap-1">
             <Button
