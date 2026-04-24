@@ -2,7 +2,7 @@
 // Stores user corrections (text → chosen type) and uses them to bias future
 // classification. 100% offline, no network calls, fully zero-cost.
 
-export type EntryType = "note" | "task" | "diary" | "journal";
+export type EntryType = "note" | "task" | "diary" | "journal" | "habit";
 
 interface LearningRecord {
   text: string;          // original text user wrote
@@ -95,7 +95,7 @@ export function suggestFromLearning(text: string): EntryType | null {
   const tokens = tokenize(text);
   if (tokens.length === 0) return null;
 
-  const scores: Record<EntryType, number> = { note: 0, task: 0, diary: 0, journal: 0 };
+  const scores: Record<EntryType, number> = { note: 0, task: 0, diary: 0, journal: 0, habit: 0 };
   let matched = 0;
   for (const tok of tokens) {
     const w = weights[tok];
