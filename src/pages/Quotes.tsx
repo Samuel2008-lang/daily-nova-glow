@@ -68,15 +68,15 @@ const Quotes = () => {
       const savedAllQuotes = localStorage.getItem(ALL_QUOTES_KEY);
       const savedIndex = localStorage.getItem(QUOTE_INDEX_KEY);
       const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
+      let loadedQuotes = [fallbackQuotes[new Date().getDate() % fallbackQuotes.length]];
       if (savedAllQuotes) {
         const parsed = JSON.parse(savedAllQuotes);
         if (Array.isArray(parsed) && parsed.length > 0 && lastFetchDate === today) {
-          setAllQuotes(parsed.slice(0, DAILY_MAX_QUOTES));
-        } else {
-          setAllQuotes([fallbackQuotes[new Date().getDate() % fallbackQuotes.length]]);
+          loadedQuotes = parsed.slice(0, DAILY_MAX_QUOTES);
         }
       }
-      if (savedIndex) setCurrentIndex(parseInt(savedIndex, 10));
+      setAllQuotes(loadedQuotes);
+      if (savedIndex) setCurrentIndex(Math.min(parseInt(savedIndex, 10), loadedQuotes.length - 1));
       if (lastFetchDate === today) setDailyQuotesFetched(true);
     } catch (error) {
       console.error("Error loading quotes:", error);
@@ -131,11 +131,13 @@ const Quotes = () => {
     const today = new Date().toDateString();
     const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
     if (lastFetchDate !== today) {
-      await fetchNewQuotes(DAILY_QUOTE_LIMIT, true);
-      localStorage.setItem(QUOTES_DATE_KEY, today);
-      setDailyQuotesFetched(true);
-      setCurrentIndex(0);
-      localStorage.setItem(QUOTE_INDEX_KEY, "0");
+      const success = await fetchNewQuotes(DAILY_QUOTE_LIMIT, true);
+      if (success) {
+        localStorage.setItem(QUOTES_DATE_KEY, today);
+        setDailyQuotesFetched(true);
+        setCurrentIndex(0);
+        localStorage.setItem(QUOTE_INDEX_KEY, "0");
+      }
     }
   };
 
