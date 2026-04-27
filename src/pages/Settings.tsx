@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Settings as SettingsIcon,
   Bell,
@@ -14,7 +14,9 @@ import {
   ChevronDown,
   ChevronUp,
   Database,
+  Fingerprint,
 } from "lucide-react";
+import { biometricService } from "@/lib/biometric";
 import PinSetup from "@/components/PinSetup";
 import { notificationService } from "@/lib/notifications";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
@@ -56,7 +58,14 @@ const Settings = () => {
   const [diaryLock, setDiaryLock] = useState(localStorage.getItem("dailynova_diary_lock") === "true");
   const [journalLock, setJournalLock] = useState(localStorage.getItem("dailynova_journal_lock") === "true");
   const [showPinSetup, setShowPinSetup] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(localStorage.getItem("dailynova_biometric_enabled") === "true");
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
   const { toast } = useToast();
+
+  // Probe device biometric availability (native only)
+  useEffect(() => {
+    biometricService.isAvailable().then(r => setBiometricAvailable(r.available));
+  }, []);
 
   const sendFeedback = () => {
     if (!feedbackText.trim()) return;
@@ -308,9 +317,35 @@ const Settings = () => {
                   <Button variant="outline" className="w-full" onClick={() => setShowPinSetup(true)}>
                     Change PIN
                   </Button>
+                  {/* Fingerprint unlock — only shown if device supports biometrics */}
+                  {biometricAvailable && (
+                    <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                      <div className="flex items-center gap-2">
+                        <Fingerprint className="w-4 h-4 text-muted-foreground" />
+                        <Label htmlFor="biometric-lock" className="cursor-pointer text-sm">Use Fingerprint</Label>
+                      </div>
+                      <Switch
+                        id="biometric-lock"
+                        checked={biometricEnabled}
+                        onCheckedChange={async (v) => {
+                          if (v) {
+                            // Verify the user can actually authenticate before enabling
+                            const ok = await biometricService.authenticate("Confirm fingerprint to enable");
+                            if (!ok) {
+                              toast({ title: "Couldn't verify", description: "Fingerprint not enabled.", variant: "destructive" });
+                              return;
+                            }
+                          }
+                          localStorage.setItem("dailynova_biometric_enabled", String(v));
+                          setBiometricEnabled(v);
+                          toast({ title: v ? "Fingerprint enabled" : "Fingerprint disabled" });
+                        }}
+                      />
+                    </div>
+                  )}
                 </>
               )}
-              <p className="text-[11px] text-muted-foreground">Require a 4-digit PIN when opening the app.</p>
+              <p className="text-[11px] text-muted-foreground">Require a 4-digit PIN when opening the app{biometricAvailable ? " — or unlock with your fingerprint." : "."}</p>
             </div>
           </Card>
 

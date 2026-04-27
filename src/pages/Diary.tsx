@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Mic, Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,27 @@ const Diary = () => {
   const [aiRecognitionInstance, setAiRecognitionInstance] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
   const [aiOpen, setAiOpen] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const { toast } = useToast();
+
+  // Track whether the user has scrolled away from the bottom; if so, pause auto-scroll
+  const handleChatScroll = () => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distanceFromBottom < 40;
+  };
+
+  // Auto-scroll to bottom whenever a new message arrives or streaming text grows
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (!el || !stickToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [aiMessages, streamingContent, aiOpen]);
+
+  // When the user sends a message, force-stick to bottom so they immediately see their message + the reply
+  const ensureStick = () => { stickToBottomRef.current = true; };
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (transcript) => {
@@ -158,6 +178,7 @@ const Diary = () => {
     const updatedMessages = [...aiMessages, userMessage];
     setAiMessages(updatedMessages);
     setAiInput("");
+    ensureStick();
     setIsAiLoading(true);
     setStreamingContent("");
 
@@ -593,7 +614,7 @@ Help them transform daily reflections into meaningful self-understanding, emotio
 
             {aiOpen && (
               <>
-                <div className="flex-1 space-y-3 mt-4 mb-4 overflow-y-auto max-h-[400px]">
+                <div ref={chatScrollRef} onScroll={handleChatScroll} className="flex-1 space-y-3 mt-4 mb-4 overflow-y-auto max-h-[400px]">
                   {aiMessages.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
                       Ask me for prompts, reflections, or advice. 🔒 Your private credentials, passwords, and sensitive info should never be shared here.

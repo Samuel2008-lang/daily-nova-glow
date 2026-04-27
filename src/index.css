@@ -78,6 +78,14 @@ All colors MUST be HSL.
       background-color: revert;
       color: revert;
     }
+    /* Also clear lingering focus highlight after a tap on touch devices */
+    button:focus, button:focus-visible,
+    a:focus, a:focus-visible,
+    [role="button"]:focus, [role="button"]:focus-visible {
+      outline: none;
+      box-shadow: none;
+      background-color: revert;
+    }
   }
 
   /* Provide a quick visual press feedback that fades immediately on release */
