@@ -7,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { haptics } from "@/lib/haptics";
 
+const CREATOR_EMAIL = "hopeegbon28@gmail.com";
+
 const Feedback = () => {
   const [feedbackText, setFeedbackText] = useState("");
   const [sent, setSent] = useState(false);
@@ -15,23 +17,28 @@ const Feedback = () => {
 
   const sendFeedback = () => {
     if (!feedbackText.trim()) return;
+    haptics.success();
+
+    // Open the user's default mail app (Gmail, Outlook, Apple Mail, etc.)
+    const subject = encodeURIComponent("Daily Nova — App Feedback");
+    const body = encodeURIComponent(feedbackText.trim());
+    const mailto = `mailto:${CREATOR_EMAIL}?subject=${subject}&body=${body}`;
+
     try {
-      const existing = JSON.parse(localStorage.getItem("dailynova_feedback_queue") || "[]");
-      existing.push({
-        id: crypto.randomUUID(),
-        message: feedbackText.trim(),
-        createdAt: new Date().toISOString(),
-        version: "1.0.0",
-      });
-      localStorage.setItem("dailynova_feedback_queue", JSON.stringify(existing));
+      window.location.href = mailto;
     } catch {
       /* ignore */
     }
-    haptics.success();
-    setFeedbackText("");
+
     setSent(true);
-    toast({ title: "Thank you!", description: "Your feedback was sent to the creator." });
-    setTimeout(() => setSent(false), 2500);
+    toast({
+      title: "Opening your mail app…",
+      description: `Send the email to ${CREATOR_EMAIL} to deliver your feedback.`,
+    });
+    setTimeout(() => {
+      setSent(false);
+      setFeedbackText("");
+    }, 2500);
   };
 
   return (
@@ -52,7 +59,10 @@ const Feedback = () => {
 
         <Card className="glass p-5 space-y-4">
           <p className="text-sm text-muted-foreground">
-            Share bugs, suggestions, or thoughts with the creator. Your feedback shapes future updates.
+            Share bugs, suggestions, or thoughts with the creator. Tapping
+            "Send Feedback" opens your default mail app (Gmail, Outlook,
+            etc.) with your message ready to send to{" "}
+            <span className="text-accent">{CREATOR_EMAIL}</span>.
           </p>
           <Textarea
             placeholder="Tell us what you think…"
@@ -62,11 +72,8 @@ const Feedback = () => {
           />
           <Button onClick={sendFeedback} disabled={!feedbackText.trim() || sent} className="w-full gap-2">
             <Send className="w-4 h-4" />
-            {sent ? "Sent ✓" : "Send Feedback"}
+            {sent ? "Opening mail app…" : "Send Feedback"}
           </Button>
-          <p className="text-[11px] text-muted-foreground text-center">
-            Auto-detection feedback (👍/👎) is separate — it lives in Quick Capture and trains the on-device AI privately.
-          </p>
         </Card>
       </div>
     </div>

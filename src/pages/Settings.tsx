@@ -69,23 +69,20 @@ const Settings = () => {
 
   const sendFeedback = () => {
     if (!feedbackText.trim()) return;
-    // Native in-app feedback: store locally (zero-cost, no external mail intent).
+    // Opens user's default mail app (Gmail, Outlook, Apple Mail, etc.)
+    const subject = encodeURIComponent("Daily Nova — App Feedback");
+    const body = encodeURIComponent(feedbackText.trim());
     try {
-      const existing = JSON.parse(localStorage.getItem("dailynova_feedback_queue") || "[]");
-      existing.push({
-        id: crypto.randomUUID(),
-        message: feedbackText.trim(),
-        createdAt: new Date().toISOString(),
-        version: "1.0.0",
-      });
-      localStorage.setItem("dailynova_feedback_queue", JSON.stringify(existing));
+      window.location.href = `mailto:hopeegbon28@gmail.com?subject=${subject}&body=${body}`;
     } catch {
-      // ignore storage errors
+      /* ignore */
     }
-    setFeedbackText("");
     setFeedbackSent(true);
-    toast({ title: "Thank you!", description: "Your feedback has been saved and will help shape future updates." });
-    setTimeout(() => setFeedbackSent(false), 3000);
+    toast({ title: "Opening your mail app…", description: "Send the email to deliver your feedback." });
+    setTimeout(() => {
+      setFeedbackSent(false);
+      setFeedbackText("");
+    }, 3000);
   };
 
   const exportAllData = () => {
