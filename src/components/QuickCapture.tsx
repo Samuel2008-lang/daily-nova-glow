@@ -111,6 +111,8 @@ const QuickCapture = () => {
 
   const handleSave = () => {
     if (!text.trim()) return;
+    // Fire haptic immediately so the user feels the action even if storage is slow
+    haptics.success();
     if (predictedType && predictedType !== selectedType) {
       recordCorrection(text, predictedType, selectedType);
     }
@@ -155,7 +157,6 @@ const QuickCapture = () => {
       }
     }
 
-    haptics.success();
     toast({ title: `${TYPE_CONFIG[selectedType].label} saved!`, description: `Your ${TYPE_CONFIG[selectedType].label.toLowerCase()} has been captured.` });
     setText("");
     setAutoDetected(true);
@@ -167,9 +168,13 @@ const QuickCapture = () => {
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 right-4 md:bottom-8 md:right-8 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
-        style={{ boxShadow: "0 0 20px hsl(var(--primary) / 0.4)" }}
+        onClick={() => { haptics.light(); setIsOpen(true); }}
+        className="fixed right-4 md:right-8 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+        style={{
+          boxShadow: "0 0 20px hsl(var(--primary) / 0.4)",
+          // Sit just above the bottom nav with safe-area awareness; lower on desktop
+          bottom: "calc(5rem + env(safe-area-inset-bottom))",
+        }}
         aria-label="Quick capture"
       >
         <Plus className="w-6 h-6" />
