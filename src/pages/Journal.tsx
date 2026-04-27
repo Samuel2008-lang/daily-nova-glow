@@ -158,6 +158,7 @@ const Journal = () => {
     const updatedMessages = [...aiMessages, userMessage];
     setAiMessages(updatedMessages);
     setAiInput("");
+    ensureStick();
     setIsAiLoading(true);
     setStreamingContent("");
 
