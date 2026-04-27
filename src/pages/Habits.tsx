@@ -34,6 +34,8 @@ const Habits = () => {
         return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
       }),
     }));
+    // Newest habits first (most recently created on top)
+    normalized.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     setHabits(normalized);
     storage.saveHabits(normalized);
   }, []);
@@ -48,7 +50,8 @@ const Habits = () => {
       streak: 0,
       createdAt: new Date().toISOString(),
     };
-    const updatedHabits = [...habits, habit];
+    // Prepend so the newest habit is on top
+    const updatedHabits = [habit, ...habits];
     setHabits(updatedHabits);
     storage.saveHabits(updatedHabits);
     setNewHabit("");
