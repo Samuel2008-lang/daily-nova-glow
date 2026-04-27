@@ -1,8 +1,6 @@
 // Cross-platform haptic feedback utility.
 // Uses Capacitor Haptics on native, navigator.vibrate fallback on web.
 
-import { Capacitor } from "@capacitor/core";
-
 type Style = "light" | "medium" | "heavy" | "success" | "warning" | "error";
 
 async function nativeImpact(style: Style) {
