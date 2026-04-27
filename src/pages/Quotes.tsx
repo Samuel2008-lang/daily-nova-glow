@@ -23,6 +23,9 @@ const ALL_QUOTES_KEY = "daily-quotes-all";
 const QUOTES_DATE_KEY = "daily-quotes-date";
 const QUOTE_INDEX_KEY = "daily-quote-index";
 const SEEN_QUOTES_KEY = "daily-quotes-seen"; // tracks deleted quote texts to prevent re-appearance
+const DAILY_QUOTE_LIMIT = 1;
+const REWARDED_QUOTE_COUNT = 2;
+const DAILY_MAX_QUOTES = DAILY_QUOTE_LIMIT + REWARDED_QUOTE_COUNT;
 const MAX_STORED_QUOTES = 21;
 const CLEANUP_COUNT = 9;
 const CLEANUP_INTERVAL_DAYS = 7;
@@ -61,15 +64,19 @@ const Quotes = () => {
 
   const loadQuotes = () => {
     try {
+      const today = new Date().toDateString();
       const savedAllQuotes = localStorage.getItem(ALL_QUOTES_KEY);
       const savedIndex = localStorage.getItem(QUOTE_INDEX_KEY);
+      const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
       if (savedAllQuotes) {
         const parsed = JSON.parse(savedAllQuotes);
-        if (Array.isArray(parsed) && parsed.length > 0) setAllQuotes(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0 && lastFetchDate === today) {
+          setAllQuotes(parsed.slice(0, DAILY_MAX_QUOTES));
+        } else {
+          setAllQuotes([fallbackQuotes[new Date().getDate() % fallbackQuotes.length]]);
+        }
       }
       if (savedIndex) setCurrentIndex(parseInt(savedIndex, 10));
-      const today = new Date().toDateString();
-      const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
       if (lastFetchDate === today) setDailyQuotesFetched(true);
     } catch (error) {
       console.error("Error loading quotes:", error);
@@ -124,7 +131,7 @@ const Quotes = () => {
     const today = new Date().toDateString();
     const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
     if (lastFetchDate !== today) {
-      await fetchNewQuotes();
+      await fetchNewQuotes(DAILY_QUOTE_LIMIT, true);
       localStorage.setItem(QUOTES_DATE_KEY, today);
       setDailyQuotesFetched(true);
       setCurrentIndex(0);
@@ -132,7 +139,7 @@ const Quotes = () => {
     }
   };
 
-  const fetchNewQuotes = async (retries = 3): Promise<boolean> => {
+  const fetchNewQuotes = async (count = DAILY_QUOTE_LIMIT, replaceToday = false, retries = 3): Promise<boolean> => {
     if (!isOnline) {
       toast({ title: "Offline", description: "Connect to the internet to get new quotes.", variant: "destructive" });
       return false;
@@ -147,7 +154,7 @@ const Quotes = () => {
           console.log(`Retrying fetch-quotes... (${retries} left)`);
           await new Promise(r => setTimeout(r, 2000));
           setIsLoading(false);
-          return fetchNewQuotes(retries - 1);
+          return fetchNewQuotes(count, replaceToday, retries - 1);
         }
         throw error;
       }
@@ -159,16 +166,19 @@ const Quotes = () => {
           author: q.author || q.a || "Unknown",
         })).filter((q: Quote) => q.text && !seen.has(q.text)); // filter out previously-seen quotes
 
-        if (newQuotes.length > 0) {
-          const existing = allQuotes.filter(q => q.text !== fallbackQuotes[0].text || q.author !== fallbackQuotes[0].author);
-          const merged = [...existing, ...newQuotes];
+        const pickedQuotes = newQuotes.slice(0, count);
+
+        if (pickedQuotes.length > 0) {
+          const existing = replaceToday ? [] : allQuotes.slice(0, DAILY_MAX_QUOTES);
+          const merged = [...existing, ...pickedQuotes];
           const unique = merged.filter((q, i, arr) => arr.findIndex(x => x.text === q.text) === i);
-          const final = enforceStorageLimit(unique);
+          const final = enforceStorageLimit(unique).slice(0, DAILY_MAX_QUOTES);
           setAllQuotes(final);
           localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(final));
-          setCurrentIndex(Math.max(0, final.length - newQuotes.length));
-          localStorage.setItem(QUOTE_INDEX_KEY, String(Math.max(0, final.length - newQuotes.length)));
-          toast({ title: "New quotes loaded!", description: `${newQuotes.length} fresh quotes ready.` });
+          const nextIndex = replaceToday ? 0 : Math.max(0, final.length - pickedQuotes.length);
+          setCurrentIndex(nextIndex);
+          localStorage.setItem(QUOTE_INDEX_KEY, String(nextIndex));
+          toast({ title: "New quotes loaded!", description: `${pickedQuotes.length} fresh quote${pickedQuotes.length === 1 ? "" : "s"} ready.` });
           return true;
         }
       }
@@ -177,7 +187,7 @@ const Quotes = () => {
       if (retries > 0) {
         await new Promise(r => setTimeout(r, 2000));
         setIsLoading(false);
-        return fetchNewQuotes(retries - 1);
+        return fetchNewQuotes(count, replaceToday, retries - 1);
       }
       throw new Error("No new quotes available");
     } catch (error) {
@@ -185,7 +195,7 @@ const Quotes = () => {
       if (retries > 0) {
         await new Promise(r => setTimeout(r, 2000));
         setIsLoading(false);
-        return fetchNewQuotes(retries - 1);
+        return fetchNewQuotes(count, replaceToday, retries - 1);
       }
       toast({ title: "Couldn't fetch new quotes", description: "Using cached quotes instead.", variant: "destructive" });
     } finally {
@@ -195,7 +205,11 @@ const Quotes = () => {
   };
 
   const handleBonusQuoteReward = async () => {
-    const success = await fetchNewQuotes();
+    if (allQuotes.length >= DAILY_MAX_QUOTES) {
+      toast({ title: "Bonus quotes unlocked", description: "Come back tomorrow for a new quote of the day." });
+      return;
+    }
+    const success = await fetchNewQuotes(DAILY_MAX_QUOTES - allQuotes.length, false);
     if (!success) {
       toast({ title: "Using cached quotes", description: "New quotes will load when connection is available." });
     }
