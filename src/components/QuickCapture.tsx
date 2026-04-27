@@ -104,13 +104,6 @@ const QuickCapture = () => {
   const giveFeedback = (kind: "up" | "down") => {
     haptics.light();
     setFeedbackGiven(kind);
-    if (kind === "down" && text.trim()) {
-      // Weak negative signal — slightly weaken predicted type without choosing a new one yet
-      // Re-using recordCorrection by mapping "down" to a self-pair drops weight slightly.
-      // We pick the next-best type heuristically: opposite of prediction.
-      const fallback: EntryType = predictedType === "note" ? "task" : "note";
-      recordCorrection(text, predictedType, fallback);
-    }
     toast({
       title: kind === "up" ? "Thanks! 👍" : "Got it 👎",
       description:
