@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Settings as SettingsIcon,
   Bell,
@@ -14,7 +14,9 @@ import {
   ChevronDown,
   ChevronUp,
   Database,
+  Fingerprint,
 } from "lucide-react";
+import { biometricService } from "@/lib/biometric";
 import PinSetup from "@/components/PinSetup";
 import { notificationService } from "@/lib/notifications";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
@@ -56,7 +58,14 @@ const Settings = () => {
   const [diaryLock, setDiaryLock] = useState(localStorage.getItem("dailynova_diary_lock") === "true");
   const [journalLock, setJournalLock] = useState(localStorage.getItem("dailynova_journal_lock") === "true");
   const [showPinSetup, setShowPinSetup] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(localStorage.getItem("dailynova_biometric_enabled") === "true");
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
   const { toast } = useToast();
+
+  // Probe device biometric availability (native only)
+  useEffect(() => {
+    biometricService.isAvailable().then(r => setBiometricAvailable(r.available));
+  }, []);
 
   const sendFeedback = () => {
     if (!feedbackText.trim()) return;
