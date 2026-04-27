@@ -18,6 +18,15 @@ const TYPE_CONFIG: Record<EntryType, { icon: typeof FileText; label: string; col
 
 function detectTypeRegex(text: string): EntryType {
   const lower = text.toLowerCase().trim();
+  const explicitPatterns: Array<[EntryType, RegExp]> = [
+    ["note", /\b(save|add|write|capture)\s+(this\s+)?(as\s+)?(a\s+)?note\b/],
+    ["task", /\b(save|add|write|capture|set)\s+(this\s+)?(as\s+)?(a\s+)?task\b/],
+    ["habit", /\b(save|add|write|capture|set)\s+(this\s+)?(as\s+)?(a\s+)?habit\b/],
+    ["diary", /\b(save|add|write|capture)\s+(this\s+)?(as\s+)?(a\s+)?diary\b/],
+    ["journal", /\b(save|add|write|capture)\s+(this\s+)?(as\s+)?(a\s+)?journal\b/],
+  ];
+  const explicit = explicitPatterns.find(([, pattern]) => pattern.test(lower));
+  if (explicit) return explicit[0];
   const habitPatterns = [
     /\b(every day|daily|each day|each morning|each night|every morning|every night|habit|routine)\b/,
     /\b(meditate|exercise|workout|read|drink water|stretch|practice|journal daily)\b/,
@@ -82,9 +91,11 @@ const QuickCapture = () => {
   }, [text, autoDetected]);
 
   const handleTypeSelect = (type: EntryType) => {
+    haptics.light();
     // Manual selection that differs from prediction is itself a learning signal
     if (type !== predictedType && text.trim()) {
       recordCorrection(text, predictedType, type);
+      setPredictedType(type);
     }
     setSelectedType(type);
     setAutoDetected(false);
