@@ -8,7 +8,6 @@ if (!localStorage.getItem("dailynova_pin_reset_v1")) {
   localStorage.removeItem("dailynova_lock_enabled");
   localStorage.removeItem("dailynova_lock_diary");
   localStorage.removeItem("dailynova_lock_journal");
-  localStorage.removeItem("dailynova_biometric_enabled");
   localStorage.setItem("dailynova_pin_reset_v1", "true");
 }
 
