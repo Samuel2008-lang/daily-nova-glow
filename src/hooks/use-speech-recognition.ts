@@ -52,19 +52,8 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
         return;
       }
 
-      setIsProcessing(true);
-      // Try AI enhancement
-      try {
-        const { supabase } = await import("@/integrations/supabase/client");
-        const { data, error } = await supabase.functions.invoke("enhance-text", {
-          body: { text, context: "general" },
-        });
-        onResult(!error && data?.enhanced ? data.enhanced : text);
-      } catch {
-        onResult(text);
-      } finally {
-        setIsProcessing(false);
-      }
+      // Fully offline — pass raw transcript through, no cloud enhancement.
+      onResult(text);
     } catch (error) {
       console.error("Native speech error:", error);
       setIsListening(false);
@@ -130,15 +119,8 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     }
 
     setIsListening(false);
-    setIsProcessing(true);
-
+    // Fully offline — return raw Web Speech transcript, no cloud enhancement.
     try {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { data, error } = await supabase.functions.invoke("enhance-text", {
-        body: { text, context: "general" },
-      });
-      onResult(!error && data?.enhanced ? data.enhanced : text);
-    } catch {
       onResult(text);
     } finally {
       setIsProcessing(false);
