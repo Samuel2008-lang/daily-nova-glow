@@ -58,12 +58,6 @@ const Feedback = () => {
         </div>
 
         <Card className="glass p-5 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Share bugs, suggestions, or thoughts with the creator. Tapping
-            "Send Feedback" opens your default mail app (Gmail, Outlook,
-            etc.) with your message ready to send to{" "}
-            <span className="text-accent">{CREATOR_EMAIL}</span>.
-          </p>
           <Textarea
             placeholder="Tell us what you think…"
             value={feedbackText}
