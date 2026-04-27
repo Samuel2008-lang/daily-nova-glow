@@ -317,9 +317,35 @@ const Settings = () => {
                   <Button variant="outline" className="w-full" onClick={() => setShowPinSetup(true)}>
                     Change PIN
                   </Button>
+                  {/* Fingerprint unlock — only shown if device supports biometrics */}
+                  {biometricAvailable && (
+                    <div className="flex items-center justify-between pt-2 border-t border-border/30">
+                      <div className="flex items-center gap-2">
+                        <Fingerprint className="w-4 h-4 text-muted-foreground" />
+                        <Label htmlFor="biometric-lock" className="cursor-pointer text-sm">Use Fingerprint</Label>
+                      </div>
+                      <Switch
+                        id="biometric-lock"
+                        checked={biometricEnabled}
+                        onCheckedChange={async (v) => {
+                          if (v) {
+                            // Verify the user can actually authenticate before enabling
+                            const ok = await biometricService.authenticate("Confirm fingerprint to enable");
+                            if (!ok) {
+                              toast({ title: "Couldn't verify", description: "Fingerprint not enabled.", variant: "destructive" });
+                              return;
+                            }
+                          }
+                          localStorage.setItem("dailynova_biometric_enabled", String(v));
+                          setBiometricEnabled(v);
+                          toast({ title: v ? "Fingerprint enabled" : "Fingerprint disabled" });
+                        }}
+                      />
+                    </div>
+                  )}
                 </>
               )}
-              <p className="text-[11px] text-muted-foreground">Require a 4-digit PIN when opening the app.</p>
+              <p className="text-[11px] text-muted-foreground">Require a 4-digit PIN when opening the app{biometricAvailable ? " — or unlock with your fingerprint." : "."}</p>
             </div>
           </Card>
 
