@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MessageSquare, Mic, Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,24 @@ const Journal = () => {
   const [aiRecognitionInstance, setAiRecognitionInstance] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'closed' | 'write' | 'read'>('closed');
   const [aiOpen, setAiOpen] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const { toast } = useToast();
+
+  const handleChatScroll = () => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distanceFromBottom < 40;
+  };
+
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (!el || !stickToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [aiMessages, streamingContent, aiOpen]);
+
+  const ensureStick = () => { stickToBottomRef.current = true; };
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (transcript) => {
