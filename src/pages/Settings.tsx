@@ -60,11 +60,15 @@ const Settings = () => {
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(localStorage.getItem("dailynova_biometric_enabled") === "true");
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricChecked, setBiometricChecked] = useState(false);
   const { toast } = useToast();
 
   // Probe device biometric availability (native only)
   useEffect(() => {
-    biometricService.isAvailable().then(r => setBiometricAvailable(r.available));
+    biometricService.isAvailable().then(r => {
+      setBiometricAvailable(r.available);
+      setBiometricChecked(true);
+    });
   }, []);
 
   const sendFeedback = () => {
@@ -314,16 +318,22 @@ const Settings = () => {
                   <Button variant="outline" className="w-full" onClick={() => setShowPinSetup(true)}>
                     Change PIN
                   </Button>
-                  {/* Fingerprint unlock — only shown if device supports biometrics */}
-                  {biometricAvailable && (
+                  {/* Fingerprint unlock — always visible for discoverability, enabled only on supported native devices */}
+                  {biometricChecked && (
                     <div className="flex items-center justify-between pt-2 border-t border-border/30">
                       <div className="flex items-center gap-2">
                         <Fingerprint className="w-4 h-4 text-muted-foreground" />
-                        <Label htmlFor="biometric-lock" className="cursor-pointer text-sm">Use Fingerprint</Label>
+                        <div>
+                          <Label htmlFor="biometric-lock" className="cursor-pointer text-sm">Use Fingerprint</Label>
+                          {!biometricAvailable && (
+                            <p className="text-[11px] text-muted-foreground">Available after installing on a supported phone.</p>
+                          )}
+                        </div>
                       </div>
                       <Switch
                         id="biometric-lock"
                         checked={biometricEnabled}
+                        disabled={!biometricAvailable}
                         onCheckedChange={async (v) => {
                           if (v) {
                             // Verify the user can actually authenticate before enabling
