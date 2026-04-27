@@ -11,6 +11,9 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { notificationService } from "@/lib/notifications";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
 
+const sortTasksNewestFirst = (items: Task[]) =>
+  [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
 const REMINDER_OPTIONS = [
   { label: "5 min before", value: 5 },
   { label: "10 min before", value: 10 },
@@ -42,7 +45,9 @@ const Tasks = () => {
   });
 
   useEffect(() => {
-    setTasks(storage.getTasks());
+    const sorted = sortTasksNewestFirst(storage.getTasks());
+    setTasks(sorted);
+    storage.saveTasks(sorted);
   }, []);
 
   const scheduleTaskNotifications = async (task: Task) => {
@@ -112,7 +117,7 @@ const Tasks = () => {
       createdAt: new Date().toISOString(),
     };
 
-    const updatedTasks = [...tasks, task];
+    const updatedTasks = [task, ...tasks];
     setTasks(updatedTasks);
     storage.saveTasks(updatedTasks);
     setNewTask("");
@@ -173,8 +178,8 @@ const Tasks = () => {
     });
   };
 
-  const activeTasks = tasks.filter((task) => !task.completed);
-  const completedTasks = tasks.filter((task) => task.completed);
+  const activeTasks = sortTasksNewestFirst(tasks.filter((task) => !task.completed));
+  const completedTasks = sortTasksNewestFirst(tasks.filter((task) => task.completed));
 
   return (
     <div className="container mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">

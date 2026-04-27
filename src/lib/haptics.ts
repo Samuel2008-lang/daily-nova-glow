@@ -1,17 +1,7 @@
 // Cross-platform haptic feedback utility.
 // Uses Capacitor Haptics on native, navigator.vibrate fallback on web.
 
-import { Capacitor } from "@capacitor/core";
-
 type Style = "light" | "medium" | "heavy" | "success" | "warning" | "error";
-
-const isNative = (() => {
-  try {
-    return Capacitor.isNativePlatform();
-  } catch {
-    return false;
-  }
-})();
 
 async function nativeImpact(style: Style) {
   try {
@@ -47,10 +37,28 @@ function webVibrate(pattern: number | number[]) {
 }
 
 export const haptics = {
-  light: () => (isNative ? nativeImpact("light") : webVibrate(10)),
-  medium: () => (isNative ? nativeImpact("medium") : webVibrate(20)),
-  heavy: () => (isNative ? nativeImpact("heavy") : webVibrate(40)),
-  success: () => (isNative ? nativeImpact("success") : webVibrate([15, 40, 15])),
-  warning: () => (isNative ? nativeImpact("warning") : webVibrate([20, 60, 20])),
-  error: () => (isNative ? nativeImpact("error") : webVibrate([40, 30, 40])),
+  light: () => {
+    nativeImpact("light");
+    webVibrate(15);
+  },
+  medium: () => {
+    nativeImpact("medium");
+    webVibrate(30);
+  },
+  heavy: () => {
+    nativeImpact("heavy");
+    webVibrate(55);
+  },
+  success: () => {
+    nativeImpact("success");
+    webVibrate([30, 45, 30]);
+  },
+  warning: () => {
+    nativeImpact("warning");
+    webVibrate([35, 70, 35]);
+  },
+  error: () => {
+    nativeImpact("error");
+    webVibrate([55, 35, 55]);
+  },
 };
