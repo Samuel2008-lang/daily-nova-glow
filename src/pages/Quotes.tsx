@@ -220,13 +220,10 @@ const Quotes = () => {
   const nextQuote = async () => {
     const nextIdx = currentIndex + 1;
     if (nextIdx >= allQuotes.length) {
-      if (isOnline) {
-        await fetchNewQuotes();
-      } else {
-        setCurrentIndex(0);
-        localStorage.setItem(QUOTE_INDEX_KEY, "0");
-        toast({ title: "Starting from beginning", description: "Connect to internet for new quotes." });
-      }
+      toast({
+        title: allQuotes.length >= DAILY_MAX_QUOTES ? "That's all for today" : "Watch an ad to unlock more",
+        description: allQuotes.length >= DAILY_MAX_QUOTES ? "A new quote of the day resets tomorrow." : "Bonus ads add 2 more quotes for today.",
+      });
     } else {
       setCurrentIndex(nextIdx);
       localStorage.setItem(QUOTE_INDEX_KEY, nextIdx.toString());
@@ -302,7 +299,7 @@ const Quotes = () => {
                 Previous
               </Button>
               <Button onClick={nextQuote} size="lg" className="glow-pink group" disabled={isLoading}>
-                {currentIndex >= allQuotes.length - 1 ? "Load New" : "Next"}
+                Next
                 <ChevronRight className="w-5 h-5 ml-1" />
               </Button>
             </>
