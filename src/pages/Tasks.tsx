@@ -168,7 +168,7 @@ const Tasks = () => {
                 placeholder="Add a new task..."
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && !showAlarmForm && addTask()}
+                onKeyDown={(e) => e.key === "Enter" && addTask()}
                 className="bg-background/50 border-border/50 focus:border-secondary pr-12"
               />
               {isSupported && (
@@ -185,20 +185,12 @@ const Tasks = () => {
                 </Button>
               )}
             </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setShowAlarmForm(!showAlarmForm)}
-              className={showAlarmForm ? "text-secondary border-secondary" : ""}
-            >
-              <Bell className="w-4 h-4" />
-            </Button>
             <Button onClick={addTask} className="glow-purple">
               <Plus className="w-4 h-4" />
             </Button>
           </div>
 
-          {/* Alarm scheduling form */}
+          {/* Alarm scheduling form — appears after pressing +, before saving */}
           {showAlarmForm && (
             <div className="mt-4 p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
               <div className="flex items-center justify-between">
@@ -206,7 +198,7 @@ const Tasks = () => {
                   <Clock className="w-4 h-4 text-secondary" />
                   <span className="text-sm font-medium">Set Alarm</span>
                 </div>
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowAlarmForm(false)}>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={resetTaskForm}>
                   <X className="w-3 h-3" />
                 </Button>
               </div>
@@ -259,7 +251,11 @@ const Tasks = () => {
                   ))}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">🔔 Uses your phone's default notification sound.</p>
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={resetTaskForm}>Cancel</Button>
+                <Button className="flex-1 glow-purple" onClick={addTask}>Save Task</Button>
+              </div>
+              <p className="text-xs text-muted-foreground">🔔 Shows in your phone notifications with the default alarm sound and vibration.</p>
             </div>
           )}
 
