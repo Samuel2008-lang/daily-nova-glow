@@ -40,6 +40,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { storage } from "@/lib/storage";
 import { format } from "date-fns";
+import { haptics } from "@/lib/haptics";
 
 const Settings = () => {
   const [notifyDiary, setNotifyDiary] = useState(localStorage.getItem("dailynova_notify_diary") === "true");
@@ -61,15 +62,21 @@ const Settings = () => {
   const [biometricEnabled, setBiometricEnabled] = useState(localStorage.getItem("dailynova_biometric_enabled") === "true");
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricChecked, setBiometricChecked] = useState(false);
+  const [biometricStatus, setBiometricStatus] = useState("Checking phone security…");
   const { toast } = useToast();
 
   // Probe device biometric availability (native only)
   useEffect(() => {
     biometricService.isAvailable().then(r => {
       setBiometricAvailable(r.available);
+      setBiometricStatus(r.available ? `Ready${r.biometryType ? ` (${r.biometryType})` : ""}` : (r.reason || "Fingerprint is not available on this device."));
+      if (!r.available && biometricEnabled) {
+        localStorage.setItem("dailynova_biometric_enabled", "false");
+        setBiometricEnabled(false);
+      }
       setBiometricChecked(true);
     });
-  }, []);
+  }, [biometricEnabled]);
 
   const sendFeedback = () => {
     if (!feedbackText.trim()) return;
