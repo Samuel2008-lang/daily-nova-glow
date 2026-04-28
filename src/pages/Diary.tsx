@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
 import { DiaryNotificationBell } from "@/components/DiaryNotificationBell";
+import { haptics } from "@/lib/haptics";
 
 const Diary = () => {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
@@ -96,6 +97,7 @@ const Diary = () => {
 
   const saveEntry = () => {
     if (!currentEntry.trim()) return;
+    haptics.success();
 
     const dateStr = currentDate.toDateString();
     const existingEntry = entries.find((e) => new Date(e.date).toDateString() === dateStr);
