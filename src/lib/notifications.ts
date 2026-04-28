@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 
 const isNative = Capacitor.isNativePlatform();
+let taskChannelReady = false;
 
 export const notificationService = {
   async requestPermission(): Promise<boolean> {
@@ -49,12 +50,14 @@ export const notificationService = {
   }) {
     if (!isNative) return;
     try {
+      await ensureTaskChannel();
       await LocalNotifications.schedule({
         notifications: [
           {
             id: config.id,
             title: config.title,
             body: config.body,
+            channelId: "task-reminders",
             schedule: { at: config.at, allowWhileIdle: true },
           },
         ],
@@ -222,6 +225,24 @@ export const notificationService = {
     }
   },
 };
+
+async function ensureTaskChannel() {
+  if (taskChannelReady || Capacitor.getPlatform() !== "android") return;
+  try {
+    await LocalNotifications.createChannel({
+      id: "task-reminders",
+      name: "Task reminders",
+      description: "Task alarms and follow-up reminders",
+      importance: 5,
+      visibility: 1,
+      vibration: true,
+      lights: true,
+    });
+    taskChannelReady = true;
+  } catch {
+    taskChannelReady = true;
+  }
+}
 
 function hashCode(str: string): number {
   let hash = 0;
