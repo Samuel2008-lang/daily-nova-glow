@@ -76,6 +76,11 @@ const Tasks = () => {
 
   const addTask = async () => {
     if (!newTask.trim()) return;
+    if (!showAlarmForm) {
+      openAlarmFormForTask();
+      return;
+    }
+    haptics.success();
 
     // Convert hour/minute to HH:MM for storage
     const h24 = parseInt(alarmHour, 10);
@@ -96,13 +101,7 @@ const Tasks = () => {
     const updatedTasks = [task, ...tasks];
     setTasks(updatedTasks);
     storage.saveTasks(updatedTasks);
-    setNewTask("");
-    setAlarmDate("");
-    setAlarmHour("12");
-    setAlarmMinute("0");
-    setReminderBefore(undefined);
-    setReminderAfter(undefined);
-    setShowAlarmForm(false);
+    resetTaskForm();
 
     if (task.dueDate && task.dueTime) {
       await scheduleTaskNotifications(task);
@@ -127,7 +126,6 @@ const Tasks = () => {
 
     const task = updatedTasks.find((t) => t.id === id);
     if (task?.completed) {
-      const { haptics } = await import("@/lib/haptics");
       haptics.success();
       await cancelTaskNotifications(task);
       toast({
@@ -135,7 +133,6 @@ const Tasks = () => {
         description: "Great job! Keep up the momentum.",
       });
     } else {
-      const { haptics } = await import("@/lib/haptics");
       haptics.light();
     }
   };
@@ -147,6 +144,7 @@ const Tasks = () => {
     const updatedTasks = tasks.filter((task) => task.id !== id);
     setTasks(updatedTasks);
     storage.saveTasks(updatedTasks);
+    haptics.warning();
 
     toast({
       title: "Task deleted",
