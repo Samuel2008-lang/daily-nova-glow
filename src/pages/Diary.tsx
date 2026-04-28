@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Mic, Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Mic, Send, Sparkles, ChevronDown, ChevronUp, PlusCircle, History } from "lucide-react";
 import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,11 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
 import { DiaryNotificationBell } from "@/components/DiaryNotificationBell";
 import { haptics } from "@/lib/haptics";
+import { loadAiChatSessions, saveAiChatSessions, upsertAiChatSession, type AiChatSession } from "@/lib/ai-chat-sessions";
+
+const DIARY_AI_SESSIONS_KEY = "dailynova_diary_ai_sessions";
+const DIARY_AI_ACTIVE_KEY = "dailynova_diary_active_ai_chat";
+const DIARY_AI_LEGACY_KEY = "dailynova_diary_ai_chat";
 
 const Diary = () => {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
