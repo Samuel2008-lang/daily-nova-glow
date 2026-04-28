@@ -22,10 +22,13 @@ const Diary = () => {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentEntry, setCurrentEntry] = useState("");
+  const [aiSessions, setAiSessions] = useState<AiChatSession[]>(() => loadAiChatSessions(DIARY_AI_SESSIONS_KEY, DIARY_AI_LEGACY_KEY));
+  const [activeAiSessionId, setActiveAiSessionId] = useState(() => localStorage.getItem(DIARY_AI_ACTIVE_KEY) || loadAiChatSessions(DIARY_AI_SESSIONS_KEY, DIARY_AI_LEGACY_KEY)[0]?.id || Date.now().toString());
   const [aiMessages, setAiMessages] = useState<{role: string, content: string}[]>(() => {
     try {
-      const saved = localStorage.getItem('dailynova_diary_ai_chat');
-      return saved ? JSON.parse(saved) : [];
+      const sessions = loadAiChatSessions(DIARY_AI_SESSIONS_KEY, DIARY_AI_LEGACY_KEY);
+      const active = localStorage.getItem(DIARY_AI_ACTIVE_KEY);
+      return sessions.find((session) => session.id === active)?.messages || sessions[0]?.messages || [];
     } catch { return []; }
   });
   const [aiInput, setAiInput] = useState("");
@@ -73,13 +76,17 @@ const Diary = () => {
     setEntries(storage.getDiaryEntries());
   }, []);
 
-  // Persist AI chats
+  // Persist AI chats with ChatGPT-style saved sessions
   useEffect(() => {
     if (aiMessages.length > 0) {
-      localStorage.setItem('dailynova_diary_ai_chat', JSON.stringify(aiMessages));
-      localStorage.setItem('dailynova_diary_ai_chat_time', new Date().toISOString());
+      setAiSessions((prev) => {
+        const updated = upsertAiChatSession(prev, activeAiSessionId, aiMessages);
+        saveAiChatSessions(DIARY_AI_SESSIONS_KEY, updated);
+        localStorage.setItem(DIARY_AI_ACTIVE_KEY, activeAiSessionId);
+        return updated;
+      });
     }
-  }, [aiMessages]);
+  }, [aiMessages, activeAiSessionId]);
 
   // Clear chats older than 24 hours on mount
   useEffect(() => {
