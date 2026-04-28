@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { storage, Task } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-import { notificationService } from "@/lib/notifications";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
+import { haptics } from "@/lib/haptics";
+import { cancelTaskNotifications, parseTaskReminder, scheduleTaskNotifications } from "@/lib/task-reminders";
 
 const sortTasksNewestFirst = (items: Task[]) =>
   [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -50,52 +51,27 @@ const Tasks = () => {
     storage.saveTasks(sorted);
   }, []);
 
-  const scheduleTaskNotifications = async (task: Task) => {
-    if (!task.dueDate || !task.dueTime) return;
-
-    const taskTime = new Date(`${task.dueDate}T${task.dueTime}`);
-    if (isNaN(taskTime.getTime()) || taskTime <= new Date()) return;
-
-    const taskIdNum = parseInt(task.id) % 100000;
-
-    // On-time notification (uses device default sound)
-    await notificationService.scheduleTaskAlarm({
-      id: 2000 + taskIdNum,
-      title: "🔔 It's time!",
-      body: `${task.title} — now.`,
-      at: taskTime,
-    });
-
-    // Before reminder
-    if (task.reminderBefore) {
-      const beforeTime = new Date(taskTime.getTime() - task.reminderBefore * 60000);
-      if (beforeTime > new Date()) {
-        await notificationService.scheduleTaskAlarm({
-          id: 3000 + taskIdNum,
-          title: "⏰ Upcoming Task",
-          body: `${task.title} in ${task.reminderBefore} minutes.`,
-          at: beforeTime,
-        });
-      }
-    }
-
-    // After follow-up
-    if (task.reminderAfter) {
-      const afterTime = new Date(taskTime.getTime() + task.reminderAfter * 60000);
-      await notificationService.scheduleTaskAlarm({
-        id: 4000 + taskIdNum,
-        title: "⚠️ Did you complete it?",
-        body: `${task.title} — check it off!`,
-        at: afterTime,
-      });
-    }
+  const resetTaskForm = () => {
+    setNewTask("");
+    setAlarmDate("");
+    setAlarmHour("12");
+    setAlarmMinute("0");
+    setReminderBefore(undefined);
+    setReminderAfter(undefined);
+    setShowAlarmForm(false);
   };
 
-  const cancelTaskNotifications = async (task: Task) => {
-    const taskIdNum = parseInt(task.id) % 100000;
-    await notificationService.cancelNotification(2000 + taskIdNum);
-    await notificationService.cancelNotification(3000 + taskIdNum);
-    await notificationService.cancelNotification(4000 + taskIdNum);
+  const openAlarmFormForTask = () => {
+    if (!newTask.trim()) return;
+    haptics.light();
+    const parsed = parseTaskReminder(newTask);
+    setAlarmDate(parsed.dueDate || new Date().toISOString().slice(0, 10));
+    if (parsed.dueTime) {
+      const [h, m] = parsed.dueTime.split(":");
+      setAlarmHour(String(parseInt(h, 10)));
+      setAlarmMinute(String(parseInt(m, 10)));
+    }
+    setShowAlarmForm(true);
   };
 
   const addTask = async () => {
