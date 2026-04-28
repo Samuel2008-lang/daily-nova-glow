@@ -286,6 +286,7 @@ const Settings = () => {
               <div className="flex items-center justify-between">
                 <Label htmlFor="app-lock" className="cursor-pointer">Enable PIN Lock</Label>
                 <Switch id="app-lock" checked={lockEnabled} onCheckedChange={(checked) => {
+                  haptics.light();
                   if (checked) {
                     const existingPin = localStorage.getItem("dailynova_app_pin");
                     if (existingPin) {
@@ -297,6 +298,8 @@ const Settings = () => {
                   } else {
                     localStorage.setItem("dailynova_lock_enabled", "false");
                     setLockEnabled(false);
+                    localStorage.setItem("dailynova_biometric_enabled", "false");
+                    setBiometricEnabled(false);
                   }
                 }} />
               </div>
@@ -336,26 +339,35 @@ const Settings = () => {
                       {!lockEnabled && (
                         <p className="text-[11px] text-muted-foreground">Enable PIN Lock first.</p>
                       )}
-                      {lockEnabled && !biometricAvailable && (
-                        <p className="text-[11px] text-muted-foreground">Available after installing on a supported phone.</p>
+                      {lockEnabled && biometricChecked && (
+                        <p className="text-[11px] text-muted-foreground">{biometricStatus}</p>
                       )}
                     </div>
                   </div>
                   <Switch
                     id="biometric-lock"
                     checked={biometricEnabled}
-                    disabled={!lockEnabled || !biometricAvailable}
+                    disabled={!lockEnabled || !biometricChecked}
                     onCheckedChange={async (v) => {
+                      haptics.light();
+                      if (v && !biometricAvailable) {
+                        toast({ title: "Fingerprint unavailable", description: biometricStatus, variant: "destructive" });
+                        setBiometricEnabled(false);
+                        localStorage.setItem("dailynova_biometric_enabled", "false");
+                        return;
+                      }
                       if (v) {
                         // Verify the user can actually authenticate before enabling
                         const ok = await biometricService.authenticate("Confirm fingerprint to enable");
                         if (!ok) {
+                          haptics.error();
                           toast({ title: "Couldn't verify", description: "Fingerprint not enabled.", variant: "destructive" });
                           return;
                         }
                       }
                       localStorage.setItem("dailynova_biometric_enabled", String(v));
                       setBiometricEnabled(v);
+                      haptics.success();
                       toast({ title: v ? "Fingerprint enabled" : "Fingerprint disabled" });
                     }}
                   />
