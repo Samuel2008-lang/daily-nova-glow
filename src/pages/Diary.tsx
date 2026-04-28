@@ -60,6 +60,22 @@ const Diary = () => {
   // When the user sends a message, force-stick to bottom so they immediately see their message + the reply
   const ensureStick = () => { stickToBottomRef.current = true; };
 
+  const startNewAiChat = () => {
+    haptics.light();
+    const id = Date.now().toString();
+    setActiveAiSessionId(id);
+    setAiMessages([]);
+    localStorage.setItem(DIARY_AI_ACTIVE_KEY, id);
+  };
+
+  const openAiChatSession = (session: AiChatSession) => {
+    haptics.light();
+    setActiveAiSessionId(session.id);
+    setAiMessages(session.messages);
+    localStorage.setItem(DIARY_AI_ACTIVE_KEY, session.id);
+    ensureStick();
+  };
+
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (transcript) => {
       setCurrentEntry((prev) => (prev ? prev + " " + transcript : transcript));
