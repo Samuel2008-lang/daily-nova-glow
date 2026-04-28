@@ -12,6 +12,7 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { format, isFuture, startOfDay, isToday } from "date-fns";
 import NoteItem from "@/components/NoteItem";
 import { BannerAd } from "@/components/BannerAd";
+import { haptics } from "@/lib/haptics";
 
 const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -48,6 +49,7 @@ const Notes = () => {
 
   const saveNote = () => {
     if (!noteContent.trim()) return;
+    haptics.success();
 
     const topic = noteTopic.trim() || `Note - ${format(selectedDate, "MMM d, yyyy")}`;
     
@@ -156,6 +158,7 @@ const Notes = () => {
     const updatedNotes = notes.filter(n => n.id !== noteId);
     setNotes(updatedNotes);
     storage.saveNotes(updatedNotes);
+    haptics.warning();
     toast({ title: "Note deleted", description: "Your note has been removed." });
     if (selectedNote?.id === noteId) {
       setViewMode('closed');
