@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
 import { JournalNotificationBell } from "@/components/JournalNotificationBell";
+import { haptics } from "@/lib/haptics";
 
 const Journal = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -93,6 +94,7 @@ const Journal = () => {
 
   const saveEntry = () => {
     if (!currentEntry.trim()) return;
+    haptics.success();
 
     const dateStr = currentDate.toDateString();
     const existingEntry = entries.find((e) => new Date(e.createdAt).toDateString() === dateStr);
