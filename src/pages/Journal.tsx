@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { MessageSquare, Mic, Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { MessageSquare, Mic, Send, Sparkles, ChevronDown, ChevronUp, PlusCircle, History } from "lucide-react";
 import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,15 +12,23 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
 import { JournalNotificationBell } from "@/components/JournalNotificationBell";
 import { haptics } from "@/lib/haptics";
+import { loadAiChatSessions, saveAiChatSessions, upsertAiChatSession, type AiChatSession } from "@/lib/ai-chat-sessions";
+
+const JOURNAL_AI_SESSIONS_KEY = "dailynova_journal_ai_sessions";
+const JOURNAL_AI_ACTIVE_KEY = "dailynova_journal_active_ai_chat";
+const JOURNAL_AI_LEGACY_KEY = "dailynova_journal_ai_chat";
 
 const Journal = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentEntry, setCurrentEntry] = useState("");
+  const [aiSessions, setAiSessions] = useState<AiChatSession[]>(() => loadAiChatSessions(JOURNAL_AI_SESSIONS_KEY, JOURNAL_AI_LEGACY_KEY));
+  const [activeAiSessionId, setActiveAiSessionId] = useState(() => localStorage.getItem(JOURNAL_AI_ACTIVE_KEY) || loadAiChatSessions(JOURNAL_AI_SESSIONS_KEY, JOURNAL_AI_LEGACY_KEY)[0]?.id || Date.now().toString());
   const [aiMessages, setAiMessages] = useState<{role: string, content: string}[]>(() => {
     try {
-      const saved = localStorage.getItem('dailynova_journal_ai_chat');
-      return saved ? JSON.parse(saved) : [];
+      const sessions = loadAiChatSessions(JOURNAL_AI_SESSIONS_KEY, JOURNAL_AI_LEGACY_KEY);
+      const active = localStorage.getItem(JOURNAL_AI_ACTIVE_KEY);
+      return sessions.find((session) => session.id === active)?.messages || sessions[0]?.messages || [];
     } catch { return []; }
   });
   const [aiInput, setAiInput] = useState("");
