@@ -615,6 +615,23 @@ Help them use journaling as a tool for profound self-discovery, creative express
 
             {aiOpen && (
               <>
+                <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
+                  <Button size="sm" variant="outline" onClick={startNewAiChat} className="shrink-0">
+                    <PlusCircle className="w-4 h-4" /> New chat
+                  </Button>
+                  {aiSessions.map((session) => (
+                    <Button
+                      key={session.id}
+                      size="sm"
+                      variant={session.id === activeAiSessionId ? "secondary" : "ghost"}
+                      onClick={() => openAiChatSession(session)}
+                      className="shrink-0 max-w-[160px] justify-start truncate"
+                    >
+                      <History className="w-4 h-4" />
+                      <span className="truncate">{session.title}</span>
+                    </Button>
+                  ))}
+                </div>
                 <div ref={chatScrollRef} onScroll={handleChatScroll} className="flex-1 space-y-3 mt-4 mb-4 overflow-y-auto max-h-[400px]">
                   {aiMessages.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
