@@ -57,6 +57,22 @@ const Journal = () => {
 
   const ensureStick = () => { stickToBottomRef.current = true; };
 
+  const startNewAiChat = () => {
+    haptics.light();
+    const id = Date.now().toString();
+    setActiveAiSessionId(id);
+    setAiMessages([]);
+    localStorage.setItem(JOURNAL_AI_ACTIVE_KEY, id);
+  };
+
+  const openAiChatSession = (session: AiChatSession) => {
+    haptics.light();
+    setActiveAiSessionId(session.id);
+    setAiMessages(session.messages);
+    localStorage.setItem(JOURNAL_AI_ACTIVE_KEY, session.id);
+    ensureStick();
+  };
+
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (transcript) => {
       setCurrentEntry((prev) => (prev ? prev + " " + transcript : transcript));
@@ -73,13 +89,17 @@ const Journal = () => {
     setEntries(storage.getJournalEntries());
   }, []);
 
-  // Persist AI chats
+  // Persist AI chats with ChatGPT-style saved sessions
   useEffect(() => {
     if (aiMessages.length > 0) {
-      localStorage.setItem('dailynova_journal_ai_chat', JSON.stringify(aiMessages));
-      localStorage.setItem('dailynova_journal_ai_chat_time', new Date().toISOString());
+      setAiSessions((prev) => {
+        const updated = upsertAiChatSession(prev, activeAiSessionId, aiMessages);
+        saveAiChatSessions(JOURNAL_AI_SESSIONS_KEY, updated);
+        localStorage.setItem(JOURNAL_AI_ACTIVE_KEY, activeAiSessionId);
+        return updated;
+      });
     }
-  }, [aiMessages]);
+  }, [aiMessages, activeAiSessionId]);
 
   // Clear chats older than 24 hours on mount
   useEffect(() => {
