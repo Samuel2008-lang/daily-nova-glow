@@ -13,6 +13,7 @@ async function nativeImpact(style: Style) {
         error: NotificationType.Error,
       } as const;
       await Haptics.notification({ type: map[style] });
+      await Haptics.vibrate({ duration: style === "success" ? 120 : 180 });
       return;
     }
     const impactMap = {
@@ -21,6 +22,7 @@ async function nativeImpact(style: Style) {
       heavy: ImpactStyle.Heavy,
     } as const;
     await Haptics.impact({ style: impactMap[style] });
+    if (style === "heavy") await Haptics.vibrate({ duration: 90 });
   } catch {
     // ignore — plugin not available
   }
@@ -43,22 +45,22 @@ export const haptics = {
   },
   medium: () => {
     nativeImpact("medium");
-    webVibrate(30);
+    webVibrate(50);
   },
   heavy: () => {
     nativeImpact("heavy");
-    webVibrate(55);
+    webVibrate(90);
   },
   success: () => {
     nativeImpact("success");
-    webVibrate([30, 45, 30]);
+    webVibrate([70, 45, 90]);
   },
   warning: () => {
     nativeImpact("warning");
-    webVibrate([35, 70, 35]);
+    webVibrate([80, 70, 80]);
   },
   error: () => {
     nativeImpact("error");
-    webVibrate([55, 35, 55]);
+    webVibrate([100, 60, 100]);
   },
 };

@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { recordCorrection, suggestFromLearning, type EntryType } from "@/lib/ai-learning";
 import { haptics } from "@/lib/haptics";
+import { parseTaskReminder, scheduleTaskNotifications } from "@/lib/task-reminders";
 
 const TYPE_CONFIG: Record<EntryType, { icon: typeof FileText; label: string; color: string }> = {
   note: { icon: FileText, label: "Note", color: "text-primary" },
@@ -113,7 +114,7 @@ const QuickCapture = () => {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!text.trim()) return;
     // Fire haptic immediately so the user feels the action even if storage is slow
     haptics.success();
@@ -131,8 +132,10 @@ const QuickCapture = () => {
       }
       case "task": {
         const tasks = storage.getTasks();
-        tasks.push({ id: Date.now().toString(), title: text.trim(), completed: false, createdAt: now });
+        const task = { id: Date.now().toString(), title: text.trim(), completed: false, createdAt: now, ...parseTaskReminder(text) };
+        tasks.push(task);
         storage.saveTasks(tasks);
+        await scheduleTaskNotifications(task);
         break;
       }
       case "habit": {

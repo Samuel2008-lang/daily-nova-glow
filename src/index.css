@@ -74,17 +74,14 @@ All colors MUST be HSL.
 
   /* On touch devices, hover styles "stick" after tap. Disable hover-only effects there. */
   @media (hover: none) {
-    button:hover, a:hover, [role="button"]:hover {
-      background-color: revert;
-      color: revert;
-    }
     /* Also clear lingering focus highlight after a tap on touch devices */
     button:focus, button:focus-visible,
     a:focus, a:focus-visible,
-    [role="button"]:focus, [role="button"]:focus-visible {
+    [role="button"]:focus, [role="button"]:focus-visible,
+    [data-radix-collection-item]:focus,
+    [data-state]:focus {
       outline: none;
       box-shadow: none;
-      background-color: revert;
     }
   }
 

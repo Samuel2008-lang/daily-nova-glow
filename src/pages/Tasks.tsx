@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { storage, Task } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-import { notificationService } from "@/lib/notifications";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
+import { haptics } from "@/lib/haptics";
+import { cancelTaskNotifications, parseTaskReminder, scheduleTaskNotifications } from "@/lib/task-reminders";
 
 const sortTasksNewestFirst = (items: Task[]) =>
   [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -50,56 +51,36 @@ const Tasks = () => {
     storage.saveTasks(sorted);
   }, []);
 
-  const scheduleTaskNotifications = async (task: Task) => {
-    if (!task.dueDate || !task.dueTime) return;
-
-    const taskTime = new Date(`${task.dueDate}T${task.dueTime}`);
-    if (isNaN(taskTime.getTime()) || taskTime <= new Date()) return;
-
-    const taskIdNum = parseInt(task.id) % 100000;
-
-    // On-time notification (uses device default sound)
-    await notificationService.scheduleTaskAlarm({
-      id: 2000 + taskIdNum,
-      title: "🔔 It's time!",
-      body: `${task.title} — now.`,
-      at: taskTime,
-    });
-
-    // Before reminder
-    if (task.reminderBefore) {
-      const beforeTime = new Date(taskTime.getTime() - task.reminderBefore * 60000);
-      if (beforeTime > new Date()) {
-        await notificationService.scheduleTaskAlarm({
-          id: 3000 + taskIdNum,
-          title: "⏰ Upcoming Task",
-          body: `${task.title} in ${task.reminderBefore} minutes.`,
-          at: beforeTime,
-        });
-      }
-    }
-
-    // After follow-up
-    if (task.reminderAfter) {
-      const afterTime = new Date(taskTime.getTime() + task.reminderAfter * 60000);
-      await notificationService.scheduleTaskAlarm({
-        id: 4000 + taskIdNum,
-        title: "⚠️ Did you complete it?",
-        body: `${task.title} — check it off!`,
-        at: afterTime,
-      });
-    }
+  const resetTaskForm = () => {
+    setNewTask("");
+    setAlarmDate("");
+    setAlarmHour("12");
+    setAlarmMinute("0");
+    setReminderBefore(undefined);
+    setReminderAfter(undefined);
+    setShowAlarmForm(false);
   };
 
-  const cancelTaskNotifications = async (task: Task) => {
-    const taskIdNum = parseInt(task.id) % 100000;
-    await notificationService.cancelNotification(2000 + taskIdNum);
-    await notificationService.cancelNotification(3000 + taskIdNum);
-    await notificationService.cancelNotification(4000 + taskIdNum);
+  const openAlarmFormForTask = () => {
+    if (!newTask.trim()) return;
+    haptics.light();
+    const parsed = parseTaskReminder(newTask);
+    setAlarmDate(parsed.dueDate || new Date().toISOString().slice(0, 10));
+    if (parsed.dueTime) {
+      const [h, m] = parsed.dueTime.split(":");
+      setAlarmHour(String(parseInt(h, 10)));
+      setAlarmMinute(String(parseInt(m, 10)));
+    }
+    setShowAlarmForm(true);
   };
 
   const addTask = async () => {
     if (!newTask.trim()) return;
+    if (!showAlarmForm) {
+      openAlarmFormForTask();
+      return;
+    }
+    haptics.success();
 
     // Convert hour/minute to HH:MM for storage
     const h24 = parseInt(alarmHour, 10);
@@ -120,13 +101,7 @@ const Tasks = () => {
     const updatedTasks = [task, ...tasks];
     setTasks(updatedTasks);
     storage.saveTasks(updatedTasks);
-    setNewTask("");
-    setAlarmDate("");
-    setAlarmHour("12");
-    setAlarmMinute("0");
-    setReminderBefore(undefined);
-    setReminderAfter(undefined);
-    setShowAlarmForm(false);
+    resetTaskForm();
 
     if (task.dueDate && task.dueTime) {
       await scheduleTaskNotifications(task);
@@ -151,7 +126,6 @@ const Tasks = () => {
 
     const task = updatedTasks.find((t) => t.id === id);
     if (task?.completed) {
-      const { haptics } = await import("@/lib/haptics");
       haptics.success();
       await cancelTaskNotifications(task);
       toast({
@@ -159,7 +133,6 @@ const Tasks = () => {
         description: "Great job! Keep up the momentum.",
       });
     } else {
-      const { haptics } = await import("@/lib/haptics");
       haptics.light();
     }
   };
@@ -171,6 +144,7 @@ const Tasks = () => {
     const updatedTasks = tasks.filter((task) => task.id !== id);
     setTasks(updatedTasks);
     storage.saveTasks(updatedTasks);
+    haptics.warning();
 
     toast({
       title: "Task deleted",
@@ -194,7 +168,7 @@ const Tasks = () => {
                 placeholder="Add a new task..."
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && !showAlarmForm && addTask()}
+                onKeyDown={(e) => e.key === "Enter" && addTask()}
                 className="bg-background/50 border-border/50 focus:border-secondary pr-12"
               />
               {isSupported && (
@@ -211,20 +185,12 @@ const Tasks = () => {
                 </Button>
               )}
             </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setShowAlarmForm(!showAlarmForm)}
-              className={showAlarmForm ? "text-secondary border-secondary" : ""}
-            >
-              <Bell className="w-4 h-4" />
-            </Button>
             <Button onClick={addTask} className="glow-purple">
               <Plus className="w-4 h-4" />
             </Button>
           </div>
 
-          {/* Alarm scheduling form */}
+          {/* Alarm scheduling form — appears after pressing +, before saving */}
           {showAlarmForm && (
             <div className="mt-4 p-4 rounded-lg bg-background/30 border border-border/30 space-y-3">
               <div className="flex items-center justify-between">
@@ -232,7 +198,7 @@ const Tasks = () => {
                   <Clock className="w-4 h-4 text-secondary" />
                   <span className="text-sm font-medium">Set Alarm</span>
                 </div>
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowAlarmForm(false)}>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={resetTaskForm}>
                   <X className="w-3 h-3" />
                 </Button>
               </div>
@@ -285,7 +251,11 @@ const Tasks = () => {
                   ))}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">🔔 Uses your phone's default notification sound.</p>
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={resetTaskForm}>Cancel</Button>
+                <Button className="flex-1 glow-purple" onClick={addTask}>Save Task</Button>
+              </div>
+              <p className="text-xs text-muted-foreground">🔔 Shows in your phone notifications with the default alarm sound and vibration.</p>
             </div>
           )}
 

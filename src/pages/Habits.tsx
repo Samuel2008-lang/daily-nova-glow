@@ -42,6 +42,7 @@ const Habits = () => {
 
   const addHabit = () => {
     if (!newHabit.trim()) return;
+    haptics.success();
     const habit: Habit = {
       id: Date.now().toString(),
       name: newHabit,
@@ -94,6 +95,7 @@ const Habits = () => {
     const updatedHabits = habits.filter((habit) => habit.id !== id);
     setHabits(updatedHabits);
     storage.saveHabits(updatedHabits);
+    haptics.warning();
     toast({ title: "Habit deleted", description: "Your habit has been removed." });
   };
 
@@ -110,6 +112,7 @@ const Habits = () => {
     });
     setHabits(updatedHabits);
     storage.saveHabits(updatedHabits);
+    if (enabled) haptics.success(); else haptics.light();
   };
 
   const updateHabitReminderTime = async (id: string, hour: number, minute: number) => {
@@ -123,6 +126,7 @@ const Habits = () => {
     });
     setHabits(updatedHabits);
     storage.saveHabits(updatedHabits);
+    haptics.success();
   };
 
   const calculateStreak = (completedDates: string[]): number => {

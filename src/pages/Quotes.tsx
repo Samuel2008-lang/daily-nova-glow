@@ -24,8 +24,7 @@ const QUOTES_DATE_KEY = "daily-quotes-date";
 const QUOTE_INDEX_KEY = "daily-quote-index";
 const SEEN_QUOTES_KEY = "daily-quotes-seen"; // tracks deleted quote texts to prevent re-appearance
 const DAILY_QUOTE_LIMIT = 1;
-const REWARDED_QUOTE_COUNT = 2;
-const DAILY_MAX_QUOTES = DAILY_QUOTE_LIMIT + REWARDED_QUOTE_COUNT;
+const REWARDED_QUOTE_COUNT = 1;
 const MAX_STORED_QUOTES = 21;
 const CLEANUP_COUNT = 9;
 const CLEANUP_INTERVAL_DAYS = 7;
@@ -71,9 +70,7 @@ const Quotes = () => {
       let loadedQuotes = [fallbackQuotes[new Date().getDate() % fallbackQuotes.length]];
       if (savedAllQuotes) {
         const parsed = JSON.parse(savedAllQuotes);
-        if (Array.isArray(parsed) && parsed.length > 0 && lastFetchDate === today) {
-          loadedQuotes = parsed.slice(0, DAILY_MAX_QUOTES);
-        }
+        if (Array.isArray(parsed) && parsed.length > 0 && lastFetchDate === today) loadedQuotes = parsed;
       }
       setAllQuotes(loadedQuotes);
       if (savedIndex) setCurrentIndex(Math.min(parseInt(savedIndex, 10), loadedQuotes.length - 1));
@@ -171,10 +168,10 @@ const Quotes = () => {
         const pickedQuotes = newQuotes.slice(0, count);
 
         if (pickedQuotes.length > 0) {
-          const existing = replaceToday ? [] : allQuotes.slice(0, DAILY_MAX_QUOTES);
+          const existing = replaceToday ? [] : allQuotes;
           const merged = [...existing, ...pickedQuotes];
           const unique = merged.filter((q, i, arr) => arr.findIndex(x => x.text === q.text) === i);
-          const final = enforceStorageLimit(unique).slice(0, DAILY_MAX_QUOTES);
+          const final = enforceStorageLimit(unique);
           setAllQuotes(final);
           localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(final));
           const nextIndex = replaceToday ? 0 : Math.max(0, final.length - pickedQuotes.length);
@@ -207,11 +204,7 @@ const Quotes = () => {
   };
 
   const handleBonusQuoteReward = async () => {
-    if (allQuotes.length >= DAILY_MAX_QUOTES) {
-      toast({ title: "Bonus quotes unlocked", description: "Come back tomorrow for a new quote of the day." });
-      return;
-    }
-    const success = await fetchNewQuotes(DAILY_MAX_QUOTES - allQuotes.length, false);
+    const success = await fetchNewQuotes(REWARDED_QUOTE_COUNT, false);
     if (!success) {
       toast({ title: "Using cached quotes", description: "New quotes will load when connection is available." });
     }
@@ -223,8 +216,8 @@ const Quotes = () => {
     const nextIdx = currentIndex + 1;
     if (nextIdx >= allQuotes.length) {
       toast({
-        title: allQuotes.length >= DAILY_MAX_QUOTES ? "That's all for today" : "Watch an ad to unlock more",
-        description: allQuotes.length >= DAILY_MAX_QUOTES ? "A new quote of the day resets tomorrow." : "Bonus ads add 2 more quotes for today.",
+        title: "Watch an ad to unlock another quote",
+        description: "Each rewarded ad adds one more quote.",
       });
     } else {
       setCurrentIndex(nextIdx);
@@ -309,7 +302,7 @@ const Quotes = () => {
         </div>
 
         <div className="flex justify-center mt-4">
-          <RewardedAdButton onReward={handleBonusQuoteReward} label="Watch Ad for Bonus Quotes" />
+          <RewardedAdButton onReward={handleBonusQuoteReward} label="Watch Ad for 1 Quote" />
         </div>
 
         {showNavigation && (

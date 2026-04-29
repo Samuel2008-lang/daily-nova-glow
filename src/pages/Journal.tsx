@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { MessageSquare, Mic, Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { MessageSquare, Mic, Send, Sparkles, ChevronDown, ChevronUp, PlusCircle, History } from "lucide-react";
 import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,15 +11,24 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { supabase } from "@/integrations/supabase/client";
 import { JournalNotificationBell } from "@/components/JournalNotificationBell";
+import { haptics } from "@/lib/haptics";
+import { loadAiChatSessions, saveAiChatSessions, upsertAiChatSession, type AiChatSession } from "@/lib/ai-chat-sessions";
+
+const JOURNAL_AI_SESSIONS_KEY = "dailynova_journal_ai_sessions";
+const JOURNAL_AI_ACTIVE_KEY = "dailynova_journal_active_ai_chat";
+const JOURNAL_AI_LEGACY_KEY = "dailynova_journal_ai_chat";
 
 const Journal = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentEntry, setCurrentEntry] = useState("");
+  const [aiSessions, setAiSessions] = useState<AiChatSession[]>(() => loadAiChatSessions(JOURNAL_AI_SESSIONS_KEY, JOURNAL_AI_LEGACY_KEY));
+  const [activeAiSessionId, setActiveAiSessionId] = useState(() => localStorage.getItem(JOURNAL_AI_ACTIVE_KEY) || loadAiChatSessions(JOURNAL_AI_SESSIONS_KEY, JOURNAL_AI_LEGACY_KEY)[0]?.id || Date.now().toString());
   const [aiMessages, setAiMessages] = useState<{role: string, content: string}[]>(() => {
     try {
-      const saved = localStorage.getItem('dailynova_journal_ai_chat');
-      return saved ? JSON.parse(saved) : [];
+      const sessions = loadAiChatSessions(JOURNAL_AI_SESSIONS_KEY, JOURNAL_AI_LEGACY_KEY);
+      const active = localStorage.getItem(JOURNAL_AI_ACTIVE_KEY);
+      return sessions.find((session) => session.id === active)?.messages || sessions[0]?.messages || [];
     } catch { return []; }
   });
   const [aiInput, setAiInput] = useState("");
@@ -48,6 +57,22 @@ const Journal = () => {
 
   const ensureStick = () => { stickToBottomRef.current = true; };
 
+  const startNewAiChat = () => {
+    haptics.light();
+    const id = Date.now().toString();
+    setActiveAiSessionId(id);
+    setAiMessages([]);
+    localStorage.setItem(JOURNAL_AI_ACTIVE_KEY, id);
+  };
+
+  const openAiChatSession = (session: AiChatSession) => {
+    haptics.light();
+    setActiveAiSessionId(session.id);
+    setAiMessages(session.messages);
+    localStorage.setItem(JOURNAL_AI_ACTIVE_KEY, session.id);
+    ensureStick();
+  };
+
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (transcript) => {
       setCurrentEntry((prev) => (prev ? prev + " " + transcript : transcript));
@@ -64,13 +89,17 @@ const Journal = () => {
     setEntries(storage.getJournalEntries());
   }, []);
 
-  // Persist AI chats
+  // Persist AI chats with ChatGPT-style saved sessions
   useEffect(() => {
     if (aiMessages.length > 0) {
-      localStorage.setItem('dailynova_journal_ai_chat', JSON.stringify(aiMessages));
-      localStorage.setItem('dailynova_journal_ai_chat_time', new Date().toISOString());
+      setAiSessions((prev) => {
+        const updated = upsertAiChatSession(prev, activeAiSessionId, aiMessages);
+        saveAiChatSessions(JOURNAL_AI_SESSIONS_KEY, updated);
+        localStorage.setItem(JOURNAL_AI_ACTIVE_KEY, activeAiSessionId);
+        return updated;
+      });
     }
-  }, [aiMessages]);
+  }, [aiMessages, activeAiSessionId]);
 
   // Clear chats older than 24 hours on mount
   useEffect(() => {
@@ -93,6 +122,7 @@ const Journal = () => {
 
   const saveEntry = () => {
     if (!currentEntry.trim()) return;
+    haptics.success();
 
     const dateStr = currentDate.toDateString();
     const existingEntry = entries.find((e) => new Date(e.createdAt).toDateString() === dateStr);
@@ -585,6 +615,23 @@ Help them use journaling as a tool for profound self-discovery, creative express
 
             {aiOpen && (
               <>
+                <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
+                  <Button size="sm" variant="outline" onClick={startNewAiChat} className="shrink-0">
+                    <PlusCircle className="w-4 h-4" /> New chat
+                  </Button>
+                  {aiSessions.map((session) => (
+                    <Button
+                      key={session.id}
+                      size="sm"
+                      variant={session.id === activeAiSessionId ? "secondary" : "ghost"}
+                      onClick={() => openAiChatSession(session)}
+                      className="shrink-0 max-w-[160px] justify-start truncate"
+                    >
+                      <History className="w-4 h-4" />
+                      <span className="truncate">{session.title}</span>
+                    </Button>
+                  ))}
+                </div>
                 <div ref={chatScrollRef} onScroll={handleChatScroll} className="flex-1 space-y-3 mt-4 mb-4 overflow-y-auto max-h-[400px]">
                   {aiMessages.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
