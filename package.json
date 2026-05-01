@@ -9,8 +9,9 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "fix": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && npx cap sync",
-    "postinstall": "npx cap sync 2>/dev/null || true"
+    "fix": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && npm run cap:sync",
+    "cap:sync": "npx cap sync && node scripts/patch-native.mjs",
+    "postinstall": "(npx cap sync && node scripts/patch-native.mjs) 2>/dev/null || true"
   },
   "dependencies": {
     "@capacitor-community/admob": "^7.2.0",
