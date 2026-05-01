@@ -9,9 +9,11 @@
  *  - AdMob APPLICATION_ID meta-data into AndroidManifest.xml
  *  - INTERNET, RECORD_AUDIO, VIBRATE, POST_NOTIFICATIONS, WAKE_LOCK, AD_ID permissions
  *  - iOS Info.plist usage descriptions (microphone, speech, tracking)
+ *  - Generates launcher icons + splash screens from public/app-icon.png via @capacitor/assets
  */
-import { existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execSync } from 'node:child_process';
 
 const ADMOB_APP_ID = 'ca-app-pub-1017007756363897~9648031243';
 const ROOT = process.cwd();
