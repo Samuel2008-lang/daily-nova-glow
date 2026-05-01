@@ -222,10 +222,11 @@ const Quotes = () => {
   const nextQuote = async () => {
     const nextIdx = currentIndex + 1;
     if (nextIdx >= allQuotes.length) {
-      toast({
-        title: "Watch an ad to unlock another quote",
-        description: "Each rewarded ad adds one more quote.",
-      });
+      if (allQuotes.length >= SESSION_CAP) {
+        toast({ title: "Daily limit reached", description: `Come back tomorrow for fresh quotes.` });
+      } else {
+        toast({ title: "Watch an ad to unlock 2 more quotes", description: `You have ${allQuotes.length}/${SESSION_CAP} today.` });
+      }
     } else {
       setCurrentIndex(nextIdx);
       localStorage.setItem(QUOTE_INDEX_KEY, nextIdx.toString());
