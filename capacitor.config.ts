@@ -5,22 +5,27 @@ const config: CapacitorConfig = {
   appName: 'Daily Nova',
   webDir: 'dist',
   server: {
-    cleartext: true
+    cleartext: true,
   },
   plugins: {
     AdMob: {
       androidAppId: 'ca-app-pub-1017007756363897~9648031243',
       iosAppId: 'ca-app-pub-1017007756363897~9648031243',
+      initializeForTesting: false,
     },
     LocalNotifications: {
-      smallIcon: "ic_stat_icon_config_sample",
-      iconColor: "#ff69b4",
+      smallIcon: 'ic_stat_icon_config_sample',
+      iconColor: '#ff69b4',
+    },
+    SpeechRecognition: {
+      // Permissions auto-requested at runtime
     },
   },
   android: {
-    // Ensures AdMob App ID is injected into AndroidManifest.xml
-    // You must also add this to android/app/src/main/AndroidManifest.xml manually:
-    // <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-1017007756363897~9648031243"/>
+    allowMixedContent: true,
+  },
+  ios: {
+    contentInset: 'always',
   },
 };
 
