@@ -59,6 +59,9 @@ const Settings = () => {
   const [diaryLock, setDiaryLock] = useState(localStorage.getItem("dailynova_diary_lock") === "true");
   const [journalLock, setJournalLock] = useState(localStorage.getItem("dailynova_journal_lock") === "true");
   const [showPinSetup, setShowPinSetup] = useState(false);
+  const [pinSetupTarget, setPinSetupTarget] = useState<"app" | "diary" | "journal">("app");
+  const [hasDiaryPin, setHasDiaryPin] = useState(!!localStorage.getItem("dailynova_diary_pin"));
+  const [hasJournalPin, setHasJournalPin] = useState(!!localStorage.getItem("dailynova_journal_pin"));
   const [biometricEnabled, setBiometricEnabled] = useState(localStorage.getItem("dailynova_biometric_enabled") === "true");
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricChecked, setBiometricChecked] = useState(false);
