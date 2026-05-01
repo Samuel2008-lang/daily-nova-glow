@@ -205,7 +205,13 @@ const Quotes = () => {
   };
 
   const handleBonusQuoteReward = async () => {
-    const success = await fetchNewQuotes(REWARDED_QUOTE_COUNT, false);
+    if (allQuotes.length >= SESSION_CAP) {
+      toast({ title: "Daily limit reached", description: `You've unlocked all ${SESSION_CAP} quotes for today. Come back tomorrow!` });
+      return;
+    }
+    const remaining = SESSION_CAP - allQuotes.length;
+    const want = Math.min(REWARDED_QUOTE_COUNT, remaining);
+    const success = await fetchNewQuotes(want, false);
     if (!success) {
       toast({ title: "Using cached quotes", description: "New quotes will load when connection is available." });
     }
