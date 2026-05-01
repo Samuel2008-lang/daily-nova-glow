@@ -309,7 +309,10 @@ const Quotes = () => {
         </div>
 
         <div className="flex justify-center mt-4">
-          <RewardedAdButton onReward={handleBonusQuoteReward} label="Watch Ad for 1 Quote" />
+          <RewardedAdButton
+            onReward={handleBonusQuoteReward}
+            label={allQuotes.length >= SESSION_CAP ? `Daily limit reached (${SESSION_CAP}/${SESSION_CAP})` : `Watch Ad for 2 Quotes (${allQuotes.length}/${SESSION_CAP})`}
+          />
         </div>
 
         {showNavigation && (
