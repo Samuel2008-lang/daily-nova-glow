@@ -160,13 +160,24 @@ const Settings = () => {
     return (
       <PinSetup
         onComplete={(newPin) => {
-          localStorage.setItem("dailynova_app_pin", newPin);
-          localStorage.setItem("dailynova_lock_enabled", "true");
-          setLockEnabled(true);
+          if (pinSetupTarget === "diary") {
+            localStorage.setItem("dailynova_diary_pin", newPin);
+            setHasDiaryPin(true);
+            toast({ title: "Diary PIN set", description: "Diary now uses its own PIN." });
+          } else if (pinSetupTarget === "journal") {
+            localStorage.setItem("dailynova_journal_pin", newPin);
+            setHasJournalPin(true);
+            toast({ title: "Journal PIN set", description: "Journal now uses its own PIN." });
+          } else {
+            localStorage.setItem("dailynova_app_pin", newPin);
+            localStorage.setItem("dailynova_lock_enabled", "true");
+            setLockEnabled(true);
+            toast({ title: "PIN set!", description: "App lock is now enabled." });
+          }
           setShowPinSetup(false);
-          toast({ title: "PIN set!", description: "App lock is now enabled." });
+          setPinSetupTarget("app");
         }}
-        onCancel={() => setShowPinSetup(false)}
+        onCancel={() => { setShowPinSetup(false); setPinSetupTarget("app"); }}
       />
     );
   }
