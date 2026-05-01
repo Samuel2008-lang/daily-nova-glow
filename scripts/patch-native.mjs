@@ -96,9 +96,32 @@ function patchIosInfoPlist() {
   return changed;
 }
 
+function generateAppAssets() {
+  const sourceIcon = join(ROOT, 'public', 'app-icon.png');
+  if (!existsSync(sourceIcon)) return false;
+  if (!existsSync(join(ROOT, 'android')) && !existsSync(join(ROOT, 'ios'))) return false;
+  try {
+    // @capacitor/assets reads from ./assets/icon.png (or icon-only.png) by default
+    const assetsDir = join(ROOT, 'assets');
+    if (!existsSync(assetsDir)) mkdirSync(assetsDir, { recursive: true });
+    const target = join(assetsDir, 'icon.png');
+    copyFileSync(sourceIcon, target);
+    execSync('npx @capacitor/assets generate --iconBackgroundColor "#0a0a0f" --iconBackgroundColorDark "#0a0a0f" --splashBackgroundColor "#0a0a0f" --splashBackgroundColorDark "#0a0a0f"', {
+      cwd: ROOT,
+      stdio: 'inherit',
+    });
+    console.log('✓ Generated launcher icons + splash from public/app-icon.png');
+    return true;
+  } catch (err) {
+    console.warn('⚠ Icon generation skipped:', err.message);
+    return false;
+  }
+}
+
 try {
   const a = patchAndroidManifest();
   const i = patchIosInfoPlist();
+  generateAppAssets();
   if (!a && !i) console.log('✓ Native files already up to date (or platforms not added yet).');
 } catch (err) {
   console.warn('⚠ Native auto-patch skipped:', err.message);
