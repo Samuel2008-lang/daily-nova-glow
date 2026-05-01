@@ -319,28 +319,72 @@ const Settings = () => {
               </div>
               {lockEnabled && (
                 <>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-muted-foreground" />
-                      <Label htmlFor="diary-lock" className="cursor-pointer text-sm">Lock Diary</Label>
+                  <div className="rounded-lg border border-border/30 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                        <Label htmlFor="diary-lock" className="cursor-pointer text-sm">Lock Diary</Label>
+                      </div>
+                      <Switch id="diary-lock" checked={diaryLock} onCheckedChange={(v) => {
+                        localStorage.setItem("dailynova_diary_lock", String(v));
+                        setDiaryLock(v);
+                      }} />
                     </div>
-                    <Switch id="diary-lock" checked={diaryLock} onCheckedChange={(v) => {
-                      localStorage.setItem("dailynova_diary_lock", String(v));
-                      setDiaryLock(v);
-                    }} />
+                    {diaryLock && (
+                      <div className="flex items-center gap-2 pl-6">
+                        <Button size="sm" variant="outline" className="text-xs h-7 flex-1" onClick={() => { setPinSetupTarget("diary"); setShowPinSetup(true); }}>
+                          {hasDiaryPin ? "Change Diary PIN" : "Set custom Diary PIN"}
+                        </Button>
+                        {hasDiaryPin && (
+                          <Button size="sm" variant="ghost" className="text-xs h-7 text-muted-foreground" onClick={() => {
+                            localStorage.removeItem("dailynova_diary_pin");
+                            setHasDiaryPin(false);
+                            toast({ title: "Diary PIN cleared", description: "Diary now uses the app PIN." });
+                          }}>
+                            Use app PIN
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {diaryLock && (
+                      <p className="text-[11px] text-muted-foreground pl-6">{hasDiaryPin ? "Diary uses its own PIN." : "Diary uses the app PIN. Set a custom one above for extra privacy."}</p>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-muted-foreground" />
-                      <Label htmlFor="journal-lock" className="cursor-pointer text-sm">Lock Journal</Label>
+
+                  <div className="rounded-lg border border-border/30 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                        <Label htmlFor="journal-lock" className="cursor-pointer text-sm">Lock Journal</Label>
+                      </div>
+                      <Switch id="journal-lock" checked={journalLock} onCheckedChange={(v) => {
+                        localStorage.setItem("dailynova_journal_lock", String(v));
+                        setJournalLock(v);
+                      }} />
                     </div>
-                    <Switch id="journal-lock" checked={journalLock} onCheckedChange={(v) => {
-                      localStorage.setItem("dailynova_journal_lock", String(v));
-                      setJournalLock(v);
-                    }} />
+                    {journalLock && (
+                      <div className="flex items-center gap-2 pl-6">
+                        <Button size="sm" variant="outline" className="text-xs h-7 flex-1" onClick={() => { setPinSetupTarget("journal"); setShowPinSetup(true); }}>
+                          {hasJournalPin ? "Change Journal PIN" : "Set custom Journal PIN"}
+                        </Button>
+                        {hasJournalPin && (
+                          <Button size="sm" variant="ghost" className="text-xs h-7 text-muted-foreground" onClick={() => {
+                            localStorage.removeItem("dailynova_journal_pin");
+                            setHasJournalPin(false);
+                            toast({ title: "Journal PIN cleared", description: "Journal now uses the app PIN." });
+                          }}>
+                            Use app PIN
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {journalLock && (
+                      <p className="text-[11px] text-muted-foreground pl-6">{hasJournalPin ? "Journal uses its own PIN." : "Journal uses the app PIN. Set a custom one above for extra privacy."}</p>
+                    )}
                   </div>
-                  <Button variant="outline" className="w-full" onClick={() => setShowPinSetup(true)}>
-                    Change PIN
+
+                  <Button variant="outline" className="w-full" onClick={() => { setPinSetupTarget("app"); setShowPinSetup(true); }}>
+                    Change App PIN
                   </Button>
                 </>
               )}
