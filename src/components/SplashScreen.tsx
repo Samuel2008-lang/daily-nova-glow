@@ -35,11 +35,10 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         phase === 'fade' ? 'opacity-0' : 'opacity-100'
       }`}
     >
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-accent/10 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
+      {/* Animated background - subtle, cohesive glow */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[28rem] h-[28rem] bg-primary/[0.06] rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-secondary/[0.05] rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.6s' }} />
       </div>
 
       {/* Logo */}
