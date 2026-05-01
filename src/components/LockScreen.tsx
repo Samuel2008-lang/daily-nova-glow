@@ -6,13 +6,16 @@ import { haptics } from "@/lib/haptics";
 
 interface LockScreenProps {
   onUnlock: () => void;
+  pinKey?: string;     // localStorage key holding the expected PIN (defaults to app PIN)
+  title?: string;      // optional custom title (e.g. "Unlock Diary")
 }
 
-const LockScreen = ({ onUnlock }: LockScreenProps) => {
+const LockScreen = ({ onUnlock, pinKey = "dailynova_app_pin", title = "Enter PIN" }: LockScreenProps) => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const savedPin = localStorage.getItem("dailynova_app_pin") || "";
+  // Per-area PIN if set, otherwise fall back to the master app PIN
+  const savedPin = localStorage.getItem(pinKey) || localStorage.getItem("dailynova_app_pin") || "";
   const biometricEnabled = localStorage.getItem("dailynova_biometric_enabled") === "true";
 
   useEffect(() => {
