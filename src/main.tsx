@@ -11,21 +11,22 @@ if (!localStorage.getItem("dailynova_pin_reset_v1")) {
   localStorage.setItem("dailynova_pin_reset_v1", "true");
 }
 
-// Auto-blur tapped buttons/links so focus highlight doesn't linger on touch devices
+// Auto-blur tapped buttons/links (NEVER inputs/textareas — that closes the keyboard)
 if (typeof window !== "undefined") {
   const clearPressedElement = (e: Event) => {
     const t = e.target as HTMLElement | null;
     if (!t) return;
-    const el = t.closest("button, a, input, textarea, [role='button'], [data-state]") as HTMLElement | null;
-    if (el) {
-      // Defer so click handlers still fire normally before we blur
-      setTimeout(() => {
-        el.blur();
-        if (document.activeElement instanceof HTMLElement && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
-          document.activeElement.blur();
-        }
-      }, 80);
-    }
+    // Skip anything that should keep focus (text fields, editors, contenteditable)
+    const keepFocus = t.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']");
+    if (keepFocus) return;
+    const el = t.closest("button, a, [role='button']") as HTMLElement | null;
+    if (!el) return;
+    setTimeout(() => {
+      // Don't steal focus from a text field that the click may have opened
+      const active = document.activeElement;
+      if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
+      el.blur();
+    }, 80);
   };
   document.addEventListener("touchend", clearPressedElement, { passive: true });
   document.addEventListener("pointerup", clearPressedElement, { passive: true });
