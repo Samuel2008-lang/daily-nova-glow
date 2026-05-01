@@ -220,7 +220,7 @@ const Timeline = () => {
         {/* Timeline */}
         <div className="flex items-center gap-2 mb-4">
           <Clock className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">Today's Timeline</h2>
+          <h2 className="text-lg font-semibold text-foreground">Life Timeline · Daily Flow</h2>
         </div>
 
         {items.length === 0 ? (
