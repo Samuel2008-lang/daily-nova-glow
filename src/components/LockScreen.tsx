@@ -6,13 +6,16 @@ import { haptics } from "@/lib/haptics";
 
 interface LockScreenProps {
   onUnlock: () => void;
+  pinKey?: string;     // localStorage key holding the expected PIN (defaults to app PIN)
+  title?: string;      // optional custom title (e.g. "Unlock Diary")
 }
 
-const LockScreen = ({ onUnlock }: LockScreenProps) => {
+const LockScreen = ({ onUnlock, pinKey = "dailynova_app_pin", title = "Enter PIN" }: LockScreenProps) => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const savedPin = localStorage.getItem("dailynova_app_pin") || "";
+  // Per-area PIN if set, otherwise fall back to the master app PIN
+  const savedPin = localStorage.getItem(pinKey) || localStorage.getItem("dailynova_app_pin") || "";
   const biometricEnabled = localStorage.getItem("dailynova_biometric_enabled") === "true";
 
   useEffect(() => {
@@ -78,7 +81,7 @@ const LockScreen = ({ onUnlock }: LockScreenProps) => {
     <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center">
       <div className="flex flex-col items-center gap-8">
         <Lock className="w-12 h-12 text-primary" />
-        <h2 className="text-xl font-semibold text-foreground">Enter PIN</h2>
+        <h2 className="text-xl font-semibold text-foreground">{title}</h2>
 
         <div className="flex gap-4 mb-4">{dots}</div>
 

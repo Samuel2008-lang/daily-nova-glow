@@ -24,7 +24,8 @@ const QUOTES_DATE_KEY = "daily-quotes-date";
 const QUOTE_INDEX_KEY = "daily-quote-index";
 const SEEN_QUOTES_KEY = "daily-quotes-seen"; // tracks deleted quote texts to prevent re-appearance
 const DAILY_QUOTE_LIMIT = 1;
-const REWARDED_QUOTE_COUNT = 1;
+const REWARDED_QUOTE_COUNT = 2; // ad gives 2 bonus quotes
+const SESSION_CAP = 5;          // max quotes per day (1 daily + up to 4 from ads)
 const MAX_STORED_QUOTES = 21;
 const CLEANUP_COUNT = 9;
 const CLEANUP_INTERVAL_DAYS = 7;
@@ -204,7 +205,13 @@ const Quotes = () => {
   };
 
   const handleBonusQuoteReward = async () => {
-    const success = await fetchNewQuotes(REWARDED_QUOTE_COUNT, false);
+    if (allQuotes.length >= SESSION_CAP) {
+      toast({ title: "Daily limit reached", description: `You've unlocked all ${SESSION_CAP} quotes for today. Come back tomorrow!` });
+      return;
+    }
+    const remaining = SESSION_CAP - allQuotes.length;
+    const want = Math.min(REWARDED_QUOTE_COUNT, remaining);
+    const success = await fetchNewQuotes(want, false);
     if (!success) {
       toast({ title: "Using cached quotes", description: "New quotes will load when connection is available." });
     }
@@ -215,10 +222,11 @@ const Quotes = () => {
   const nextQuote = async () => {
     const nextIdx = currentIndex + 1;
     if (nextIdx >= allQuotes.length) {
-      toast({
-        title: "Watch an ad to unlock another quote",
-        description: "Each rewarded ad adds one more quote.",
-      });
+      if (allQuotes.length >= SESSION_CAP) {
+        toast({ title: "Daily limit reached", description: `Come back tomorrow for fresh quotes.` });
+      } else {
+        toast({ title: "Watch an ad to unlock 2 more quotes", description: `You have ${allQuotes.length}/${SESSION_CAP} today.` });
+      }
     } else {
       setCurrentIndex(nextIdx);
       localStorage.setItem(QUOTE_INDEX_KEY, nextIdx.toString());
@@ -302,7 +310,10 @@ const Quotes = () => {
         </div>
 
         <div className="flex justify-center mt-4">
-          <RewardedAdButton onReward={handleBonusQuoteReward} label="Watch Ad for 1 Quote" />
+          <RewardedAdButton
+            onReward={handleBonusQuoteReward}
+            label={allQuotes.length >= SESSION_CAP ? `Daily limit reached (${SESSION_CAP}/${SESSION_CAP})` : `Watch Ad for 2 Quotes (${allQuotes.length}/${SESSION_CAP})`}
+          />
         </div>
 
         {showNavigation && (

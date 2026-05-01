@@ -24,7 +24,10 @@ const Navigation = () => {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 glass border-t border-border z-50 md:top-0 md:bottom-auto">
+      <nav
+        className="fixed bottom-0 left-0 right-0 border-t border-border z-50 md:top-0 md:bottom-auto bg-card/95 backdrop-blur-xl"
+        style={{ boxShadow: "0 -4px 20px hsl(var(--background) / 0.6)" }}
+      >
         <div className="container mx-auto px-2 md:px-4">
           <div className="flex items-center justify-around md:justify-center md:gap-4 py-2 md:py-3">
             {primaryItems.map((item) => {

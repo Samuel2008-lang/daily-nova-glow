@@ -9,9 +9,11 @@
  *  - AdMob APPLICATION_ID meta-data into AndroidManifest.xml
  *  - INTERNET, RECORD_AUDIO, VIBRATE, POST_NOTIFICATIONS, WAKE_LOCK, AD_ID permissions
  *  - iOS Info.plist usage descriptions (microphone, speech, tracking)
+ *  - Generates launcher icons + splash screens from public/app-icon.png via @capacitor/assets
  */
-import { existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execSync } from 'node:child_process';
 
 const ADMOB_APP_ID = 'ca-app-pub-1017007756363897~9648031243';
 const ROOT = process.cwd();
@@ -94,9 +96,32 @@ function patchIosInfoPlist() {
   return changed;
 }
 
+function generateAppAssets() {
+  const sourceIcon = join(ROOT, 'public', 'app-icon.png');
+  if (!existsSync(sourceIcon)) return false;
+  if (!existsSync(join(ROOT, 'android')) && !existsSync(join(ROOT, 'ios'))) return false;
+  try {
+    // @capacitor/assets reads from ./assets/icon.png (or icon-only.png) by default
+    const assetsDir = join(ROOT, 'assets');
+    if (!existsSync(assetsDir)) mkdirSync(assetsDir, { recursive: true });
+    const target = join(assetsDir, 'icon.png');
+    copyFileSync(sourceIcon, target);
+    execSync('npx @capacitor/assets generate --iconBackgroundColor "#0a0a0f" --iconBackgroundColorDark "#0a0a0f" --splashBackgroundColor "#0a0a0f" --splashBackgroundColorDark "#0a0a0f"', {
+      cwd: ROOT,
+      stdio: 'inherit',
+    });
+    console.log('✓ Generated launcher icons + splash from public/app-icon.png');
+    return true;
+  } catch (err) {
+    console.warn('⚠ Icon generation skipped:', err.message);
+    return false;
+  }
+}
+
 try {
   const a = patchAndroidManifest();
   const i = patchIosInfoPlist();
+  generateAppAssets();
   if (!a && !i) console.log('✓ Native files already up to date (or platforms not added yet).');
 } catch (err) {
   console.warn('⚠ Native auto-patch skipped:', err.message);

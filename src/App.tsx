@@ -89,8 +89,8 @@ const App = () => {
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/habits" element={<Habits />} />
             <Route path="/timeline" element={<Timeline />} />
-            <Route path="/diary" element={<PinGate storageKey="dailynova_diary_lock"><Diary /></PinGate>} />
-            <Route path="/journal" element={<PinGate storageKey="dailynova_journal_lock"><Journal /></PinGate>} />
+            <Route path="/diary" element={<PinGate storageKey="dailynova_diary_lock" pinKey="dailynova_diary_pin" title="Unlock Diary"><Diary /></PinGate>} />
+            <Route path="/journal" element={<PinGate storageKey="dailynova_journal_lock" pinKey="dailynova_journal_pin" title="Unlock Journal"><Journal /></PinGate>} />
             <Route path="/quotes" element={<Quotes />} />
             <Route path="/premium" element={<Premium />} />
             <Route path="/settings" element={<Settings />} />

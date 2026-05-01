@@ -40,32 +40,16 @@ const Dashboard = () => {
     });
   }, []);
 
-  // Time-aware primary actions for proactive dashboard
-  const hour = new Date().getHours();
-  const isEvening = hour >= 18;
-  const isMorning = hour < 12;
-
-  const primaryActions = isEvening
-    ? [
-        { to: "/diary", icon: BookOpen, label: "Daily Reset" },
-        { to: "/journal", icon: BookMarked, label: "Reflect" },
-        { to: "/tasks", icon: CheckSquare, label: "Plan Tomorrow" },
-      ]
-    : isMorning
-      ? [
-          { to: "/tasks", icon: CheckSquare, label: "Plan Tasks" },
-          { to: "/habits", icon: Target, label: "Track Habit" },
-          { to: "/notes", icon: FileText, label: "Capture Thought" },
-        ]
-      : [
-          { to: "/notes", icon: FileText, label: "Add Note" },
-          { to: "/tasks", icon: CheckSquare, label: "New Task" },
-          { to: "/habits", icon: Target, label: "Track Habit" },
-        ];
+  // Stable Quick Actions — same all day, every day
+  const primaryActions = [
+    { to: "/notes", icon: FileText, label: "Add Note" },
+    { to: "/tasks", icon: CheckSquare, label: "New Task" },
+    { to: "/habits", icon: Target, label: "Track Habit" },
+  ];
 
   const secondaryActions = [
     { to: "/diary", icon: BookOpen, label: "Write Diary" },
-    { to: "/journal", icon: BookMarked, label: "Journal" },
+    { to: "/journal", icon: BookMarked, label: "Write Journal" },
   ];
 
   return (

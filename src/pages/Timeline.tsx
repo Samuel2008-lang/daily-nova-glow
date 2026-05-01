@@ -220,7 +220,7 @@ const Timeline = () => {
         {/* Timeline */}
         <div className="flex items-center gap-2 mb-4">
           <Clock className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">Today's Timeline</h2>
+          <h2 className="text-lg font-semibold text-foreground">Life Timeline · Daily Flow</h2>
         </div>
 
         {items.length === 0 ? (
@@ -229,52 +229,84 @@ const Timeline = () => {
             <p className="text-sm text-muted-foreground">Start by capturing a thought, task, or reflection.</p>
           </Card>
         ) : (
-          <div className="relative">
-            <div className="absolute left-5 top-0 bottom-0 w-px bg-border/40" />
-            <div className="space-y-2.5">
-              {items.map((item) => {
-                const style = TYPE_STYLES[item.type];
-                const Icon = style.icon;
-                const isInteractive = item.type === "task" || item.type === "habit";
-                return (
-                  <div key={item.id} className="relative flex gap-3 pl-2">
-                    <div
-                      className={`relative z-10 flex-shrink-0 w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center ${style.color} ${isInteractive ? "cursor-pointer hover:scale-110 transition-transform" : ""}`}
-                      onClick={() => {
-                        if (item.type === "task") toggleTask(item.rawId);
-                        if (item.type === "habit") toggleHabit(item.rawId);
-                      }}
-                    >
-                      {item.completed ? <Check className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
-                    </div>
-                    <Card className={`flex-1 glass p-3 border-border/20 ${item.completed ? "opacity-60" : ""}`}>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className={`text-[10px] font-semibold uppercase tracking-wider ${style.color}`}>{style.label}</span>
-                        <span className="text-[10px] text-muted-foreground">{item.time}</span>
-                        {isInteractive && (
-                          <button
-                            onClick={() => {
-                              if (item.type === "task") toggleTask(item.rawId);
-                              if (item.type === "habit") toggleHabit(item.rawId);
-                            }}
-                            className={`ml-auto text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
-                              item.completed
-                                ? "border-primary/30 text-primary bg-primary/10"
-                                : "border-border/40 text-muted-foreground hover:text-primary hover:border-primary/40"
-                            }`}
-                          >
-                            {item.completed ? "Done ✓" : "Mark done"}
-                          </button>
-                        )}
+          (() => {
+            // Group items into Morning / Afternoon / Evening for the unified Daily Flow view
+            const sections: Record<DayPhase, TimelineItem[]> = { morning: [], afternoon: [], evening: [] };
+            items.forEach((it) => {
+              const h = new Date(it.timestamp).getHours();
+              const sec: DayPhase = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+              sections[sec].push(it);
+            });
+
+            const order: DayPhase[] = ["morning", "afternoon", "evening"];
+            return (
+              <div className="space-y-6">
+                {order.map((sec) => {
+                  const list = sections[sec];
+                  if (list.length === 0) return null;
+                  const cfg = PHASE_CONFIG[sec];
+                  const SecIcon = cfg.icon;
+                  return (
+                    <div key={sec}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <SecIcon className={`w-4 h-4 ${cfg.color}`} />
+                        <h3 className={`text-sm font-semibold uppercase tracking-wider ${cfg.color}`}>
+                          {sec === "morning" ? "Morning" : sec === "afternoon" ? "Afternoon" : "Evening"}
+                        </h3>
+                        <span className="text-xs text-muted-foreground">({list.length})</span>
                       </div>
-                      <p className={`text-sm font-medium ${item.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{item.title}</p>
-                      {item.preview && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.preview}</p>}
-                    </Card>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                      <div className="relative">
+                        <div className="absolute left-5 top-0 bottom-0 w-px bg-border/40" />
+                        <div className="space-y-2.5">
+                          {list.map((item) => {
+                            const style = TYPE_STYLES[item.type];
+                            const Icon = style.icon;
+                            const isInteractive = item.type === "task" || item.type === "habit";
+                            return (
+                              <div key={item.id} className="relative flex gap-3 pl-2">
+                                <div
+                                  className={`relative z-10 flex-shrink-0 w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center ${style.color} ${isInteractive ? "cursor-pointer hover:scale-110 transition-transform" : ""}`}
+                                  onClick={() => {
+                                    if (item.type === "task") toggleTask(item.rawId);
+                                    if (item.type === "habit") toggleHabit(item.rawId);
+                                  }}
+                                >
+                                  {item.completed ? <Check className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
+                                </div>
+                                <Card className={`flex-1 glass p-3 border-border/20 ${item.completed ? "opacity-60" : ""}`}>
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <span className={`text-[10px] font-semibold uppercase tracking-wider ${style.color}`}>{style.label}</span>
+                                    <span className="text-[10px] text-muted-foreground">{item.time}</span>
+                                    {isInteractive && (
+                                      <button
+                                        onClick={() => {
+                                          if (item.type === "task") toggleTask(item.rawId);
+                                          if (item.type === "habit") toggleHabit(item.rawId);
+                                        }}
+                                        className={`ml-auto text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                                          item.completed
+                                            ? "border-primary/30 text-primary bg-primary/10"
+                                            : "border-border/40 text-muted-foreground hover:text-primary hover:border-primary/40"
+                                        }`}
+                                      >
+                                        {item.completed ? "Done ✓" : "Mark done"}
+                                      </button>
+                                    )}
+                                  </div>
+                                  <p className={`text-sm font-medium ${item.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{item.title}</p>
+                                  {item.preview && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.preview}</p>}
+                                </Card>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()
         )}
       </div>
     </div>
