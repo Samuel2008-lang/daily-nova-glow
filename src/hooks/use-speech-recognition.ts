@@ -127,7 +127,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
     }
   }, [toast, finalize]);
 
-  const stopListening = useCallback(async () => {
+  const stopListening = useCallback(async (_inst?: any) => {
     stoppedRef.current = true;
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
@@ -240,7 +240,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     }
   }, [isSupported, toast, emitAndReset]);
 
-  const stopListening = useCallback(() => {
+  const stopListening = useCallback((_inst?: any) => {
     stoppedByUserRef.current = true;
     const inst = recognitionRef.current;
     if (inst) {
