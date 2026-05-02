@@ -64,11 +64,18 @@ const Notes = () => {
       storage.saveNotes(updatedNotes);
     } else {
       // Create new note
+      // If writing for "today", stamp with the real current time so the timeline
+      // buckets it into the correct phase (Morning/Afternoon/Evening).
+      // For past dates, anchor at noon so it falls into "Afternoon" of that day
+      // rather than midnight (which would otherwise read as Morning).
+      const createdAt = isToday(selectedDate)
+        ? new Date().toISOString()
+        : (() => { const d = new Date(selectedDate); d.setHours(12, 0, 0, 0); return d.toISOString(); })();
       const note: Note = {
         id: Date.now().toString(),
         topic,
         content: noteContent,
-        createdAt: startOfDay(selectedDate).toISOString(),
+        createdAt,
         updatedAt: new Date().toISOString(),
       };
       const updatedNotes = [note, ...notes];

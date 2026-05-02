@@ -10,12 +10,58 @@ interface UseSpeechRecognitionProps {
 }
 
 /**
+ * Lightweight, 100% offline text formatter.
+ * - Capitalizes first letter of each sentence.
+ * - Capitalizes the standalone pronoun "I" and contractions ("i'm" -> "I'm").
+ * - Adds a trailing period if the text ends without sentence punctuation.
+ * - Collapses extra spaces and tidies spacing around punctuation.
+ * - PRESERVES the user's words — never rewrites or changes meaning.
+ */
+export function formatVoiceText(input: string): string {
+  if (!input) return input;
+  let t = input.trim();
+  if (!t) return t;
+
+  // Collapse whitespace
+  t = t.replace(/\s+/g, " ");
+  // Tidy space before punctuation
+  t = t.replace(/\s+([,.!?;:])/g, "$1");
+  // Ensure single space after punctuation
+  t = t.replace(/([,.!?;:])(?=[^\s])/g, "$1 ");
+
+  // Capitalize first letter
+  t = t.charAt(0).toUpperCase() + t.slice(1);
+
+  // Capitalize after sentence-ending punctuation
+  t = t.replace(/([.!?]\s+)([a-z])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
+
+  // Standalone "i" -> "I" (handles "i", "i'm", "i've", "i'll", "i'd")
+  t = t.replace(/\bi\b/g, "I");
+  t = t.replace(/\bi'(m|ve|ll|d|re)\b/gi, (_m, suf) => "I'" + suf.toLowerCase());
+
+  // If it ends with a word character, add a period
+  if (/[A-Za-z0-9]$/.test(t)) t += ".";
+
+  return t;
+}
+
+/**
  * Native speech recognition using @capacitor-community/speech-recognition
  */
 const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const accumulatedRef = useRef<string>("");
+  const stoppedRef = useRef(false);
+
+  const finalize = useCallback(() => {
+    const raw = accumulatedRef.current.trim();
+    accumulatedRef.current = "";
+    if (raw) onResult(formatVoiceText(raw));
+    setIsListening(false);
+    setIsProcessing(false);
+  }, [onResult]);
 
   const startListening = useCallback(async (_autoEnhance: boolean = false, _context?: string) => {
     try {
@@ -27,54 +73,76 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
         return;
       }
 
-      // Request permissions
       const perms = await SpeechRecognition.requestPermissions();
       if (perms.speechRecognition === "denied") {
         toast({ title: "Permission denied", description: "Please allow microphone access in your device settings.", variant: "destructive" });
         return;
       }
 
+      accumulatedRef.current = "";
+      stoppedRef.current = false;
       setIsListening(true);
-      toast({ title: "Listening...", description: "Speak now." });
+      toast({ title: "Listening…", description: "Tap the mic again to stop." });
 
-      const result = await SpeechRecognition.start({
-        language: "en-US",
-        maxResults: 5,
-        partialResults: false,
-        popup: false,
-      });
+      // Use partial results so we can keep the session alive across pauses.
+      // We append finalized chunks into accumulatedRef and only emit on user stop.
+      try {
+        // @ts-ignore - addListener signature varies by version
+        await SpeechRecognition.addListener?.("partialResults", (data: any) => {
+          const matches: string[] = data?.matches || [];
+          if (matches.length > 0) {
+            // Latest interim — replace tail; final commit happens on stop.
+            // We keep the most complete match.
+          }
+        });
+      } catch {}
 
-      setIsListening(false);
-
-      const text = result.matches?.[0]?.trim();
-      if (!text) {
-        toast({ title: "No speech detected", description: "Please try again.", variant: "destructive" });
-        return;
-      }
-
-      // Fully offline — pass raw transcript through, no cloud enhancement.
-      onResult(text);
+      // Loop: restart recognition if it auto-ends until the user taps stop.
+      const loop = async () => {
+        while (!stoppedRef.current) {
+          try {
+            const result = await SpeechRecognition.start({
+              language: "en-US",
+              maxResults: 1,
+              partialResults: false,
+              popup: false,
+            });
+            const text = result?.matches?.[0]?.trim();
+            if (text) {
+              accumulatedRef.current = (accumulatedRef.current ? accumulatedRef.current + " " : "") + text;
+            }
+          } catch (err) {
+            // If the session ends due to silence, just restart unless stopped.
+            if (stoppedRef.current) break;
+          }
+        }
+        finalize();
+      };
+      loop();
     } catch (error) {
       console.error("Native speech error:", error);
       setIsListening(false);
       setIsProcessing(false);
       toast({ title: "Error", description: "Speech recognition failed.", variant: "destructive" });
     }
-  }, [onResult, toast]);
+  }, [toast, finalize]);
 
-  const stopListening = useCallback(async (recognitionInstance?: any) => {
+  const stopListening = useCallback(async (_inst?: any) => {
+    stoppedRef.current = true;
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
       await SpeechRecognition.stop();
     } catch {}
-    setIsListening(false);
-  }, []);
+    // finalize will be called by the loop when start() rejects/resolves
+    setTimeout(() => { if (isListening) finalize(); }, 300);
+  }, [finalize, isListening]);
 
   return { isListening, isProcessing, isSupported: true, startListening, stopListening };
 };
 
 /**
  * Web speech recognition using Web Speech API
+ * Manual stop only — keeps listening through silences. User taps mic to stop.
  */
 const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   const [isListening, setIsListening] = useState(false);
@@ -85,50 +153,21 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   });
   const { toast } = useToast();
   const recognitionRef = useRef<any>(null);
-  const silenceTimerRef = useRef<number | null>(null);
-  const lastSpeechTimeRef = useRef<number>(0);
-  const isProcessingRef = useRef(false);
+  const stoppedByUserRef = useRef(false);
   const processedRef = useRef(false);
   const fullTranscriptRef = useRef<string>("");
   const capturedIndicesRef = useRef<Set<number>>(new Set());
 
-  const cleanup = useCallback(() => {
-    if (silenceTimerRef.current) {
-      clearInterval(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-  }, []);
-
-  const stopAndProcess = useCallback(async () => {
-    if (isProcessingRef.current || processedRef.current) return;
-    isProcessingRef.current = true;
+  const emitAndReset = useCallback(() => {
+    if (processedRef.current) return;
     processedRef.current = true;
-    cleanup();
-
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch {}
-      recognitionRef.current = null;
-    }
-
     const text = fullTranscriptRef.current.trim();
-    if (!text) {
-      setIsListening(false);
-      setIsProcessing(false);
-      isProcessingRef.current = false;
-      return;
-    }
-
+    fullTranscriptRef.current = "";
+    capturedIndicesRef.current.clear();
     setIsListening(false);
-    // Fully offline — return raw Web Speech transcript, no cloud enhancement.
-    try {
-      onResult(text);
-    } finally {
-      setIsProcessing(false);
-      isProcessingRef.current = false;
-      fullTranscriptRef.current = "";
-      capturedIndicesRef.current.clear();
-    }
-  }, [onResult, cleanup]);
+    setIsProcessing(false);
+    if (text) onResult(formatVoiceText(text));
+  }, [onResult]);
 
   const startListening = useCallback(async (_autoEnhance: boolean = false, _context?: string) => {
     if (!isSupported) {
@@ -139,28 +178,20 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     fullTranscriptRef.current = "";
     capturedIndicesRef.current.clear();
     processedRef.current = false;
-    isProcessingRef.current = false;
+    stoppedByUserRef.current = false;
 
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = "en-US";
-    cleanup();
 
     recognition.onstart = () => {
       setIsListening(true);
       recognitionRef.current = recognition;
-      lastSpeechTimeRef.current = Date.now();
-      silenceTimerRef.current = window.setInterval(() => {
-        if (Date.now() - lastSpeechTimeRef.current > 1400 && fullTranscriptRef.current.trim()) {
-          stopAndProcess();
-        }
-      }, 200);
     };
 
     recognition.onresult = (event: any) => {
-      lastSpeechTimeRef.current = Date.now();
       for (let i = 0; i < event.results.length; i++) {
         if (event.results[i].isFinal && !capturedIndicesRef.current.has(i)) {
           capturedIndicesRef.current.add(i);
@@ -171,42 +202,53 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     };
 
     recognition.onend = () => {
-      if (!processedRef.current && fullTranscriptRef.current.trim()) {
-        stopAndProcess();
-      } else {
-        setIsListening(false);
-        cleanup();
+      // If the engine stopped on its own (silence) but the user didn't tap stop, restart it.
+      if (!stoppedByUserRef.current) {
+        try {
+          recognition.start();
+          return;
+        } catch {
+          // Fall through to emit
+        }
       }
+      emitAndReset();
     };
 
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
-      cleanup();
-      if (fullTranscriptRef.current.trim() && !processedRef.current) { stopAndProcess(); return; }
-      setIsListening(false);
-      isProcessingRef.current = false;
-      if (event.error === "no-speech") toast({ title: "No speech detected", description: "Please try again.", variant: "destructive" });
-      else if (event.error === "not-allowed") toast({ title: "Microphone denied", description: "Allow microphone access.", variant: "destructive" });
-      else if (event.error !== "aborted") toast({ title: "Recognition error", description: "An error occurred.", variant: "destructive" });
+      // Recoverable: just restart unless user stopped
+      if (event.error === "no-speech" || event.error === "audio-capture" || event.error === "network") {
+        if (!stoppedByUserRef.current) {
+          try { recognition.start(); return; } catch {}
+        }
+      }
+      if (event.error === "not-allowed") {
+        toast({ title: "Microphone denied", description: "Allow microphone access.", variant: "destructive" });
+      } else if (event.error !== "aborted") {
+        toast({ title: "Recognition error", description: "An error occurred.", variant: "destructive" });
+      }
+      emitAndReset();
     };
 
     try {
       recognition.start();
-      toast({ title: "Listening...", description: "Speak now. Stops after 1.4s of silence." });
+      toast({ title: "Listening…", description: "Tap the mic again when you're done." });
     } catch (error) {
       console.error("Error starting recognition:", error);
       setIsListening(false);
       toast({ title: "Error", description: "Failed to start speech recognition.", variant: "destructive" });
     }
-  }, [isSupported, toast, stopAndProcess, cleanup]);
+  }, [isSupported, toast, emitAndReset]);
 
-  const stopListening = useCallback((recognitionInstance?: any) => {
-    const inst = recognitionInstance || recognitionRef.current;
+  const stopListening = useCallback((_inst?: any) => {
+    stoppedByUserRef.current = true;
+    const inst = recognitionRef.current;
     if (inst) {
       try { inst.stop(); } catch {}
+    } else {
+      emitAndReset();
     }
-    if (fullTranscriptRef.current.trim() && !processedRef.current) stopAndProcess();
-  }, [stopAndProcess]);
+  }, [emitAndReset]);
 
   return { isListening, isProcessing, isSupported, startListening, stopListening };
 };
