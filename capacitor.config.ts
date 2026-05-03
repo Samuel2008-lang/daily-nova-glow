@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.9c63e22898864d0491ab1e60a8b46615',
+  appId: 'com.samuelegbon.dailynova',
   appName: 'Daily Nova',
   webDir: 'dist',
   server: {
@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
     AdMob: {
       androidAppId: 'ca-app-pub-1017007756363897~9648031243',
       iosAppId: 'ca-app-pub-1017007756363897~9648031243',
-      initializeForTesting: false,
+      initializeForTesting: true,
     },
     LocalNotifications: {
       smallIcon: 'ic_stat_icon_config_sample',
