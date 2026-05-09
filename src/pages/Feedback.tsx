@@ -31,10 +31,7 @@ const Feedback = () => {
     }
 
     setSent(true);
-    toast({
-      title: "Opening your mail app…",
-      description: `Send the email to ${CREATOR_EMAIL} to deliver your feedback.`,
-    });
+    toast({ title: "Opening your mail app…" });
     setTimeout(() => {
       setSent(false);
       setFeedbackText("");

@@ -477,24 +477,22 @@ const Settings = () => {
             </div>
           </Card>
 
-          {/* Feedback */}
+          {/* Feedback — link to dedicated screen */}
           <Card className="glass p-5">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3">
               <MessageCircle className="w-5 h-5 text-accent" />
               <h2 className="text-lg font-semibold">Send Feedback</h2>
             </div>
-            <div className="space-y-3">
-              <Textarea
-                placeholder="Tell us what you think, report bugs, or suggest features..."
-                value={feedbackText}
-                onChange={(e) => setFeedbackText(e.target.value)}
-                className="min-h-[80px] bg-background/50 border-border/50 focus:border-accent"
-              />
-              <Button onClick={sendFeedback} disabled={!feedbackText.trim() || feedbackSent} className="w-full gap-2">
-                <Send className="w-4 h-4" />
-                {feedbackSent ? "Sent! Thank you ✓" : "Send Feedback"}
-              </Button>
-            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Share thoughts, report bugs, or suggest features.
+            </p>
+            <Button
+              onClick={() => { haptics.light(); window.location.assign("/feedback"); }}
+              className="w-full gap-2"
+            >
+              <Send className="w-4 h-4" />
+              Open Feedback
+            </Button>
           </Card>
 
           {/* About */}
