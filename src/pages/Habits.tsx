@@ -17,9 +17,9 @@ const Habits = () => {
   const [newHabit, setNewHabit] = useState("");
   const { toast } = useToast();
 
-  const { isListening, isSupported, startListening } = useSpeechRecognition({
+  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (transcript) => {
-      setNewHabit(transcript);
+      setNewHabit((prev) => (prev ? (prev + " " + transcript).trim() : transcript));
     },
   });
 
@@ -191,8 +191,7 @@ const Habits = () => {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={() => startListening(true, "habit")}
-                  disabled={isListening}
+                  onClick={() => (isListening ? stopListening() : startListening(true, "habit"))}
                   className={`absolute top-1/2 -translate-y-1/2 right-1 ${
                     isListening ? "animate-pulse-glow text-accent" : "text-muted-foreground hover:text-accent"
                   }`}
@@ -208,7 +207,7 @@ const Habits = () => {
           {isListening && (
             <div className="flex items-center gap-2 mt-3 px-4 py-2 bg-accent/20 rounded-lg animate-pulse-glow">
               <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-              <span className="text-sm text-accent font-medium">Listening for habit...</span>
+              <span className="text-sm text-accent font-medium">Listening… tap mic to stop</span>
             </div>
           )}
         </Card>

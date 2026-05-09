@@ -8,7 +8,7 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
+    --background: 0 0% 0%;
     --foreground: 210 100% 95%;
 
     --card: 240 8% 8%;
@@ -68,7 +68,9 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: radial-gradient(ellipse at top, hsl(240 8% 10%), hsl(240 10% 3.9%));
+    /* Plain deep black — no patterns or gradients */
+    background-color: hsl(0 0% 0%);
+    background-image: none;
     min-height: 100vh;
   }
 
