@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { storage, DiaryEntry } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
@@ -642,22 +643,41 @@ Help them transform daily reflections into meaningful self-understanding, emotio
 
             {aiOpen && (
               <>
-                <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
-                  <Button size="sm" variant="outline" onClick={startNewAiChat} className="shrink-0">
-                    <PlusCircle className="w-4 h-4" /> New chat
+                <div className="flex gap-2 mt-4">
+                  <Button size="sm" variant="outline" onClick={startNewAiChat} className="flex-1">
+                    <PlusCircle className="w-4 h-4 mr-1" /> New chat
                   </Button>
-                  {aiSessions.map((session) => (
-                    <Button
-                      key={session.id}
-                      size="sm"
-                      variant={session.id === activeAiSessionId ? "secondary" : "ghost"}
-                      onClick={() => openAiChatSession(session)}
-                      className="shrink-0 max-w-[160px] justify-start truncate"
-                    >
-                      <History className="w-4 h-4" />
-                      <span className="truncate">{session.title}</span>
-                    </Button>
-                  ))}
+                  <Sheet>
+                    <SheetTrigger asChild>
+                      <Button size="sm" variant="ghost" className="flex-1">
+                        <History className="w-4 h-4 mr-1" /> Past chats
+                        {aiSessions.length > 0 && <span className="ml-1 text-[10px] opacity-70">({aiSessions.length})</span>}
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-[85vw] sm:w-[400px] overflow-y-auto">
+                      <SheetHeader>
+                        <SheetTitle>Past Chats</SheetTitle>
+                      </SheetHeader>
+                      <div className="mt-4 space-y-2">
+                        {aiSessions.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-8">No past chats yet.</p>
+                        ) : aiSessions.map((session) => (
+                          <button
+                            key={session.id}
+                            onClick={() => openAiChatSession(session)}
+                            className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                              session.id === activeAiSessionId
+                                ? "border-success/50 bg-success/10"
+                                : "border-border/30 hover:bg-muted/50"
+                            }`}
+                          >
+                            <p className="text-sm font-medium truncate">{session.title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{session.messages.length} messages</p>
+                          </button>
+                        ))}
+                      </div>
+                    </SheetContent>
+                  </Sheet>
                 </div>
                 <div ref={chatScrollRef} onScroll={handleChatScroll} className="flex-1 space-y-3 mt-4 mb-4 overflow-y-auto max-h-[400px]">
                   {aiMessages.length === 0 ? (
