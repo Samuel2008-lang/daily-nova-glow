@@ -1,9 +1,17 @@
-import { useState } from "react";
-import { Home, FileText, CheckSquare, Target, Clock, MoreHorizontal, BookOpen, BookMarked, Sparkles, Settings, MessageSquare, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Home, FileText, CheckSquare, Target, Clock, MoreHorizontal, BookOpen, BookMarked, Sparkles, Settings, X } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import { NavLink } from "./NavLink";
 
 const Navigation = () => {
   const [moreOpen, setMoreOpen] = useState(false);
+  const location = useLocation();
+
+  // Always close the More overlay when the route changes — covers tapping any
+  // primary nav item, the QuickCapture, or anywhere outside that triggers nav.
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [location.pathname]);
 
   // Consolidated 4-item nav for thumb-reachability.
   // Notes & Habits live as interactive cards on the Dashboard.
@@ -36,6 +44,7 @@ const Navigation = () => {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  onClick={() => setMoreOpen(false)}
                   className="flex flex-col md:flex-row items-center gap-0.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg transition-all duration-300 text-muted-foreground hover:text-primary flex-shrink-0"
                   activeClassName="text-primary glow"
                 >
@@ -63,7 +72,7 @@ const Navigation = () => {
         <>
           <div className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm" onClick={() => setMoreOpen(false)} />
           <div className="fixed bottom-16 md:top-16 md:bottom-auto left-0 right-0 z-50 flex justify-center px-4 animate-fade-in">
-            <div className="glass border border-border/50 rounded-2xl p-3 w-full max-w-sm grid grid-cols-4 gap-2 max-h-[80vh] overflow-y-auto"
+            <div className="glass border border-border/50 rounded-2xl p-3 w-full max-w-sm grid grid-cols-3 gap-2 max-h-[80vh] overflow-y-auto"
               style={{ boxShadow: "0 0 30px hsl(var(--primary) / 0.1)" }}
             >
               {moreItems.map((item) => {
@@ -81,16 +90,6 @@ const Navigation = () => {
                   </NavLink>
                 );
               })}
-              {/* Feedback in More — dedicated page (not Settings) */}
-              <NavLink
-                to="/feedback"
-                className="flex flex-col items-center gap-1 py-3 px-1 rounded-xl transition-all duration-200 text-muted-foreground hover:text-primary hover:bg-muted/50"
-                activeClassName="text-primary bg-muted/50"
-                onClick={() => setMoreOpen(false)}
-              >
-                <MessageSquare className="w-5 h-5" />
-                <span className="text-[11px] font-medium">Feedback</span>
-              </NavLink>
             </div>
           </div>
         </>
