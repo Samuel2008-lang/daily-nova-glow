@@ -44,7 +44,8 @@ const LockScreen = ({ onUnlock, pinKey = "dailynova_app_pin", title = "Enter PIN
     if (newPin.length === 4) {
       if (newPin === savedPin) {
         haptics.success();
-        onUnlock();
+        // Let the 4th dot render & paint before unlocking, so the user sees it fill
+        setTimeout(() => onUnlock(), 180);
       } else {
         haptics.error();
         setError(true);
