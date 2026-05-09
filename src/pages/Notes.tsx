@@ -26,7 +26,7 @@ const Notes = () => {
   const [emptyDatePromptOpen, setEmptyDatePromptOpen] = useState(false);
   const { toast } = useToast();
 
-  const { isListening, isSupported, startListening } = useSpeechRecognition({
+  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (transcript) => {
       setNoteContent((prev) => (prev ? prev + " " + transcript : transcript));
     },
@@ -277,8 +277,7 @@ const Notes = () => {
             <Button
               size="icon"
               variant="ghost"
-              onClick={() => startListening(true, "note")}
-              disabled={isListening}
+              onClick={() => (isListening ? stopListening() : startListening(true, "note"))}
               className={isListening ? "animate-pulse-glow text-primary" : "text-muted-foreground hover:text-primary"}
               aria-label="Voice input"
             >

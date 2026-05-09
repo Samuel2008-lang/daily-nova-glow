@@ -154,13 +154,11 @@ const Journal = () => {
     });
   };
 
-  const handleVoiceClick = async () => {
-    if (isListening && recognitionInstance) {
-      stopListening(recognitionInstance);
-      setRecognitionInstance(null);
+  const handleVoiceClick = () => {
+    if (isListening) {
+      stopListening();
     } else {
-      const instance = await startListening(true, "journal");
-      setRecognitionInstance(instance);
+      startListening(true, "journal");
     }
   };
 
@@ -677,13 +675,11 @@ Help them use journaling as a tool for profound self-discovery, creative express
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={async () => {
-                          if (isAiListening && aiRecognitionInstance) {
-                            stopAiListening(aiRecognitionInstance);
-                            setAiRecognitionInstance(null);
+                        onClick={() => {
+                          if (isAiListening) {
+                            stopAiListening();
                           } else {
-                            const inst = await startAiListening(true, "journal-chat");
-                            setAiRecognitionInstance(inst);
+                            startAiListening(true, "journal-chat");
                           }
                         }}
                         className={`absolute bottom-2 right-2 h-7 w-7 ${isAiListening ? "text-secondary animate-pulse" : "text-muted-foreground hover:text-secondary"}`}

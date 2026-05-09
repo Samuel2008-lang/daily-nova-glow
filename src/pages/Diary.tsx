@@ -174,13 +174,11 @@ const Diary = () => {
     setCurrentDate(new Date());
   };
 
-  const handleVoiceClick = async () => {
-    if (isListening && recognitionInstance) {
-      stopListening(recognitionInstance);
-      setRecognitionInstance(null);
+  const handleVoiceClick = () => {
+    if (isListening) {
+      stopListening();
     } else {
-      const instance = await startListening(true, "diary");
-      setRecognitionInstance(instance);
+      startListening(true, "diary");
     }
   };
 
@@ -706,13 +704,11 @@ Help them transform daily reflections into meaningful self-understanding, emotio
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={async () => {
-                          if (isAiListening && aiRecognitionInstance) {
-                            stopAiListening(aiRecognitionInstance);
-                            setAiRecognitionInstance(null);
+                        onClick={() => {
+                          if (isAiListening) {
+                            stopAiListening();
                           } else {
-                            const inst = await startAiListening(true, "diary-chat");
-                            setAiRecognitionInstance(inst);
+                            startAiListening(true, "diary-chat");
                           }
                         }}
                         className={`absolute bottom-2 right-2 h-7 w-7 ${isAiListening ? "text-success animate-pulse" : "text-muted-foreground hover:text-success"}`}
