@@ -114,9 +114,8 @@ export const useQuoteShareImage = () => {
           directory: Directory.Cache,
           path: "quote.png",
         });
+        // Share image only — no text caption (the quote is already in the image)
         await Share.share({
-          title: "Quote of the Day — DailyNova",
-          text: `"${text}" — ${author}`,
           url: uriResult.uri,
           dialogTitle: "Share Quote",
         });
@@ -126,7 +125,6 @@ export const useQuoteShareImage = () => {
         try {
           await Share.share({
             title: "Quote of the Day — DailyNova",
-            text: `"${text}" — ${author}\n\nShared from DailyNova`,
             dialogTitle: "Share Quote",
           });
           return;
@@ -149,10 +147,7 @@ export const useQuoteShareImage = () => {
 
     try {
       if (navigator.share) {
-        await navigator.share({
-          title: "Quote of the Day — DailyNova",
-          text: `"${text}" — ${author}\n\nShared from DailyNova`,
-        });
+        await navigator.share({ title: "Quote of the Day — DailyNova" });
         return;
       }
     } catch (err) {

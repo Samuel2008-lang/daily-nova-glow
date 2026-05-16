@@ -225,7 +225,7 @@ const Quotes = () => {
       if (allQuotes.length >= SESSION_CAP) {
         toast({ title: "Daily limit reached", description: `Come back tomorrow for fresh quotes.` });
       } else {
-        toast({ title: "Watch an ad to unlock 2 more quotes", description: `You have ${allQuotes.length}/${SESSION_CAP} today.` });
+        toast({ title: "Watch an ad to unlock more quotes", description: `You have ${allQuotes.length}/${SESSION_CAP} today.` });
       }
     } else {
       setCurrentIndex(nextIdx);
@@ -309,12 +309,24 @@ const Quotes = () => {
           )}
         </div>
 
-        <div className="flex justify-center mt-4">
-          <RewardedAdButton
-            onReward={handleBonusQuoteReward}
-            label={allQuotes.length >= SESSION_CAP ? `Daily limit reached (${SESSION_CAP}/${SESSION_CAP})` : `Watch Ad for 2 Quotes (${allQuotes.length}/${SESSION_CAP})`}
-          />
-        </div>
+        {isOnline ? (
+          <div className="flex justify-center mt-4">
+            <RewardedAdButton
+              onReward={handleBonusQuoteReward}
+              label={
+                allQuotes.length >= SESSION_CAP
+                  ? `Daily limit reached (${SESSION_CAP}/${SESSION_CAP})`
+                  : `Watch Ad for More Quotes (${allQuotes.length}/${SESSION_CAP})`
+              }
+            />
+          </div>
+        ) : (
+          <div className="flex justify-center mt-4">
+            <p className="text-xs text-muted-foreground italic">
+              You're offline — ads paused. Browsing cached quotes.
+            </p>
+          </div>
+        )}
 
         {showNavigation && (
           <div className="text-center mt-8">

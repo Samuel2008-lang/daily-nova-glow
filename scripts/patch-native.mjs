@@ -28,6 +28,7 @@ const ANDROID_PERMISSIONS = [
   'android.permission.RECEIVE_BOOT_COMPLETED',
   'android.permission.SCHEDULE_EXACT_ALARM',
   'android.permission.USE_EXACT_ALARM',
+  'android.permission.USE_FULL_SCREEN_INTENT',
   'android.permission.USE_BIOMETRIC',
   'android.permission.USE_FINGERPRINT',
   'com.google.android.gms.permission.AD_ID',

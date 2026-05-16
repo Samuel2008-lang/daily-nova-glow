@@ -625,129 +625,28 @@ Help them transform daily reflections into meaningful self-understanding, emotio
           </Card>
           </div>
 
-          {/* AI Chat Assistant — Collapsible */}
-          <Card className="glass glow p-4 flex flex-col">
-            <button
-              onClick={() => setAiOpen(!aiOpen)}
-              className="flex items-center justify-between w-full"
-            >
-              <h2 className="text-lg font-semibold text-success flex items-center gap-2">
+          {/* AI Assistant — opens dedicated page */}
+          <Card className="glass glow p-6 flex flex-col justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-success flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5" />
                 AI Assistant
-                {aiMessages.length > 0 && (
-                  <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">{aiMessages.length}</span>
+                {aiSessions.length > 0 && (
+                  <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">
+                    {aiSessions.length} chat{aiSessions.length === 1 ? "" : "s"}
+                  </span>
                 )}
               </h2>
-              {aiOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
-            </button>
-
-            {aiOpen && (
-              <>
-                <div className="flex gap-2 mt-4">
-                  <Button size="sm" variant="outline" onClick={startNewAiChat} className="flex-1">
-                    <PlusCircle className="w-4 h-4 mr-1" /> New chat
-                  </Button>
-                  <Sheet>
-                    <SheetTrigger asChild>
-                      <Button size="sm" variant="ghost" className="flex-1">
-                        <History className="w-4 h-4 mr-1" /> Past chats
-                        {aiSessions.length > 0 && <span className="ml-1 text-[10px] opacity-70">({aiSessions.length})</span>}
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent side="right" className="w-[85vw] sm:w-[400px] overflow-y-auto">
-                      <SheetHeader>
-                        <SheetTitle>Past Chats</SheetTitle>
-                      </SheetHeader>
-                      <div className="mt-4 space-y-2">
-                        {aiSessions.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-8">No past chats yet.</p>
-                        ) : aiSessions.map((session) => (
-                          <button
-                            key={session.id}
-                            onClick={() => openAiChatSession(session)}
-                            className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                              session.id === activeAiSessionId
-                                ? "border-success/50 bg-success/10"
-                                : "border-border/30 hover:bg-muted/50"
-                            }`}
-                          >
-                            <p className="text-sm font-medium truncate">{session.title}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{session.messages.length} messages</p>
-                          </button>
-                        ))}
-                      </div>
-                    </SheetContent>
-                  </Sheet>
-                </div>
-                <div ref={chatScrollRef} onScroll={handleChatScroll} className="flex-1 space-y-3 mt-4 mb-4 overflow-y-auto max-h-[400px]">
-                  {aiMessages.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      Ask me for prompts, reflections, or advice. 🔒 Your private credentials, passwords, and sensitive info should never be shared here.
-                    </p>
-                  ) : (
-                    <>
-                      {aiMessages.map((msg, idx) => (
-                        <AiMessageBubble
-                          key={idx}
-                          content={msg.content}
-                          role={msg.role}
-                          accentColor="success"
-                        />
-                      ))}
-                      {streamingContent && (
-                        <AiMessageBubble
-                          content={streamingContent}
-                          role="assistant"
-                          isStreaming
-                          accentColor="success"
-                        />
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <Textarea
-                      placeholder="Ask for diary prompts or advice..."
-                      value={aiInput}
-                      onChange={(e) => setAiInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          sendAiMessage();
-                        }
-                      }}
-                      className="min-h-[60px] bg-background/50 pr-10"
-                    />
-                    {isSupported && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          if (isAiListening) {
-                            stopAiListening();
-                          } else {
-                            startAiListening(true, "diary-chat");
-                          }
-                        }}
-                        className={`absolute bottom-2 right-2 h-7 w-7 ${isAiListening ? "text-success animate-pulse" : "text-muted-foreground hover:text-success"}`}
-                      >
-                        <Mic className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                  <Button
-                    onClick={sendAiMessage}
-                    disabled={!aiInput.trim() || isAiLoading}
-                    size="icon"
-                    className="shrink-0 glow"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              </>
-            )}
+              <p className="text-sm text-muted-foreground mb-4">
+                Get diary prompts, reflections, and gentle guidance. New chat + past chats available inside.
+              </p>
+            </div>
+            <Button
+              className="w-full glow"
+              onClick={() => { haptics.light(); window.location.href = "/diary/ai"; }}
+            >
+              Open AI Assistant
+            </Button>
           </Card>
         </div>
       </div>
