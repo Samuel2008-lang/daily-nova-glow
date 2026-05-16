@@ -39,9 +39,9 @@ const Tasks = () => {
   const [reminderAfter, setReminderAfter] = useState<number | undefined>();
   const { toast } = useToast();
 
-  const { isListening, isSupported, startListening } = useSpeechRecognition({
+  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (transcript) => {
-      setNewTask(transcript);
+      setNewTask((prev) => (prev ? prev + " " + transcript : transcript));
     },
   });
 
@@ -175,11 +175,11 @@ const Tasks = () => {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={() => startListening(true, "task")}
-                  disabled={isListening}
+                  onClick={() => (isListening ? stopListening() : startListening(true, "task"))}
                   className={`absolute top-1/2 -translate-y-1/2 right-1 ${
                     isListening ? "animate-pulse-glow text-secondary" : "text-muted-foreground hover:text-secondary"
                   }`}
+                  aria-label={isListening ? "Stop listening" : "Start voice input"}
                 >
                   <Mic className="w-4 h-4" />
                 </Button>
