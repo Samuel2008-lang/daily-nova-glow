@@ -56,11 +56,40 @@ export const notificationService = {
             title: config.title,
             body: config.body,
             schedule: { at: config.at, allowWhileIdle: true },
+            // Samsung/Android: route through high-importance "alarms" channel
+            // so the OS can present it as a full-screen heads-up alarm with sound + vibration.
+            channelId: "alarms",
+            sound: undefined,
+            smallIcon: "ic_stat_icon_config_sample",
+            iconColor: "#ff69b4",
+            // @ts-ignore — supported by @capacitor/local-notifications native layer
+            extra: { fullScreen: true, ongoing: false, importance: 5 },
           },
         ],
       });
     } catch (err) {
       console.error("Failed to schedule task alarm:", err);
+    }
+  },
+
+  /** Create the high-importance alarms channel (call once on app startup). */
+  async ensureAlarmsChannel() {
+    if (!isNative) return;
+    try {
+      // @ts-ignore — createChannel is available on @capacitor/local-notifications
+      await LocalNotifications.createChannel?.({
+        id: "alarms",
+        name: "Reminders & Alarms",
+        description: "Task reminders, habit alarms, and timely notifications",
+        importance: 5, // IMPORTANCE_HIGH — heads-up + sound
+        visibility: 1,
+        sound: undefined,
+        vibration: true,
+        lights: true,
+        lightColor: "#ff69b4",
+      });
+    } catch (err) {
+      console.error("Failed to create alarms channel:", err);
     }
   },
 
@@ -186,6 +215,7 @@ export const notificationService = {
 
   async setupDailyReminders() {
     if (!isNative) return;
+    await this.ensureAlarmsChannel();
     await this.setupDiaryReminder();
     await this.setupJournalReminder();
 
