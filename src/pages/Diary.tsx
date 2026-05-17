@@ -21,6 +21,7 @@ const DIARY_AI_ACTIVE_KEY = "dailynova_diary_active_ai_chat";
 const DIARY_AI_LEGACY_KEY = "dailynova_diary_ai_chat";
 
 const Diary = () => {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentEntry, setCurrentEntry] = useState("");
@@ -644,7 +645,7 @@ Help them transform daily reflections into meaningful self-understanding, emotio
             </div>
             <Button
               className="w-full glow"
-              onClick={() => { haptics.light(); window.location.href = "/diary/ai"; }}
+              onClick={() => { haptics.light(); navigate("/diary/ai"); }}
             >
               Open AI Assistant
             </Button>
