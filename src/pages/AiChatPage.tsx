@@ -432,6 +432,22 @@ Be inspiring and thought-provoking. Use clean formatting. Never use raw asterisk
           <Send className="w-4 h-4" />
         </Button>
       </div>
+
+      {callOpen && (
+        <AiCallMode
+          initialMessages={messages}
+          accentColor={cfg.accent}
+          systemPrompt={
+            mode === "diary"
+              ? "You are a warm, empathetic diary companion in a hands-free VOICE call. Keep replies SHORT (1-3 sentences), conversational, and natural — no markdown, no lists, no asterisks. Speak like a caring friend."
+              : "You are an inspiring journaling coach in a hands-free VOICE call. Keep replies SHORT (1-3 sentences), thoughtful and natural — no markdown, no lists, no asterisks."
+          }
+          onClose={(finalMsgs) => {
+            setMessages(finalMsgs);
+            setCallOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };
