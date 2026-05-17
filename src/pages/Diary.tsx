@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Mic, Send, Sparkles, ChevronDown, ChevronUp, PlusCircle, History } from "lucide-react";
 import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
