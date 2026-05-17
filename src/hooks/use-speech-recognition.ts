@@ -55,16 +55,33 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
   const { toast } = useToast();
   const accumulatedRef = useRef<string>("");
   const stoppedRef = useRef(false);
+  const autoEnhanceRef = useRef(false);
+  const contextRef = useRef<string>("note");
 
-  const finalize = useCallback(() => {
+  const finalize = useCallback(async () => {
     const raw = accumulatedRef.current.trim();
     accumulatedRef.current = "";
-    if (raw) onResult(formatVoiceText(raw));
+    if (raw) {
+      const formatted = formatVoiceText(raw);
+      if (autoEnhanceRef.current) {
+        setIsProcessing(true);
+        try {
+          const enhanced = await enhanceTranscript(formatted, contextRef.current);
+          onResult(enhanced);
+        } catch {
+          onResult(formatted);
+        }
+      } else {
+        onResult(formatted);
+      }
+    }
     setIsListening(false);
     setIsProcessing(false);
   }, [onResult]);
 
-  const startListening = useCallback(async (_autoEnhance: boolean = false, _context?: string) => {
+  const startListening = useCallback(async (autoEnhance: boolean = false, context?: string) => {
+    autoEnhanceRef.current = autoEnhance;
+    contextRef.current = context || "note";
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
 
