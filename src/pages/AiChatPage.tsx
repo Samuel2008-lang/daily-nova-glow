@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Mic, Send, PlusCircle, History, Sparkles } from "lucide-react";
+import { ArrowLeft, Mic, Send, PlusCircle, History, Sparkles, Phone } from "lucide-react";
+import AiCallMode from "@/components/AiCallMode";
 import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,6 +68,7 @@ const AiChatPage = ({ mode }: AiChatPageProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [streaming, setStreaming] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
 
@@ -324,6 +326,15 @@ Be inspiring and thought-provoking. Use clean formatting. Never use raw asterisk
           <h1 className={`text-base font-semibold text-${cfg.accent} truncate`}>{cfg.title}</h1>
         </div>
         <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { haptics.light(); setCallOpen(true); }}
+            className={`text-${cfg.accent} border-${cfg.accent}/50`}
+            aria-label="Start voice call"
+          >
+            <Phone className="w-4 h-4 mr-1" /> Call
+          </Button>
           <Button size="sm" variant="outline" onClick={startNew}>
             <PlusCircle className="w-4 h-4 mr-1" /> New
           </Button>
@@ -421,6 +432,22 @@ Be inspiring and thought-provoking. Use clean formatting. Never use raw asterisk
           <Send className="w-4 h-4" />
         </Button>
       </div>
+
+      {callOpen && (
+        <AiCallMode
+          initialMessages={messages}
+          accentColor={cfg.accent}
+          systemPrompt={
+            mode === "diary"
+              ? "You are a warm, empathetic diary companion in a hands-free VOICE call. Keep replies SHORT (1-3 sentences), conversational, and natural — no markdown, no lists, no asterisks. Speak like a caring friend."
+              : "You are an inspiring journaling coach in a hands-free VOICE call. Keep replies SHORT (1-3 sentences), thoughtful and natural — no markdown, no lists, no asterisks."
+          }
+          onClose={(finalMsgs) => {
+            setMessages(finalMsgs);
+            setCallOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };

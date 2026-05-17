@@ -1,60 +1,58 @@
-# Plan — Fix bugs + UX upgrades
 
-I'll tackle this in priority order. The app-restart bug is the most disruptive, so that goes first.
+# Plan — 3 upgrades
 
-## 1. App keeps restarting on navigation (CRITICAL)
-Every page change re-shows the splash screen and "restarts" the app. Most likely cause: the splash logic in `App.tsx` or `Index.tsx` re-mounts on route change, OR the interstitial ad manager is forcing reloads. I'll:
-- Audit `App.tsx`, `SplashScreen.tsx`, `InterstitialAdManager.tsx`, and the routing setup
-- Ensure splash only runs once per cold start (guard with a session flag)
-- Make sure interstitials don't unmount the app shell
+## 1. App icon too small (full-bleed fix)
 
-## 2. Tasks page microphone not transcribing
-Mic stays "Listening" forever on Tasks. I'll wire the same toggle/stop pattern already used on Diary/Journal/Notes/Habits into `Tasks.tsx`.
+**Cause:** Your `public/app-icon.png` has transparent padding around the gradient square. Android One UI then shrinks it inside its adaptive-icon safe zone, so it looks tiny next to MTN/PowerPoint icons that fill their tile edge-to-edge.
 
-## 3. Quotes page fixes
-- Change "Watch Ad for 2 Quotes" → match actual reward (1 quote). I'll check `use-admob` / `Quotes.tsx` for the real reward count first.
-- Fix counter lag: re-read from storage on focus + after reward.
-- Offline: detect `navigator.onLine`; when offline, hide/disable the Watch Ad button (or label it "Offline — using cached quotes").
+**Fix:**
+- Regenerate `public/app-icon.png` as a **1024×1024 full-bleed** image — the purple/blue gradient must touch all four edges (no transparent margin).
+- Update `scripts/patch-native.mjs` to also generate `assets/icon-foreground.png` (the same icon scaled to ~75% with transparent margin for adaptive foreground) so Android uses our gradient as the **background** layer — meaning the tile is filled edge-to-edge.
+- Pass `--iconBackgroundColor` matching the gradient's dominant color (`#7c3aed`) so the legacy/round icon still looks correct.
+- After `npx cap sync android` + uninstall/reinstall, the icon will match the size of MTN, PowerPoint, etc.
 
-## 4. Share quote
-- Remove the quote text from the share `text` field (image only — no redundant caption).
-- Background customization: **I need you to upload the 3 background images first**, then I'll add a picker in the share flow. I'll skip this step for now and pick it up once you send them.
+I'll generate the new full-bleed icon with imagegen (premium quality, no transparent background) and overwrite `public/app-icon.png`.
 
-## 5. Diary & Journal AI → dedicated page
-Replace the inline AI assistant card with a button that navigates to a new full page:
-- New routes: `/diary/ai` and `/journal/ai`
-- The page has: "New chat" button, list of past chats, and the chat surface
-- Tapping a past chat opens that conversation directly in the chat surface (no extra screen)
-- Existing chat session storage (`ai-chat-sessions.ts`) is reused
+## 2. Samsung-style reminder editor (full feature parity)
 
-## 6. Samsung-style reminders
-You sent the alarm-screen screenshot + screen recordings. From what I can see, you want:
-- Full-screen alarm-style activity when the reminder fires (large title, time, Snooze/Dismiss/Complete buttons), instead of a small banner
-- Repeating reminder until dismissed
+From your screenshots + recordings, the Samsung Reminder screen has:
+- **Memo field** (multi-line, optional)
+- **Add time** → opens inline time picker with quick presets ("1 hour from now", "Today 07:00", "Today 15:00", "Today 22:00")
+- **Repeat** sub-screen: Don't repeat / Every minute / Every hour / Everyday / Every week / Every month / Every year — with **number input** (Every `N` minutes)
+- **Duration**: Forever / Specific number of times / Until `<date>` (with calendar picker)
+- **Alert level**: Light (notification + short sound) / Medium (full-screen alert + short sound) / Strong (full-screen alert + long sound)
+- **My reminders** colored category dot
+- Bottom **Cancel / Save** bar
 
-On Android this needs the **full-screen intent** flag + a high-importance notification channel. I'll update `notifications.ts` and add the required permission (`USE_FULL_SCREEN_INTENT`) to the Capacitor config / android manifest patch script. **Note:** because we use `@capacitor/local-notifications`, true full-screen takeover only works after a native rebuild (`npx cap sync` + reinstall APK). I'll set everything up so it works on the next native build.
+I'll build this as a new component `ReminderEditor.tsx` and wire it into Tasks (and a new "Reminders" entry point on Dashboard). Storage: extend the existing `Task` type with `repeat: { unit, every }`, `duration: { type, count?, until? }`, `alertLevel: 'light'|'medium'|'strong'`. Notification scheduler uses these to schedule the right cadence and channel importance (Light = default, Medium/Strong = alarms channel with `fullScreen: true`, Strong = looping long-sound).
 
-## 7. App icon not updating on device
-The icon is bundled into the native Android project (`android/app/src/main/res/mipmap-*`). The web project can't change it directly — you must:
-1. Run `npx cap sync android` after icon files are placed
-2. Uninstall the old APK from the device (Android caches icons aggressively)
-3. Reinstall
+The repeat sub-screen and date picker will be inline panels (no separate routes), mirroring Samsung's look on a black background with rounded cards — fits your neon/cyberpunk theme.
 
-I'll add a note in the patch script to log a reminder, but the actual icon swap has to happen in your local native folder. **Tell me where the new icon PNG lives in the repo** and I'll wire the script to copy it to all `mipmap-*` densities on `cap sync`.
+## 3. Voice AI chat — mic-to-text + Call mode
 
-## 8. Reduce ad frequency
-Current: interstitial every 3 page changes. I'll bump to every 8 page changes and add a 2-minute minimum gap between interstitials.
+**Free, no paid backend.** Uses Web Speech API (STT) + speechSynthesis (TTS) — both built into Chrome/Android WebView. AI replies still go through the existing Lovable AI edge function you already have.
+
+**Two modes added to `AiChatPage.tsx`:**
+
+**a) Voice note → transcribed message (like ChatGPT mic)**
+- Mic button next to the chat textarea.
+- Tap → starts listening (existing `useSpeechRecognition` hook, with `autoEnhance`).
+- Tap again or 1.4s silence → stops, fills the textarea, user can edit then send.
+
+**b) Call mode (phone-call-style live conversation)**
+- "Phone" icon next to mic → opens full-screen Call overlay.
+- Animated orb that pulses when listening / glows when AI is speaking.
+- Loop: listen → transcribe → send to AI → speak reply via `speechSynthesis` → listen again. Hands-free.
+- "End call" button stops everything; transcript is saved to the current chat session so the user can read it later.
+- Works fully offline-friendly for STT/TTS (uses device voices). Only the AI reply itself needs network (existing chat-stream function).
+
+No new backend, no new paid services.
 
 ---
 
-## Order of execution
-1. App restart bug (blocks everything else)
-2. Tasks mic
-3. Quote button text + counter + offline
-4. Ad frequency
-5. Diary/Journal AI dedicated page
-6. Samsung full-screen reminders (config + code; needs native rebuild to fully take effect)
-7. Share caption removal
-8. *Wait for you:* 3 share-background images + new app icon location
+## Order
+1. Full-bleed app icon (quick)
+2. Voice mic + Call mode in AI chat
+3. Samsung-style reminder editor (biggest piece)
 
-Sound good? Reply "go" and I'll start with #1, or tell me to reorder/skip anything.
+Reply **"go"** and I'll start, or tell me to reorder/skip.

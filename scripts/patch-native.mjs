@@ -99,19 +99,32 @@ function patchIosInfoPlist() {
 
 function generateAppAssets() {
   const sourceIcon = join(ROOT, 'public', 'app-icon.png');
+  const sourceForeground = join(ROOT, 'public', 'app-icon-foreground.png');
   if (!existsSync(sourceIcon)) return false;
   if (!existsSync(join(ROOT, 'android')) && !existsSync(join(ROOT, 'ios'))) return false;
   try {
-    // @capacitor/assets reads from ./assets/icon.png (or icon-only.png) by default
     const assetsDir = join(ROOT, 'assets');
     if (!existsSync(assetsDir)) mkdirSync(assetsDir, { recursive: true });
-    const target = join(assetsDir, 'icon.png');
-    copyFileSync(sourceIcon, target);
-    execSync('npx @capacitor/assets generate --iconBackgroundColor "#0a0a0f" --iconBackgroundColorDark "#0a0a0f" --splashBackgroundColor "#0a0a0f" --splashBackgroundColorDark "#0a0a0f"', {
+
+    // Standard / legacy icon = full-bleed gradient (fills tile edge-to-edge on iOS + legacy Android)
+    copyFileSync(sourceIcon, join(assetsDir, 'icon.png'));
+
+    // Adaptive icon for modern Android (One UI / Samsung): use full gradient as the BACKGROUND
+    // and the sparkle as the FOREGROUND. This makes the tile fill edge-to-edge instead of
+    // being shrunk inside the OS safe-zone (the previous "tiny icon" bug).
+    copyFileSync(sourceIcon, join(assetsDir, 'icon-background.png'));
+    if (existsSync(sourceForeground)) {
+      copyFileSync(sourceForeground, join(assetsDir, 'icon-foreground.png'));
+    } else {
+      // Fallback: reuse full icon as foreground
+      copyFileSync(sourceIcon, join(assetsDir, 'icon-foreground.png'));
+    }
+
+    execSync('npx @capacitor/assets generate --iconBackgroundColor "#7c3aed" --iconBackgroundColorDark "#7c3aed" --splashBackgroundColor "#0a0a0f" --splashBackgroundColorDark "#0a0a0f"', {
       cwd: ROOT,
       stdio: 'inherit',
     });
-    console.log('✓ Generated launcher icons + splash from public/app-icon.png');
+    console.log('✓ Generated full-bleed launcher icons + splash (adaptive bg=gradient, fg=sparkle)');
     return true;
   } catch (err) {
     console.warn('⚠ Icon generation skipped:', err.message);
