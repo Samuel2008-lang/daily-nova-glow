@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
+import { enhanceTranscript } from "@/lib/transcript-ai";
 
 interface UseSpeechRecognitionProps {
   onResult: (transcript: string) => void;
@@ -54,16 +55,33 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
   const { toast } = useToast();
   const accumulatedRef = useRef<string>("");
   const stoppedRef = useRef(false);
+  const autoEnhanceRef = useRef(false);
+  const contextRef = useRef<string>("note");
 
-  const finalize = useCallback(() => {
+  const finalize = useCallback(async () => {
     const raw = accumulatedRef.current.trim();
     accumulatedRef.current = "";
-    if (raw) onResult(formatVoiceText(raw));
+    if (raw) {
+      const formatted = formatVoiceText(raw);
+      if (autoEnhanceRef.current) {
+        setIsProcessing(true);
+        try {
+          const enhanced = await enhanceTranscript(formatted, contextRef.current);
+          onResult(enhanced);
+        } catch {
+          onResult(formatted);
+        }
+      } else {
+        onResult(formatted);
+      }
+    }
     setIsListening(false);
     setIsProcessing(false);
   }, [onResult]);
 
-  const startListening = useCallback(async (_autoEnhance: boolean = false, _context?: string) => {
+  const startListening = useCallback(async (autoEnhance: boolean = false, context?: string) => {
+    autoEnhanceRef.current = autoEnhance;
+    contextRef.current = context || "note";
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
 
@@ -157,24 +175,45 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   const processedRef = useRef(false);
   const fullTranscriptRef = useRef<string>("");
   const capturedIndicesRef = useRef<Set<number>>(new Set());
+  const autoEnhanceRef = useRef(false);
+  const contextRef = useRef<string>("note");
 
-  const emitAndReset = useCallback(() => {
+  const emitAndReset = useCallback(async () => {
     if (processedRef.current) return;
     processedRef.current = true;
     const text = fullTranscriptRef.current.trim();
     fullTranscriptRef.current = "";
     capturedIndicesRef.current.clear();
     setIsListening(false);
-    setIsProcessing(false);
-    if (text) onResult(formatVoiceText(text));
+    if (!text) {
+      setIsProcessing(false);
+      return;
+    }
+    const formatted = formatVoiceText(text);
+    if (autoEnhanceRef.current) {
+      setIsProcessing(true);
+      try {
+        const enhanced = await enhanceTranscript(formatted, contextRef.current);
+        onResult(enhanced);
+      } catch {
+        onResult(formatted);
+      } finally {
+        setIsProcessing(false);
+      }
+    } else {
+      setIsProcessing(false);
+      onResult(formatted);
+    }
   }, [onResult]);
 
-  const startListening = useCallback(async (_autoEnhance: boolean = false, _context?: string) => {
+  const startListening = useCallback(async (autoEnhance: boolean = false, context?: string) => {
     if (!isSupported) {
       toast({ title: "Not supported", description: "Speech recognition is not supported in your browser.", variant: "destructive" });
       return;
     }
 
+    autoEnhanceRef.current = autoEnhance;
+    contextRef.current = context || "note";
     fullTranscriptRef.current = "";
     capturedIndicesRef.current.clear();
     processedRef.current = false;

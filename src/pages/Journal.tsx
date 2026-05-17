@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { MessageSquare, Mic, Send, Sparkles, ChevronDown, ChevronUp, PlusCircle, History } from "lucide-react";
 import AiMessageBubble from "@/components/AiMessageBubble";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ const JOURNAL_AI_ACTIVE_KEY = "dailynova_journal_active_ai_chat";
 const JOURNAL_AI_LEGACY_KEY = "dailynova_journal_ai_chat";
 
 const Journal = () => {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentEntry, setCurrentEntry] = useState("");
@@ -614,7 +616,7 @@ Help them use journaling as a tool for profound self-discovery, creative express
             </div>
             <Button
               className="w-full glow-purple"
-              onClick={() => { haptics.light(); window.location.href = "/journal/ai"; }}
+              onClick={() => { haptics.light(); navigate("/journal/ai"); }}
             >
               Open AI Assistant
             </Button>
