@@ -14,19 +14,6 @@ import ReminderEditor from "@/components/ReminderEditor";
 const sortTasksNewestFirst = (items: Task[]) =>
   [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-const REMINDER_OPTIONS = [
-  { label: "5 min before", value: 5 },
-  { label: "10 min before", value: 10 },
-  { label: "30 min before", value: 30 },
-  { label: "1 hour before", value: 60 },
-];
-
-const FOLLOWUP_OPTIONS = [
-  { label: "10 min after", value: 10 },
-  { label: "30 min after", value: 30 },
-  { label: "1 hour after", value: 60 },
-];
-
 const Tasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState("");
