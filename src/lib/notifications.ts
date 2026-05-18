@@ -46,24 +46,35 @@ export const notificationService = {
     title: string;
     body: string;
     at: Date;
+    repeat?: { unit: 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year'; every?: number; count?: number };
+    alertLevel?: 'light' | 'medium' | 'strong';
   }) {
     if (!isNative) return;
     try {
+      const channel = config.alertLevel === 'light' ? 'default' : 'alarms';
+      const schedule: any = { at: config.at, allowWhileIdle: true };
+      if (config.repeat) {
+        schedule.every = config.repeat.unit;
+        if (config.repeat.count && config.repeat.count > 0) schedule.count = config.repeat.count;
+      }
       await LocalNotifications.schedule({
         notifications: [
           {
             id: config.id,
             title: config.title,
             body: config.body,
-            schedule: { at: config.at, allowWhileIdle: true },
-            // Samsung/Android: route through high-importance "alarms" channel
-            // so the OS can present it as a full-screen heads-up alarm with sound + vibration.
-            channelId: "alarms",
+            schedule,
+            channelId: channel,
             sound: undefined,
             smallIcon: "ic_stat_icon_config_sample",
             iconColor: "#ff69b4",
-            // @ts-ignore — supported by @capacitor/local-notifications native layer
-            extra: { fullScreen: true, ongoing: false, importance: 5 },
+            // @ts-ignore — supported by native layer
+            extra: {
+              fullScreen: config.alertLevel !== 'light',
+              ongoing: false,
+              importance: config.alertLevel === 'strong' ? 5 : config.alertLevel === 'medium' ? 4 : 3,
+              longSound: config.alertLevel === 'strong',
+            },
           },
         ],
       });

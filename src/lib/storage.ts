@@ -9,15 +9,26 @@ export interface Note {
   updatedAt: string;
 }
 
+export type RepeatUnit = 'none' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
+export type AlertLevel = 'light' | 'medium' | 'strong';
+export type DurationType = 'forever' | 'count' | 'until';
+
+export interface TaskRepeat { unit: RepeatUnit; every: number }
+export interface TaskDuration { type: DurationType; count?: number; until?: string }
+
 export interface Task {
   id: string;
   title: string;
   description?: string;
+  memo?: string;
   completed: boolean;
   dueDate?: string;
   dueTime?: string;
   reminderBefore?: number;
   reminderAfter?: number;
+  repeat?: TaskRepeat;
+  duration?: TaskDuration;
+  alertLevel?: AlertLevel;
   createdAt: string;
 }
 
