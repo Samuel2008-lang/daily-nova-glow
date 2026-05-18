@@ -24,8 +24,8 @@ const QUOTES_DATE_KEY = "daily-quotes-date";
 const QUOTE_INDEX_KEY = "daily-quote-index";
 const SEEN_QUOTES_KEY = "daily-quotes-seen"; // tracks deleted quote texts to prevent re-appearance
 const DAILY_QUOTE_LIMIT = 1;
-const REWARDED_QUOTE_COUNT = 2; // ad gives 2 bonus quotes
-const SESSION_CAP = 5;          // max quotes per day (1 daily + up to 4 from ads)
+const REWARDED_QUOTE_COUNT = 1; // 1 ad = 1 quote point
+const SESSION_CAP = 5;          // max 5 quotes per day (1 daily + up to 4 from ads)
 const MAX_STORED_QUOTES = 21;
 const CLEANUP_COUNT = 9;
 const CLEANUP_INTERVAL_DAYS = 7;
