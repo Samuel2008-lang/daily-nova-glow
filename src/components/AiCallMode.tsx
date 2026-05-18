@@ -46,11 +46,16 @@ const AiCallMode = ({ initialMessages, systemPrompt, accentColor, onClose }: AiC
     return new Promise((resolve) => {
       if (!("speechSynthesis" in window)) return resolve();
       const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 1.0;
-      utter.pitch = 1.0;
+      utter.rate = 0.98;
+      utter.pitch = 1.05;
+      utter.volume = 1;
       const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find((v) => /en-(US|GB)/i.test(v.lang) && /female|samantha|google/i.test(v.name))
-        || voices.find((v) => /en/i.test(v.lang));
+      // Prefer high-quality natural voices when available (Google/Samsung/Apple neural voices)
+      const preferred =
+        voices.find((v) => /en-(US|GB)/i.test(v.lang) && /(neural|natural|wavenet|premium|enhanced|online)/i.test(v.name)) ||
+        voices.find((v) => /en-(US|GB)/i.test(v.lang) && /(google|samantha|karen|serena|aria|jenny)/i.test(v.name)) ||
+        voices.find((v) => /en-(US|GB)/i.test(v.lang)) ||
+        voices.find((v) => /^en/i.test(v.lang));
       if (preferred) utter.voice = preferred;
       utter.onend = () => resolve();
       utter.onerror = () => resolve();
