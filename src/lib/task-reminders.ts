@@ -43,11 +43,21 @@ export const scheduleTaskNotifications = async (task: Task) => {
   if (Number.isNaN(taskTime.getTime()) || taskTime <= new Date()) return;
 
   const label = taskTime.toDateString() === new Date().toDateString() ? "Today" : task.dueDate;
+  const repeat = task.repeat && task.repeat.unit !== 'none'
+    ? {
+        unit: task.repeat.unit as 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year',
+        every: task.repeat.every,
+        count: task.duration?.type === 'count' ? task.duration.count : undefined,
+      }
+    : undefined;
+
   await notificationService.scheduleTaskAlarm({
     id: getTaskNotificationId(task.id, 2000),
     title: task.title,
-    body: `${label}, ${task.dueTime}`,
+    body: task.memo || `${label}, ${task.dueTime}`,
     at: taskTime,
+    repeat,
+    alertLevel: task.alertLevel || 'light',
   });
 
   if (task.reminderBefore) {
@@ -58,6 +68,7 @@ export const scheduleTaskNotifications = async (task: Task) => {
         title: task.title,
         body: `${task.reminderBefore} minutes remaining`,
         at: beforeTime,
+        alertLevel: task.alertLevel || 'light',
       });
     }
   }
@@ -68,6 +79,7 @@ export const scheduleTaskNotifications = async (task: Task) => {
       title: task.title,
       body: "Did you complete it?",
       at: new Date(taskTime.getTime() + minutes(task.reminderAfter)),
+      alertLevel: task.alertLevel || 'light',
     });
   }
 };

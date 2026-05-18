@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, Send, ArrowLeft } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,7 +7,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { haptics } from "@/lib/haptics";
 
-const CREATOR_EMAIL = "hopeegbon28@gmail.com";
+const FEEDBACK_QUEUE_KEY = "dailynova_feedback_queue";
+
+interface FeedbackItem {
+  id: string;
+  text: string;
+  createdAt: string;
+}
 
 const Feedback = () => {
   const [feedbackText, setFeedbackText] = useState("");
@@ -16,26 +22,28 @@ const Feedback = () => {
   const navigate = useNavigate();
 
   const sendFeedback = () => {
-    if (!feedbackText.trim()) return;
+    const text = feedbackText.trim();
+    if (!text) return;
     haptics.success();
 
-    // Open the user's default mail app (Gmail, Outlook, Apple Mail, etc.)
-    const subject = encodeURIComponent("Daily Nova — App Feedback");
-    const body = encodeURIComponent(feedbackText.trim());
-    const mailto = `mailto:${CREATOR_EMAIL}?subject=${subject}&body=${body}`;
-
+    // Save to local feedback queue — fully offline, no app navigation, no mailto.
     try {
-      window.location.href = mailto;
-    } catch {
-      /* ignore */
+      const raw = localStorage.getItem(FEEDBACK_QUEUE_KEY);
+      const queue: FeedbackItem[] = raw ? JSON.parse(raw) : [];
+      queue.unshift({
+        id: Date.now().toString(),
+        text,
+        createdAt: new Date().toISOString(),
+      });
+      localStorage.setItem(FEEDBACK_QUEUE_KEY, JSON.stringify(queue.slice(0, 100)));
+    } catch (err) {
+      console.error("Failed to save feedback:", err);
     }
 
     setSent(true);
-    toast({ title: "Opening your mail app…" });
-    setTimeout(() => {
-      setSent(false);
-      setFeedbackText("");
-    }, 2500);
+    setFeedbackText("");
+    toast({ title: "Thanks for your feedback!", description: "Saved — you can review it in Settings." });
+    setTimeout(() => setSent(false), 2500);
   };
 
   return (
@@ -62,9 +70,12 @@ const Feedback = () => {
             className="min-h-[140px] bg-background/50 border-border/50 focus:border-accent"
           />
           <Button onClick={sendFeedback} disabled={!feedbackText.trim() || sent} className="w-full gap-2">
-            <Send className="w-4 h-4" />
-            {sent ? "Opening mail app…" : "Send Feedback"}
+            {sent ? <CheckCircle2 className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+            {sent ? "Saved!" : "Send Feedback"}
           </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            Your feedback is saved on-device and reviewed in Settings — no email app opens.
+          </p>
         </Card>
       </div>
     </div>
