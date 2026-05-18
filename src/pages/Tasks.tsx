@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Check, Mic, Bell, Clock, X } from "lucide-react";
+import { Plus, Trash2, Check, Mic, Bell, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { storage, Task } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-import { AmPmTimePicker } from "@/components/AmPmTimePicker";
 import { haptics } from "@/lib/haptics";
-import { cancelTaskNotifications, parseTaskReminder, scheduleTaskNotifications } from "@/lib/task-reminders";
+import { cancelTaskNotifications, scheduleTaskNotifications } from "@/lib/task-reminders";
+import ReminderEditor from "@/components/ReminderEditor";
 
 const sortTasksNewestFirst = (items: Task[]) =>
   [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -31,12 +30,7 @@ const FOLLOWUP_OPTIONS = [
 const Tasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState("");
-  const [showAlarmForm, setShowAlarmForm] = useState(false);
-  const [alarmDate, setAlarmDate] = useState("");
-  const [alarmHour, setAlarmHour] = useState("12");
-  const [alarmMinute, setAlarmMinute] = useState("0");
-  const [reminderBefore, setReminderBefore] = useState<number | undefined>();
-  const [reminderAfter, setReminderAfter] = useState<number | undefined>();
+  const [showEditor, setShowEditor] = useState(false);
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
@@ -51,70 +45,43 @@ const Tasks = () => {
     storage.saveTasks(sorted);
   }, []);
 
-  const resetTaskForm = () => {
-    setNewTask("");
-    setAlarmDate("");
-    setAlarmHour("12");
-    setAlarmMinute("0");
-    setReminderBefore(undefined);
-    setReminderAfter(undefined);
-    setShowAlarmForm(false);
-  };
-
-  const openAlarmFormForTask = () => {
+  const openEditor = () => {
     if (!newTask.trim()) return;
     haptics.light();
-    const parsed = parseTaskReminder(newTask);
-    setAlarmDate(parsed.dueDate || new Date().toISOString().slice(0, 10));
-    if (parsed.dueTime) {
-      const [h, m] = parsed.dueTime.split(":");
-      setAlarmHour(String(parseInt(h, 10)));
-      setAlarmMinute(String(parseInt(m, 10)));
-    }
-    setShowAlarmForm(true);
+    setShowEditor(true);
   };
 
-  const addTask = async () => {
-    if (!newTask.trim()) return;
-    if (!showAlarmForm) {
-      openAlarmFormForTask();
-      return;
-    }
-    haptics.success();
-
-    // Convert hour/minute to HH:MM for storage
-    const h24 = parseInt(alarmHour, 10);
-    const m = parseInt(alarmMinute, 10);
-    const timeStr = alarmDate ? `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}` : undefined;
-
+  const handleSaveReminder = async (data: {
+    title: string;
+    memo?: string;
+    dueDate: string;
+    dueTime: string;
+    repeat: { unit: any; every: number };
+    duration: { type: any; count?: number; until?: string };
+    alertLevel: any;
+  }) => {
     const task: Task = {
       id: Date.now().toString(),
-      title: newTask,
+      title: data.title,
+      memo: data.memo,
       completed: false,
-      dueDate: alarmDate || undefined,
-      dueTime: timeStr,
-      reminderBefore,
-      reminderAfter,
+      dueDate: data.dueDate,
+      dueTime: data.dueTime,
+      repeat: data.repeat,
+      duration: data.duration,
+      alertLevel: data.alertLevel,
       createdAt: new Date().toISOString(),
     };
-
     const updatedTasks = [task, ...tasks];
     setTasks(updatedTasks);
     storage.saveTasks(updatedTasks);
-    resetTaskForm();
-
-    if (task.dueDate && task.dueTime) {
-      await scheduleTaskNotifications(task);
-      toast({
-        title: "Task added with alarm",
-        description: `Reminder set for ${task.dueDate} at ${task.dueTime}.`,
-      });
-    } else {
-      toast({
-        title: "Task added",
-        description: "Your task has been created.",
-      });
-    }
+    setNewTask("");
+    setShowEditor(false);
+    await scheduleTaskNotifications(task);
+    toast({
+      title: "Reminder saved",
+      description: `${data.dueDate} at ${data.dueTime}${data.repeat.unit !== 'none' ? ' • repeats' : ''}`,
+    });
   };
 
   const toggleTask = async (id: string) => {
