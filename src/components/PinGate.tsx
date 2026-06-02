@@ -11,13 +11,17 @@ interface PinGateProps {
   children: React.ReactNode;
 }
 
+/**
+ * PinGate: gates content behind a PIN.
+ * IMPORTANT: unlocked state is persisted in sessionStorage so navigating
+ * between pages does NOT re-prompt for the PIN within the same session.
+ */
 const PinGate = ({ storageKey, pinKey, title, children }: PinGateProps) => {
-  const [unlocked, setUnlocked] = useState(false);
+  const sessionKey = `${storageKey}__unlocked`;
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(sessionKey) === "true");
 
   const hasAreaPin = pinKey && localStorage.getItem(pinKey);
   const hasAppPin = localStorage.getItem("dailynova_app_pin");
-  // The area is locked when its toggle is on AND we have a PIN to verify against
-  // (either a per-area PIN or, as fallback, the app PIN).
   const isLockActive =
     localStorage.getItem(storageKey) === "true" &&
     (hasAreaPin || (localStorage.getItem("dailynova_lock_enabled") === "true" && hasAppPin));
@@ -25,7 +29,10 @@ const PinGate = ({ storageKey, pinKey, title, children }: PinGateProps) => {
   if (isLockActive && !unlocked) {
     return (
       <LockScreen
-        onUnlock={() => setUnlocked(true)}
+        onUnlock={() => {
+          sessionStorage.setItem(sessionKey, "true");
+          setUnlocked(true);
+        }}
         pinKey={pinKey}
         title={title}
       />
