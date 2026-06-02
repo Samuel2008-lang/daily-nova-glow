@@ -32,35 +32,34 @@ import { notificationService } from "./lib/notifications";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [showSplash, setShowSplash] = useState(true);
+  // Splash & app lock only on TRUE cold-start within a session — never re-trigger on navigation.
+  const [showSplash, setShowSplash] = useState(() => sessionStorage.getItem("dailynova_splash_shown") !== "true");
   const [showWelcome, setShowWelcome] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
-
-  useEffect(() => {
-    const isFirst = storage.isFirstLaunch();
-    if (isFirst) {
-      setShowWelcome(true);
-    }
+  const [isLocked, setIsLocked] = useState(() => {
+    if (sessionStorage.getItem("dailynova_app_unlocked") === "true") return false;
     const pin = localStorage.getItem("dailynova_app_pin");
     const lockEnabled = localStorage.getItem("dailynova_lock_enabled") === "true";
-    if (pin && lockEnabled) {
-      setIsLocked(true);
-    }
+    return !!(pin && lockEnabled);
+  });
+
+  useEffect(() => {
+    if (storage.isFirstLaunch()) setShowWelcome(true);
     notificationService.setupDailyReminders();
   }, []);
 
   const handleSplashComplete = () => {
+    sessionStorage.setItem("dailynova_splash_shown", "true");
     setShowSplash(false);
-    if (!showWelcome) {
-      setIsReady(true);
-    }
   };
 
   const handleWelcomeComplete = () => {
     storage.setFirstLaunchComplete();
     setShowWelcome(false);
-    setIsReady(true);
+  };
+
+  const handleUnlock = () => {
+    sessionStorage.setItem("dailynova_app_unlocked", "true");
+    setIsLocked(false);
   };
 
   if (showSplash) {
@@ -72,7 +71,7 @@ const App = () => {
   }
 
   if (isLocked) {
-    return <LockScreen onUnlock={() => setIsLocked(false)} />;
+    return <LockScreen onUnlock={handleUnlock} />;
   }
 
   return (
