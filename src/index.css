@@ -148,4 +148,13 @@ All colors MUST be HSL.
   .animate-shake {
     animation: shake 0.3s ease-in-out;
   }
+
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1); }
+  }
+  .animate-wave {
+    animation: wave 0.9s ease-in-out infinite;
+    transform-origin: bottom;
+  }
 }
