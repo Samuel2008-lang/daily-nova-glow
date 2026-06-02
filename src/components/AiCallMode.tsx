@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { PhoneOff, Mic, Volume2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { PhoneOff, Mic, MicOff, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,22 +12,30 @@ interface AiCallModeProps {
   onClose: (finalMessages: Msg[]) => void;
 }
 
-type CallState = "idle" | "listening" | "thinking" | "speaking";
+type CallState = "connecting" | "listening" | "thinking" | "speaking" | "muted";
 
 /**
- * Full-screen, hands-free voice call with the AI.
- * Loop: listen → transcribe → stream AI reply → speak it → listen again.
- * Uses Web Speech API (STT) + speechSynthesis (TTS). No paid backend.
+ * Clean phone-call style voice interface — similar to ChatGPT / Claude voice.
+ * Full-screen solid background, top: avatar + name + status, center: waveform,
+ * bottom: mute / speaker / end-call.
  */
-const AiCallMode = ({ initialMessages, systemPrompt, accentColor, onClose }: AiCallModeProps) => {
+const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps) => {
   const { toast } = useToast();
-  const [state, setState] = useState<CallState>("idle");
-  const [partial, setPartial] = useState("");
-  const [lastReply, setLastReply] = useState("");
+  const [state, setState] = useState<CallState>("connecting");
+  const [muted, setMuted] = useState(false);
+  const [speakerOn, setSpeakerOn] = useState(true);
+  const [elapsed, setElapsed] = useState(0);
   const messagesRef = useRef<Msg[]>(initialMessages);
   const recognitionRef = useRef<any>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const endedRef = useRef(false);
+  const mutedRef = useRef(false);
+  const speakerRef = useRef(true);
+
+  // call timer
+  useEffect(() => {
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const stopAll = useCallback(() => {
     try { recognitionRef.current?.stop(); } catch {}
@@ -44,13 +51,12 @@ const AiCallMode = ({ initialMessages, systemPrompt, accentColor, onClose }: AiC
 
   const speak = useCallback((text: string): Promise<void> => {
     return new Promise((resolve) => {
-      if (!("speechSynthesis" in window)) return resolve();
+      if (!("speechSynthesis" in window) || !speakerRef.current) return resolve();
       const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 0.98;
+      utter.rate = 1.0;
       utter.pitch = 1.05;
       utter.volume = 1;
       const voices = window.speechSynthesis.getVoices();
-      // Prefer high-quality natural voices when available (Google/Samsung/Apple neural voices)
       const preferred =
         voices.find((v) => /en-(US|GB)/i.test(v.lang) && /(neural|natural|wavenet|premium|enhanced|online)/i.test(v.name)) ||
         voices.find((v) => /en-(US|GB)/i.test(v.lang) && /(google|samantha|karen|serena|aria|jenny)/i.test(v.name)) ||
@@ -59,12 +65,12 @@ const AiCallMode = ({ initialMessages, systemPrompt, accentColor, onClose }: AiC
       if (preferred) utter.voice = preferred;
       utter.onend = () => resolve();
       utter.onerror = () => resolve();
-      utteranceRef.current = utter;
       window.speechSynthesis.speak(utter);
     });
   }, []);
 
   const streamReply = useCallback(async (msgs: Msg[]): Promise<string> => {
+    if (!navigator.onLine) throw new Error("You're offline. AI calls need internet.");
     const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-stream`;
     const resp = await fetch(CHAT_URL, {
       method: "POST",
@@ -77,8 +83,7 @@ const AiCallMode = ({ initialMessages, systemPrompt, accentColor, onClose }: AiC
     if (!resp.ok || !resp.body) throw new Error("AI request failed");
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
-    let buf = "";
-    let content = "";
+    let buf = ""; let content = "";
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -111,22 +116,16 @@ const AiCallMode = ({ initialMessages, systemPrompt, accentColor, onClose }: AiC
       rec.lang = "en-US";
       let final = "";
       rec.onresult = (e: any) => {
-        let interim = "";
         for (let i = 0; i < e.results.length; i++) {
           const r = e.results[i];
           if (r.isFinal) final += r[0].transcript;
-          else interim += r[0].transcript;
         }
-        setPartial(final + interim);
       };
       rec.onerror = (e: any) => {
         if (e.error === "no-speech" || e.error === "aborted") resolve("");
         else reject(new Error(e.error));
       };
-      rec.onend = () => {
-        setPartial("");
-        resolve(final.trim());
-      };
+      rec.onend = () => resolve(final.trim());
       recognitionRef.current = rec;
       try { rec.start(); } catch (err) { reject(err as Error); }
     });
@@ -136,25 +135,24 @@ const AiCallMode = ({ initialMessages, systemPrompt, accentColor, onClose }: AiC
   useEffect(() => {
     let cancelled = false;
 
-    const greet = async () => {
+    const loop = async () => {
       const greeting = initialMessages.length === 0
         ? "Hi! I'm listening — what's on your mind?"
         : "I'm here. Go ahead.";
       setState("speaking");
-      setLastReply(greeting);
       await speak(greeting);
-      if (cancelled || endedRef.current) return;
-      loop();
-    };
 
-    const loop = async () => {
       while (!cancelled && !endedRef.current) {
         try {
+          if (mutedRef.current) {
+            setState("muted");
+            await new Promise((r) => setTimeout(r, 400));
+            continue;
+          }
           setState("listening");
-          setPartial("");
           const userText = await listenOnce();
           if (cancelled || endedRef.current) return;
-          if (!userText) continue;
+          if (!userText || mutedRef.current) continue;
 
           haptics.light();
           const newMsgs = [...messagesRef.current, { role: "user", content: userText }];
@@ -166,7 +164,6 @@ const AiCallMode = ({ initialMessages, systemPrompt, accentColor, onClose }: AiC
           if (!reply) continue;
 
           messagesRef.current = [...newMsgs, { role: "assistant", content: reply }];
-          setLastReply(reply);
           setState("speaking");
           await speak(reply);
         } catch (err) {
@@ -176,13 +173,12 @@ const AiCallMode = ({ initialMessages, systemPrompt, accentColor, onClose }: AiC
             description: err instanceof Error ? err.message : "Try again.",
             variant: "destructive",
           });
-          // brief pause then retry listening
           await new Promise((r) => setTimeout(r, 800));
         }
       }
     };
 
-    greet();
+    loop();
     return () => {
       cancelled = true;
       stopAll();
@@ -190,59 +186,107 @@ const AiCallMode = ({ initialMessages, systemPrompt, accentColor, onClose }: AiC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const orbScale =
-    state === "listening" ? "scale-110 animate-pulse" :
-    state === "speaking" ? "scale-125" :
-    state === "thinking" ? "scale-100 animate-pulse" : "scale-100";
+  const toggleMute = () => {
+    mutedRef.current = !mutedRef.current;
+    setMuted(mutedRef.current);
+    haptics.light();
+    if (mutedRef.current) {
+      try { recognitionRef.current?.stop(); } catch {}
+    }
+  };
 
-  const stateLabel =
-    state === "listening" ? "Listening…" :
+  const toggleSpeaker = () => {
+    speakerRef.current = !speakerRef.current;
+    setSpeakerOn(speakerRef.current);
+    haptics.light();
+    if (!speakerRef.current) {
+      try { window.speechSynthesis?.cancel(); } catch {}
+    }
+  };
+
+  const statusText =
+    state === "connecting" ? "Connecting…" :
+    state === "listening" ? "Listening" :
     state === "thinking" ? "Thinking…" :
-    state === "speaking" ? "Speaking…" : "Connecting…";
+    state === "speaking" ? "Speaking" :
+    state === "muted" ? "Muted" : "";
+
+  const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
+  const ss = String(elapsed % 60).padStart(2, "0");
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-between bg-gradient-to-b from-background via-background to-primary/10 px-6 py-10">
-      <div className="text-center pt-8">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">AI Call</p>
-        <h2 className={`text-2xl font-bold text-${accentColor}`}>Daily Nova</h2>
+    <div className="fixed inset-0 z-[100] flex flex-col bg-background">
+      {/* subtle ambient glow */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
       </div>
 
-      <div className="flex flex-col items-center gap-6">
-        <div className="relative w-48 h-48 flex items-center justify-center">
-          <div className={`absolute inset-0 rounded-full bg-gradient-to-br from-primary via-secondary to-accent blur-2xl opacity-60 transition-transform duration-500 ${orbScale}`} />
-          <div className={`relative w-40 h-40 rounded-full bg-gradient-to-br from-primary via-secondary to-accent shadow-2xl transition-transform duration-500 ${orbScale} flex items-center justify-center`}>
-            {state === "listening" && <Mic className="w-12 h-12 text-white drop-shadow-lg" />}
-            {state === "speaking" && <Volume2 className="w-12 h-12 text-white drop-shadow-lg animate-pulse" />}
-            {state === "thinking" && <div className="w-8 h-8 border-4 border-white/40 border-t-white rounded-full animate-spin" />}
+      {/* Top: name + timer */}
+      <div className="relative pt-16 pb-8 px-6 text-center">
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{mm}:{ss}</p>
+        <h2 className="mt-2 text-3xl font-semibold text-foreground">Daily Nova</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{statusText}</p>
+      </div>
+
+      {/* Center: avatar + waveform */}
+      <div className="relative flex-1 flex flex-col items-center justify-center gap-10">
+        {/* Avatar circle */}
+        <div className="relative">
+          <div className={`absolute inset-0 rounded-full bg-primary/20 blur-2xl ${state === "speaking" || state === "listening" ? "animate-pulse" : ""}`} />
+          <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 border border-primary/40 flex items-center justify-center backdrop-blur">
+            <Sparkles className="w-12 h-12 text-primary" />
           </div>
         </div>
 
-        <p className={`text-sm font-medium text-${accentColor}`}>{stateLabel}</p>
-
-        {partial && (
-          <div className="max-w-md text-center px-4">
-            <p className="text-xs text-muted-foreground uppercase mb-1">You</p>
-            <p className="text-base text-foreground">{partial}</p>
-          </div>
-        )}
-
-        {state === "speaking" && lastReply && (
-          <div className="max-w-md text-center px-4 max-h-32 overflow-y-auto">
-            <p className="text-xs text-muted-foreground uppercase mb-1">Assistant</p>
-            <p className="text-sm text-foreground/90">{lastReply}</p>
-          </div>
-        )}
+        {/* Waveform */}
+        <div className="flex items-end justify-center gap-1.5 h-12">
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <span
+              key={i}
+              className={`w-1.5 rounded-full bg-primary transition-all duration-300 ${
+                state === "speaking" ? "animate-wave" :
+                state === "listening" ? "animate-pulse" :
+                "opacity-30"
+              }`}
+              style={{
+                height: state === "speaking" || state === "listening"
+                  ? `${20 + Math.abs(Math.sin((Date.now() / 200) + i)) * 30}px`
+                  : "12px",
+                animationDelay: `${i * 100}ms`,
+              }}
+            />
+          ))}
+        </div>
       </div>
 
-      <Button
-        onClick={endCall}
-        size="lg"
-        variant="destructive"
-        className="rounded-full h-16 w-16 p-0 shadow-2xl"
-        aria-label="End call"
-      >
-        <PhoneOff className="w-7 h-7" />
-      </Button>
+      {/* Bottom controls: mute | end | speaker */}
+      <div className="relative pb-14 px-8">
+        <div className="flex items-center justify-center gap-8">
+          <button
+            onClick={toggleMute}
+            aria-label={muted ? "Unmute" : "Mute"}
+            className="w-14 h-14 rounded-full bg-muted/40 border border-border/40 flex items-center justify-center active:scale-95 transition-transform"
+          >
+            {muted ? <MicOff className="w-6 h-6 text-foreground" /> : <Mic className="w-6 h-6 text-foreground" />}
+          </button>
+
+          <button
+            onClick={endCall}
+            aria-label="End call"
+            className="w-20 h-20 rounded-full bg-destructive flex items-center justify-center shadow-2xl shadow-destructive/40 active:scale-95 transition-transform"
+          >
+            <PhoneOff className="w-8 h-8 text-destructive-foreground" />
+          </button>
+
+          <button
+            onClick={toggleSpeaker}
+            aria-label={speakerOn ? "Mute speaker" : "Enable speaker"}
+            className="w-14 h-14 rounded-full bg-muted/40 border border-border/40 flex items-center justify-center active:scale-95 transition-transform"
+          >
+            {speakerOn ? <Volume2 className="w-6 h-6 text-foreground" /> : <VolumeX className="w-6 h-6 text-foreground" />}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

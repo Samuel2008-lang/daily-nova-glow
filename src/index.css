@@ -74,9 +74,16 @@ All colors MUST be HSL.
     min-height: 100vh;
   }
 
-  /* On touch devices, hover styles "stick" after tap. Disable hover-only effects there. */
+  /* On touch devices, neutralize sticky :hover (which lingers after tap) and stray focus rings. */
   @media (hover: none) {
-    /* Also clear lingering focus highlight after a tap on touch devices */
+    *:hover {
+      background-color: revert;
+      color: revert;
+      border-color: revert;
+      box-shadow: revert;
+      opacity: revert;
+      filter: revert;
+    }
     button:focus, button:focus-visible,
     a:focus, a:focus-visible,
     [role="button"]:focus, [role="button"]:focus-visible,
@@ -84,12 +91,14 @@ All colors MUST be HSL.
     [data-state]:focus {
       outline: none;
       box-shadow: none;
+      background-color: revert;
     }
   }
 
-  /* Provide a quick visual press feedback that fades immediately on release */
+  /* Brief, instant press feedback that clears the moment the finger lifts. */
   button:active, [role="button"]:active, a:active {
-    opacity: 0.85;
+    opacity: 0.75;
+    transition: opacity 60ms ease-out;
   }
 }
 
@@ -138,5 +147,14 @@ All colors MUST be HSL.
 
   .animate-shake {
     animation: shake 0.3s ease-in-out;
+  }
+
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1); }
+  }
+  .animate-wave {
+    animation: wave 0.9s ease-in-out infinite;
+    transform-origin: bottom;
   }
 }
