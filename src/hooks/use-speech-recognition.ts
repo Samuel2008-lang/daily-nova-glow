@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
 import { enhanceTranscript } from "@/lib/transcript-ai";
+import { recordingState } from "@/lib/recording-state";
 
 interface UseSpeechRecognitionProps {
   onResult: (transcript: string) => void;
