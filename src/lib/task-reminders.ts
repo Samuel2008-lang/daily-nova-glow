@@ -48,6 +48,7 @@ export const scheduleTaskNotifications = async (task: Task) => {
         unit: task.repeat.unit as 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year',
         every: task.repeat.every,
         count: task.duration?.type === 'count' ? task.duration.count : undefined,
+        until: task.duration?.type === 'until' ? task.duration.until : undefined,
       }
     : undefined;
 
