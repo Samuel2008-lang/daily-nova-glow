@@ -172,9 +172,9 @@ const Dashboard = () => {
           <Card className="glass glow p-8 text-center cursor-pointer hover:scale-[1.02] transition-transform duration-300">
             <Sparkles className="w-8 h-8 text-accent mx-auto mb-4" />
             <p className="text-lg italic text-foreground mb-2">
-              "The only way to do great work is to love what you do."
+              "{quote.text}"
             </p>
-            <p className="text-sm text-muted-foreground">— Steve Jobs</p>
+            <p className="text-sm text-muted-foreground">— {quote.author}</p>
             <p className="text-xs text-primary mt-4">Click for more inspiration →</p>
           </Card>
         </Link>
