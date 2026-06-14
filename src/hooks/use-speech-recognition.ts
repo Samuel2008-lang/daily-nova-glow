@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
 import { enhanceTranscript } from "@/lib/transcript-ai";
+import { recordingState } from "@/lib/recording-state";
 
 interface UseSpeechRecognitionProps {
   onResult: (transcript: string) => void;
@@ -61,6 +62,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
   const finalize = useCallback(async () => {
     const raw = accumulatedRef.current.trim();
     accumulatedRef.current = "";
+    recordingState.set(false);
     if (raw) {
       const formatted = formatVoiceText(raw);
       if (autoEnhanceRef.current) {
@@ -100,6 +102,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
       accumulatedRef.current = "";
       stoppedRef.current = false;
       setIsListening(true);
+      recordingState.set(true);
       toast({ title: "Listening…", description: "Tap the mic again to stop." });
 
       // Use partial results so we can keep the session alive across pauses.
@@ -147,13 +150,25 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
 
   const stopListening = useCallback(async (_inst?: any) => {
     stoppedRef.current = true;
+    recordingState.set(false);
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
       await SpeechRecognition.stop();
     } catch {}
-    // finalize will be called by the loop when start() rejects/resolves
     setTimeout(() => { if (isListening) finalize(); }, 300);
   }, [finalize, isListening]);
+
+  // Cleanup on unmount — stop recognition and clear recording flag.
+  useEffect(() => () => {
+    stoppedRef.current = true;
+    recordingState.set(false);
+    (async () => {
+      try {
+        const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
+        await SpeechRecognition.stop();
+      } catch {}
+    })();
+  }, []);
 
   return { isListening, isProcessing, isSupported: true, startListening, stopListening };
 };
@@ -185,6 +200,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     fullTranscriptRef.current = "";
     capturedIndicesRef.current.clear();
     setIsListening(false);
+    recordingState.set(false);
     if (!text) {
       setIsProcessing(false);
       return;
@@ -227,6 +243,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
 
     recognition.onstart = () => {
       setIsListening(true);
+      recordingState.set(true);
       recognitionRef.current = recognition;
     };
 
@@ -281,6 +298,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
 
   const stopListening = useCallback((_inst?: any) => {
     stoppedByUserRef.current = true;
+    recordingState.set(false);
     const inst = recognitionRef.current;
     if (inst) {
       try { inst.stop(); } catch {}
@@ -288,6 +306,17 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
       emitAndReset();
     }
   }, [emitAndReset]);
+
+  // Cleanup on unmount — abort recognition immediately so it doesn't keep listening in background.
+  useEffect(() => () => {
+    stoppedByUserRef.current = true;
+    recordingState.set(false);
+    const inst = recognitionRef.current;
+    if (inst) {
+      try { inst.abort(); } catch {}
+      try { inst.stop(); } catch {}
+    }
+  }, []);
 
   return { isListening, isProcessing, isSupported, startListening, stopListening };
 };

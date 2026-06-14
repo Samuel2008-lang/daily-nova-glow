@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { storage } from "@/lib/storage";
 
+const FALLBACK_QUOTE = { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" };
+
 const Dashboard = () => {
   const [stats, setStats] = useState({
     notesToday: 0,
@@ -12,6 +14,7 @@ const Dashboard = () => {
     habitsCompleted: 0,
     totalHabits: 0,
   });
+  const [quote, setQuote] = useState(FALLBACK_QUOTE);
 
   useEffect(() => {
     const now = new Date();
@@ -38,6 +41,29 @@ const Dashboard = () => {
       habitsCompleted,
       totalHabits: habits.length,
     });
+
+    // Sync Quote of the Day with the Quotes page (same localStorage source).
+    const loadQuote = () => {
+      try {
+        const raw = localStorage.getItem("daily-quotes-all");
+        const idxRaw = localStorage.getItem("daily-quote-index");
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr) && arr.length > 0) {
+            const idx = Math.min(parseInt(idxRaw || "0", 10) || 0, arr.length - 1);
+            const q = arr[idx];
+            if (q && q.text) {
+              setQuote({ text: q.text, author: q.author || "Unknown" });
+              return;
+            }
+          }
+        }
+      } catch {}
+      setQuote(FALLBACK_QUOTE);
+    };
+    loadQuote();
+    window.addEventListener("focus", loadQuote);
+    return () => window.removeEventListener("focus", loadQuote);
   }, []);
 
   // Stable Quick Actions — same all day, every day
@@ -146,9 +172,9 @@ const Dashboard = () => {
           <Card className="glass glow p-8 text-center cursor-pointer hover:scale-[1.02] transition-transform duration-300">
             <Sparkles className="w-8 h-8 text-accent mx-auto mb-4" />
             <p className="text-lg italic text-foreground mb-2">
-              "The only way to do great work is to love what you do."
+              "{quote.text}"
             </p>
-            <p className="text-sm text-muted-foreground">— Steve Jobs</p>
+            <p className="text-sm text-muted-foreground">— {quote.author}</p>
             <p className="text-xs text-primary mt-4">Click for more inspiration →</p>
           </Card>
         </Link>

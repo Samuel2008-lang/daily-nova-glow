@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Settings as SettingsIcon,
   Bell,
@@ -43,6 +44,7 @@ import { format } from "date-fns";
 import { haptics } from "@/lib/haptics";
 
 const Settings = () => {
+  const navigate = useNavigate();
   const [notifyDiary, setNotifyDiary] = useState(localStorage.getItem("dailynova_notify_diary") === "true");
   const [notifyJournal, setNotifyJournal] = useState(localStorage.getItem("dailynova_notify_journal") === "true");
   const [notifyHabits, setNotifyHabits] = useState(localStorage.getItem("dailynova_notify_habits") === "true");
@@ -487,7 +489,7 @@ const Settings = () => {
               Share thoughts, report bugs, or suggest features.
             </p>
             <Button
-              onClick={() => { haptics.light(); window.location.assign("/feedback"); }}
+              onClick={() => { haptics.light(); navigate("/feedback"); }}
               className="w-full gap-2"
             >
               <Send className="w-4 h-4" />

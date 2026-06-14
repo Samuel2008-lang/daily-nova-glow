@@ -122,12 +122,18 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
         }
       };
       rec.onerror = (e: any) => {
-        if (e.error === "no-speech" || e.error === "aborted") resolve("");
-        else reject(new Error(e.error));
+        // Swallow recoverable errors so the loop can continue
+        if (e.error === "no-speech" || e.error === "aborted" || e.error === "audio-capture" || e.error === "network") {
+          resolve("");
+        } else if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+          reject(new Error("Microphone permission denied. Allow mic access to use voice call."));
+        } else {
+          resolve("");
+        }
       };
       rec.onend = () => resolve(final.trim());
       recognitionRef.current = rec;
-      try { rec.start(); } catch (err) { reject(err as Error); }
+      try { rec.start(); } catch (err) { resolve(""); }
     });
   }, []);
 
@@ -136,6 +142,23 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
     let cancelled = false;
 
     const loop = async () => {
+      // Pre-request microphone permission so SpeechRecognition won't error with "not-allowed".
+      try {
+        if (navigator.mediaDevices?.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          // Release tracks — SpeechRecognition manages its own stream.
+          stream.getTracks().forEach((t) => t.stop());
+        }
+      } catch {
+        toast({
+          title: "Microphone needed",
+          description: "Allow microphone access to use voice call.",
+          variant: "destructive",
+        });
+        endCall();
+        return;
+      }
+
       const greeting = initialMessages.length === 0
         ? "Hi! I'm listening — what's on your mind?"
         : "I'm here. Go ahead.";
