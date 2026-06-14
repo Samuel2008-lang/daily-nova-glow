@@ -15,68 +15,84 @@ export const useQuoteShareImage = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
 
+    // Deep navy background (matches reference)
     const grad = ctx.createLinearGradient(0, 0, size, size);
-    grad.addColorStop(0, "#0f0c29");
-    grad.addColorStop(0.5, "#302b63");
-    grad.addColorStop(1, "#24243e");
+    grad.addColorStop(0, "#0a0d3d");
+    grad.addColorStop(1, "#06083a");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, size, size);
 
-    ctx.strokeStyle = "rgba(255, 105, 180, 0.4)";
-    ctx.lineWidth = 6;
-    ctx.strokeRect(40, 40, size - 80, size - 80);
+    // Purple border frame
+    const PURPLE = "#8b5cf6";
+    ctx.strokeStyle = PURPLE;
+    ctx.lineWidth = 4;
+    const inset = 50;
+    ctx.strokeRect(inset, inset, size - inset * 2, size - inset * 2);
 
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(55, 55, size - 110, size - 110);
+    // Safe content padding so nothing crosses the border
+    const PAD = 130;
+    const contentWidth = size - PAD * 2;
 
-    ctx.fillStyle = "#f0f0f0";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    const fontSize = text.length > 150 ? 38 : text.length > 80 ? 46 : 54;
-    ctx.font = `italic ${fontSize}px Georgia, serif`;
-
-    const maxWidth = size - 160;
+    // Wrap quote text
+    const fontSize = text.length > 180 ? 40 : text.length > 110 ? 48 : 56;
+    ctx.font = `italic ${fontSize}px Georgia, 'Times New Roman', serif`;
     const words = text.split(" ");
     const lines: string[] = [];
-    let currentLine = "";
-
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      if (ctx.measureText(testLine).width > maxWidth) {
-        lines.push(currentLine);
-        currentLine = word;
+    let line = "";
+    for (const w of words) {
+      const test = line ? `${line} ${w}` : w;
+      if (ctx.measureText(test).width > contentWidth) {
+        if (line) lines.push(line);
+        line = w;
       } else {
-        currentLine = testLine;
+        line = test;
       }
     }
-    if (currentLine) lines.push(currentLine);
+    if (line) lines.push(line);
 
     const lineHeight = fontSize * 1.4;
-    const totalTextHeight = lines.length * lineHeight;
-    const startY = (size - totalTextHeight) / 2 - 40;
+    const blockHeight = lines.length * lineHeight;
+    const startY = (size - blockHeight) / 2 - 40;
 
-    ctx.font = `italic 100px Georgia, serif`;
-    ctx.fillStyle = "rgba(255, 105, 180, 0.3)";
-    ctx.fillText('"', 100, startY - 20);
+    // Opening quote mark (top-left, well inside border)
+    ctx.fillStyle = PURPLE;
+    ctx.font = `bold 110px Georgia, serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText("\u201C", PAD - 20, startY - 30);
 
-    ctx.font = `italic ${fontSize}px Georgia, serif`;
-    ctx.fillStyle = "#f0f0f0";
-    lines.forEach((line, i) => {
-      ctx.fillText(`${i === 0 ? '"' : ''}${line}${i === lines.length - 1 ? '"' : ''}`, size / 2, startY + i * lineHeight);
+    // Quote text (centered, white)
+    ctx.fillStyle = "#f1f1ff";
+    ctx.font = `italic ${fontSize}px Georgia, 'Times New Roman', serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    lines.forEach((l, i) => {
+      const prefix = i === 0 ? "\u201C" : "";
+      const suffix = i === lines.length - 1 ? "\u201D" : "";
+      ctx.fillText(`${prefix}${l}${suffix}`, size / 2, startY + i * lineHeight + lineHeight / 2);
     });
 
-    ctx.fillStyle = "#ff69b4";
-    ctx.font = `bold 36px 'Segoe UI', Arial, sans-serif`;
-    ctx.fillText(`— ${author}`, size / 2, startY + totalTextHeight + 50);
+    // Closing quote mark (right side, below text)
+    ctx.fillStyle = PURPLE;
+    ctx.font = `bold 110px Georgia, serif`;
+    ctx.textAlign = "right";
+    ctx.fillText("\u201D", size - PAD + 20, startY + blockHeight + 20);
 
-    ctx.fillStyle = "rgba(255, 105, 180, 0.7)";
+    // Author
+    ctx.fillStyle = "#b794f4";
+    ctx.font = `400 32px 'Segoe UI', Arial, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(`— ${author}`, size / 2, startY + blockHeight + 110);
+
+    // Branding (well above bottom border)
+    const brandY = size - PAD - 10;
+    ctx.fillStyle = PURPLE;
     ctx.font = `bold 32px 'Segoe UI', Arial, sans-serif`;
-    ctx.fillText("✦ DailyNova ✦", size / 2, size - 70);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.fillText("\u2726  DailyNova  \u2726", size / 2, brandY);
+    ctx.fillStyle = "rgba(183, 148, 244, 0.7)";
     ctx.font = `14px 'Segoe UI', Arial, sans-serif`;
-    ctx.fillText("Your Daily Inspiration", size / 2, size - 40);
+    ctx.fillText("Your Daily Inspiration", size / 2, brandY + 28);
 
     return new Promise((resolve) => {
       canvas.toBlob((blob) => resolve(blob), "image/png");
