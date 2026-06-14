@@ -41,6 +41,29 @@ const Dashboard = () => {
       habitsCompleted,
       totalHabits: habits.length,
     });
+
+    // Sync Quote of the Day with the Quotes page (same localStorage source).
+    const loadQuote = () => {
+      try {
+        const raw = localStorage.getItem("daily-quotes-all");
+        const idxRaw = localStorage.getItem("daily-quote-index");
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr) && arr.length > 0) {
+            const idx = Math.min(parseInt(idxRaw || "0", 10) || 0, arr.length - 1);
+            const q = arr[idx];
+            if (q && q.text) {
+              setQuote({ text: q.text, author: q.author || "Unknown" });
+              return;
+            }
+          }
+        }
+      } catch {}
+      setQuote(FALLBACK_QUOTE);
+    };
+    loadQuote();
+    window.addEventListener("focus", loadQuote);
+    return () => window.removeEventListener("focus", loadQuote);
   }, []);
 
   // Stable Quick Actions — same all day, every day
