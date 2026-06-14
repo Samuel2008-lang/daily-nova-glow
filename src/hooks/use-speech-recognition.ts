@@ -62,6 +62,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
   const finalize = useCallback(async () => {
     const raw = accumulatedRef.current.trim();
     accumulatedRef.current = "";
+    recordingState.set(false);
     if (raw) {
       const formatted = formatVoiceText(raw);
       if (autoEnhanceRef.current) {
@@ -101,6 +102,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
       accumulatedRef.current = "";
       stoppedRef.current = false;
       setIsListening(true);
+      recordingState.set(true);
       toast({ title: "Listening…", description: "Tap the mic again to stop." });
 
       // Use partial results so we can keep the session alive across pauses.
