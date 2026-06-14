@@ -150,13 +150,25 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
 
   const stopListening = useCallback(async (_inst?: any) => {
     stoppedRef.current = true;
+    recordingState.set(false);
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
       await SpeechRecognition.stop();
     } catch {}
-    // finalize will be called by the loop when start() rejects/resolves
     setTimeout(() => { if (isListening) finalize(); }, 300);
   }, [finalize, isListening]);
+
+  // Cleanup on unmount — stop recognition and clear recording flag.
+  useEffect(() => () => {
+    stoppedRef.current = true;
+    recordingState.set(false);
+    (async () => {
+      try {
+        const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
+        await SpeechRecognition.stop();
+      } catch {}
+    })();
+  }, []);
 
   return { isListening, isProcessing, isSupported: true, startListening, stopListening };
 };
@@ -188,6 +200,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     fullTranscriptRef.current = "";
     capturedIndicesRef.current.clear();
     setIsListening(false);
+    recordingState.set(false);
     if (!text) {
       setIsProcessing(false);
       return;
