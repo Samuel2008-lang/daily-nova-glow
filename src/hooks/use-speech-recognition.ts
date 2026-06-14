@@ -243,6 +243,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
 
     recognition.onstart = () => {
       setIsListening(true);
+      recordingState.set(true);
       recognitionRef.current = recognition;
     };
 
@@ -297,6 +298,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
 
   const stopListening = useCallback((_inst?: any) => {
     stoppedByUserRef.current = true;
+    recordingState.set(false);
     const inst = recognitionRef.current;
     if (inst) {
       try { inst.stop(); } catch {}
@@ -304,6 +306,17 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
       emitAndReset();
     }
   }, [emitAndReset]);
+
+  // Cleanup on unmount — abort recognition immediately so it doesn't keep listening in background.
+  useEffect(() => () => {
+    stoppedByUserRef.current = true;
+    recordingState.set(false);
+    const inst = recognitionRef.current;
+    if (inst) {
+      try { inst.abort(); } catch {}
+      try { inst.stop(); } catch {}
+    }
+  }, []);
 
   return { isListening, isProcessing, isSupported, startListening, stopListening };
 };
