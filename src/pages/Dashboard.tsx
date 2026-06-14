@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { storage } from "@/lib/storage";
 
+const FALLBACK_QUOTE = { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" };
+
 const Dashboard = () => {
   const [stats, setStats] = useState({
     notesToday: 0,
@@ -12,6 +14,7 @@ const Dashboard = () => {
     habitsCompleted: 0,
     totalHabits: 0,
   });
+  const [quote, setQuote] = useState(FALLBACK_QUOTE);
 
   useEffect(() => {
     const now = new Date();
