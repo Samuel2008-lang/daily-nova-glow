@@ -1,49 +1,56 @@
 import { useState } from "react";
-import { MessageCircle, Send, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { haptics } from "@/lib/haptics";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-const FEEDBACK_QUEUE_KEY = "dailynova_feedback_queue";
-
-interface FeedbackItem {
-  id: string;
-  text: string;
-  createdAt: string;
-}
+const DEVELOPER_EMAIL = "hopeegbon28@gmail.com";
 
 const Feedback = () => {
   const [feedbackText, setFeedbackText] = useState("");
-  const [sent, setSent] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const openConfirm = () => {
+    if (!feedbackText.trim()) return;
+    haptics.light();
+    setConfirmOpen(true);
+  };
 
   const sendFeedback = () => {
     const text = feedbackText.trim();
     if (!text) return;
     haptics.success();
 
-    // Save to local feedback queue — fully offline, no app navigation, no mailto.
-    try {
-      const raw = localStorage.getItem(FEEDBACK_QUEUE_KEY);
-      const queue: FeedbackItem[] = raw ? JSON.parse(raw) : [];
-      queue.unshift({
-        id: Date.now().toString(),
-        text,
-        createdAt: new Date().toISOString(),
-      });
-      localStorage.setItem(FEEDBACK_QUEUE_KEY, JSON.stringify(queue.slice(0, 100)));
-    } catch (err) {
-      console.error("Failed to save feedback:", err);
-    }
+    const subject = encodeURIComponent("DailyNova Feedback");
+    const body = encodeURIComponent(text);
+    const mailto = `mailto:${DEVELOPER_EMAIL}?subject=${subject}&body=${body}`;
 
-    setSent(true);
+    try {
+      window.location.href = mailto;
+    } catch {
+      toast({
+        title: "Couldn't open email app",
+        description: `Please email ${DEVELOPER_EMAIL} directly.`,
+        variant: "destructive",
+      });
+    }
+    setConfirmOpen(false);
     setFeedbackText("");
-    toast({ title: "Thanks for your feedback!", description: "Saved — you can review it in Settings." });
-    setTimeout(() => setSent(false), 2500);
   };
 
   return (
@@ -69,15 +76,32 @@ const Feedback = () => {
             onChange={(e) => setFeedbackText(e.target.value)}
             className="min-h-[140px] bg-background/50 border-border/50 focus:border-accent"
           />
-          <Button onClick={sendFeedback} disabled={!feedbackText.trim() || sent} className="w-full gap-2">
-            {sent ? <CheckCircle2 className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-            {sent ? "Saved!" : "Send Feedback"}
+          <Button onClick={openConfirm} disabled={!feedbackText.trim()} className="w-full gap-2">
+            <Send className="w-4 h-4" />
+            Send Feedback
           </Button>
-          <p className="text-xs text-muted-foreground text-center">
-            Your feedback is saved on-device and reviewed in Settings — no email app opens.
+          <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+            <Mail className="w-3 h-3" />
+            Your feedback will open your email app and be sent to the developer.
           </p>
         </Card>
       </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send via email?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your feedback will be sent via email to the developer at <strong>{DEVELOPER_EMAIL}</strong>.
+              Your default mail app will open with the message pre-filled. You can review it before sending.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={sendFeedback}>Open Email</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

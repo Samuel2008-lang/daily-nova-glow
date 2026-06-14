@@ -1,14 +1,17 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAdMob } from "@/hooks/use-admob";
+import { recordingState } from "@/lib/recording-state";
 
 const PAGE_CHANGE_THRESHOLD = 8;
 const MIN_GAP_MS = 2 * 60 * 1000; // 2 minutes between interstitials
 
+// Routes where the user is actively writing/reading and ads must never appear.
+const PROTECTED_ROUTES = ["/diary", "/journal", "/notes", "/diary/ai", "/journal/ai"];
+
 /**
- * Invisible component that tracks page changes and shows interstitial ads
- * every N page transitions, throttled to no more than once per 2 minutes.
- * Only active in native builds.
+ * Tracks page changes and shows an interstitial after N transitions, throttled.
+ * Never shows while the mic is recording or while the user is on a writing/reading page.
  */
 export const InterstitialAdManager = () => {
   const location = useLocation();
@@ -24,15 +27,20 @@ export const InterstitialAdManager = () => {
     lastPath.current = location.pathname;
     pageChangeCount.current += 1;
 
-    if (pageChangeCount.current >= PAGE_CHANGE_THRESHOLD) {
-      const now = Date.now();
-      if (now - lastShownAt.current < MIN_GAP_MS) return;
-      pageChangeCount.current = 0;
-      lastShownAt.current = now;
-      setTimeout(() => {
-        showInterstitial();
-      }, 500);
-    }
+    if (pageChangeCount.current < PAGE_CHANGE_THRESHOLD) return;
+    const now = Date.now();
+    if (now - lastShownAt.current < MIN_GAP_MS) return;
+
+    // Never show on writing/reading screens or while mic is active
+    if (PROTECTED_ROUTES.some((p) => location.pathname.startsWith(p))) return;
+    if (recordingState.isActive()) return;
+
+    pageChangeCount.current = 0;
+    lastShownAt.current = now;
+    setTimeout(() => {
+      if (recordingState.isActive()) return;
+      showInterstitial();
+    }, 500);
   }, [location.pathname, showInterstitial, isNative]);
 
   return null;

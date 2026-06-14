@@ -1,54 +1,37 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
 import { useAdMob } from "@/hooks/use-admob";
 
 interface BannerAdProps {
   position?: "top" | "bottom";
 }
 
+/**
+ * Renders a banner ad on native only. On web, renders nothing.
+ * If the ad fails to load, the entire banner (including close button) is hidden.
+ */
 export const BannerAd = ({ position = "bottom" }: BannerAdProps) => {
   const { showBanner, hideBanner, isNative } = useAdMob();
-  const [dismissed, setDismissed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (isNative && !dismissed) {
-      showBanner(position);
-    }
-
-    return () => {
-      if (isNative) {
-        hideBanner();
+    if (!isNative) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await showBanner(position);
+        if (!cancelled) setLoaded(true);
+      } catch {
+        if (!cancelled) setLoaded(false);
       }
-    };
-  }, [showBanner, hideBanner, isNative, position, dismissed]);
-
-  const handleDismiss = () => {
-    setDismissed(true);
-    if (isNative) {
+    })();
+    return () => {
+      cancelled = true;
       hideBanner();
-    }
-  };
+    };
+  }, [showBanner, hideBanner, isNative, position]);
 
-  if (dismissed) return null;
-
-  // For web, show a placeholder
-  if (!isNative) {
-    return (
-      <div className={`fixed ${position === "top" ? "top-0" : "bottom-16 md:bottom-0"} left-0 right-0 h-14 bg-muted/50 flex items-center justify-center text-xs text-muted-foreground z-40`}>
-        <span>Ad Space</span>
-        <button onClick={handleDismiss} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-    );
-  }
-
-  // Native: render a dismiss button overlay
-  return (
-    <div className={`fixed ${position === "top" ? "top-0" : "bottom-16 md:bottom-0"} right-2 z-50`}>
-      <button onClick={handleDismiss} className="p-1 rounded-full bg-background/80 shadow-md">
-        <X className="w-4 h-4 text-foreground" />
-      </button>
-    </div>
-  );
+  // Web: render nothing — no fake "Ad Space" placeholder.
+  // Native: the actual ad is drawn by AdMob natively above the webview. No overlay close button —
+  // if the ad failed to load, AdMob renders nothing, so nothing here either.
+  return null;
 };
