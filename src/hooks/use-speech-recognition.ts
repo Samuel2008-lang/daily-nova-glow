@@ -227,17 +227,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     };
 
     recognition.onend = () => {
-      if (!stoppedByUserRef.current) {
-        // Short delay to prevent rapid-fire beep loops
-        setTimeout(() => {
-          if (!stoppedByUserRef.current) {
-            try { recognition.start(); } catch { emitAndReset(); }
-          } else {
-            emitAndReset();
-          }
-        }, 600);
-        return;
-      }
+      // End naturally on silence. Do not auto-restart because it loops the mic beep.
       emitAndReset();
     };
 
@@ -250,9 +240,8 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
       }
       
       if (event.error === "no-speech" || event.error === "audio-capture" || event.error === "network") {
-        if (!stoppedByUserRef.current) {
-          return; // onend will handle restart
-        }
+        emitAndReset();
+        return;
       }
       
       if (event.error !== "aborted") {
