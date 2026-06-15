@@ -42,6 +42,8 @@ export const notificationService = {
               allowWhileIdle: true,
             },
             channelId: "alarms-medium",
+            smallIcon: "ic_stat_icon",
+            iconColor: "#a855f7",
           },
         ],
       });
@@ -108,17 +110,19 @@ export const notificationService = {
         id: config.id + idx, // unique per occurrence
         title: config.title,
         body: config.body,
-        schedule: { at: date, allowWhileIdle: true },
+        schedule: { 
+          at: date, 
+          allowWhileIdle: true,
+        },
         channelId,
         smallIcon: "ic_stat_icon",
-        iconColor: "#a855f7",
-        // @ts-ignore — handled by native patch (full-screen intent + long sound)
+        iconColor: "#7c3aed",
+        // Extra data for potential native listener (e.g. for full-screen intent)
         extra: {
           taskGroupId: config.id,
-          fullScreen: alertLevel !== "light",
-          importance: alertLevel === "strong" ? 5 : alertLevel === "medium" ? 5 : 4,
-          longSound: alertLevel === "strong",
           alertLevel,
+          importance: alertLevel === "strong" ? 5 : alertLevel === "medium" ? 5 : 4,
+          fullScreen: alertLevel !== "light",
         },
       }));
 
@@ -132,39 +136,39 @@ export const notificationService = {
   async ensureAlarmsChannel() {
     if (!isNative) return;
     try {
-      // @ts-ignore
+      // Light: Normal notification
       await LocalNotifications.createChannel?.({
         id: "alarms-light",
         name: "Reminders (Light)",
-        description: "Standard notification + short sound",
-        importance: 4,
+        description: "Standard notification with a short sound.",
+        importance: 3, // Default
         visibility: 1,
         vibration: true,
-        lights: true,
-        lightColor: "#a855f7",
-      });
-      // @ts-ignore
+      } as any);
+
+      // Medium: High priority, head-up notification
       await LocalNotifications.createChannel?.({
         id: "alarms-medium",
         name: "Reminders (Medium)",
-        description: "Full-screen alert + short sound",
-        importance: 5,
+        description: "High priority notification that pops up on screen.",
+        importance: 4, // High
         visibility: 1,
         vibration: true,
         lights: true,
-        lightColor: "#a855f7",
-      });
-      // @ts-ignore
+        lightColor: "#7c3aed",
+      } as any);
+
+      // Strong: Max priority, potentially persistent or long sound
       await LocalNotifications.createChannel?.({
         id: "alarms-strong",
         name: "Reminders (Strong)",
-        description: "Full-screen alert + long sound",
-        importance: 5,
+        description: "Maximum priority alert for important tasks.",
+        importance: 5, // Max
         visibility: 1,
         vibration: true,
         lights: true,
-        lightColor: "#a855f7",
-      });
+        lightColor: "#7c3aed",
+      } as any);
     } catch (err) {
       console.error("Failed to create alarm channels:", err);
     }

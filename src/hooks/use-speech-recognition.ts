@@ -13,35 +13,19 @@ interface UseSpeechRecognitionProps {
 
 /**
  * Lightweight, 100% offline text formatter.
- * - Capitalizes first letter of each sentence.
- * - Capitalizes the standalone pronoun "I" and contractions ("i'm" -> "I'm").
- * - Adds a trailing period if the text ends without sentence punctuation.
- * - Collapses extra spaces and tidies spacing around punctuation.
- * - PRESERVES the user's words — never rewrites or changes meaning.
  */
 export function formatVoiceText(input: string): string {
   if (!input) return input;
   let t = input.trim();
   if (!t) return t;
 
-  // Collapse whitespace
   t = t.replace(/\s+/g, " ");
-  // Tidy space before punctuation
   t = t.replace(/\s+([,.!?;:])/g, "$1");
-  // Ensure single space after punctuation
   t = t.replace(/([,.!?;:])(?=[^\s])/g, "$1 ");
-
-  // Capitalize first letter
   t = t.charAt(0).toUpperCase() + t.slice(1);
-
-  // Capitalize after sentence-ending punctuation
   t = t.replace(/([.!?]\s+)([a-z])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
-
-  // Standalone "i" -> "I" (handles "i", "i'm", "i've", "i'll", "i'd")
   t = t.replace(/\bi\b/g, "I");
   t = t.replace(/\bi'(m|ve|ll|d|re)\b/gi, (_m, suf) => "I'" + suf.toLowerCase());
-
-  // If it ends with a word character, add a period
   if (/[A-Za-z0-9]$/.test(t)) t += ".";
 
   return t;
@@ -93,10 +77,13 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
         return;
       }
 
-      const perms = await SpeechRecognition.requestPermissions();
-      if (perms.speechRecognition === "denied") {
-        toast({ title: "Permission denied", description: "Please allow microphone access in your device settings.", variant: "destructive" });
-        return;
+      const currentPerms = await SpeechRecognition.checkPermissions();
+      if (currentPerms.speechRecognition !== "granted") {
+        const perms = await SpeechRecognition.requestPermissions();
+        if (perms.speechRecognition === "denied") {
+          toast({ title: "Permission denied", description: "Please allow microphone access in your device settings.", variant: "destructive" });
+          return;
+        }
       }
 
       accumulatedRef.current = "";
@@ -105,36 +92,30 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
       recordingState.set(true);
       toast({ title: "Listening…", description: "Tap the mic again to stop." });
 
-      // Use partial results so we can keep the session alive across pauses.
-      // We append finalized chunks into accumulatedRef and only emit on user stop.
-      try {
-        // @ts-ignore - addListener signature varies by version
-        await SpeechRecognition.addListener?.("partialResults", (data: any) => {
-          const matches: string[] = data?.matches || [];
-          if (matches.length > 0) {
-            // Latest interim — replace tail; final commit happens on stop.
-            // We keep the most complete match.
-          }
-        });
-      } catch {}
-
-      // Loop: restart recognition if it auto-ends until the user taps stop.
       const loop = async () => {
+        let firstRun = true;
         while (!stoppedRef.current) {
           try {
-            const result = await new Promise(r => setTimeout(r, 800)); await SpeechRecognition.start({
+            if (!firstRun) {
+              // Delay between restarts to avoid "beep loops"
+              await new Promise(r => setTimeout(r, 600));
+            }
+            if (stoppedRef.current) break;
+            
+            const result = await SpeechRecognition.start({
               language: "en-US",
               maxResults: 1,
               partialResults: false,
               popup: false,
             });
+            firstRun = false;
             const text = result?.matches?.[0]?.trim();
             if (text) {
               accumulatedRef.current = (accumulatedRef.current ? accumulatedRef.current + " " : "") + text;
             }
           } catch (err) {
-            // If the session ends due to silence, just restart unless stopped.
             if (stoppedRef.current) break;
+            firstRun = false;
           }
         }
         finalize();
@@ -148,7 +129,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
     }
   }, [toast, finalize]);
 
-  const stopListening = useCallback(async (_inst?: any) => {
+  const stopListening = useCallback(async () => {
     stoppedRef.current = true;
     recordingState.set(false);
     try {
@@ -158,7 +139,6 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
     setTimeout(() => { if (isListening) finalize(); }, 300);
   }, [finalize, isListening]);
 
-  // Cleanup on unmount — stop recognition and clear recording flag.
   useEffect(() => () => {
     stoppedRef.current = true;
     recordingState.set(false);
@@ -173,10 +153,6 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
   return { isListening, isProcessing, isSupported: true, startListening, stopListening };
 };
 
-/**
- * Web speech recognition using Web Speech API
- * Manual stop only — keeps listening through silences. User taps mic to stop.
- */
 const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -258,30 +234,36 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     };
 
     recognition.onend = () => {
-      // If the engine stopped on its own (silence) but the user didn't tap stop, restart it.
       if (!stoppedByUserRef.current) {
-        try {
-          recognition.start();
-          return;
-        } catch {
-          // Fall through to emit
-        }
+        // Short delay to prevent rapid-fire beep loops
+        setTimeout(() => {
+          if (!stoppedByUserRef.current) {
+            try { recognition.start(); } catch { emitAndReset(); }
+          } else {
+            emitAndReset();
+          }
+        }, 600);
+        return;
       }
       emitAndReset();
     };
 
     recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      // Recoverable: just restart unless user stopped
+      if (event.error === "not-allowed") {
+        stoppedByUserRef.current = true;
+        toast({ title: "Microphone denied", description: "Allow microphone access in browser settings.", variant: "destructive" });
+        emitAndReset();
+        return;
+      }
+      
       if (event.error === "no-speech" || event.error === "audio-capture" || event.error === "network") {
         if (!stoppedByUserRef.current) {
-          try { recognition.start(); return; } catch {}
+          return; // onend will handle restart
         }
       }
-      if (event.error === "not-allowed") {
-        toast({ title: "Microphone denied", description: "Allow microphone access.", variant: "destructive" });
-      } else if (event.error !== "aborted") {
-        toast({ title: "Recognition error", description: "An error occurred.", variant: "destructive" });
+      
+      if (event.error !== "aborted") {
+        console.error("Speech recognition error:", event.error);
       }
       emitAndReset();
     };
@@ -296,7 +278,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     }
   }, [isSupported, toast, emitAndReset]);
 
-  const stopListening = useCallback((_inst?: any) => {
+  const stopListening = useCallback(() => {
     stoppedByUserRef.current = true;
     recordingState.set(false);
     const inst = recognitionRef.current;
@@ -307,7 +289,6 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     }
   }, [emitAndReset]);
 
-  // Cleanup on unmount — abort recognition immediately so it doesn't keep listening in background.
   useEffect(() => () => {
     stoppedByUserRef.current = true;
     recordingState.set(false);
@@ -321,9 +302,6 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   return { isListening, isProcessing, isSupported, startListening, stopListening };
 };
 
-/**
- * Main hook - picks native or web implementation based on platform
- */
 export const useSpeechRecognition = ({ onResult }: UseSpeechRecognitionProps) => {
   if (Capacitor.isNativePlatform()) {
     return useNativeSpeechRecognition(onResult);
