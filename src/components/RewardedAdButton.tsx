@@ -25,8 +25,8 @@ export const RewardedAdButton = ({ onReward, label = "Watch Ad for Reward", clas
 
     if (!navigator.onLine) {
       toast({ 
-        title: "No connection", 
-        description: "Please check your internet connection to load ads.", 
+        title: "No internet connection", 
+        description: "Please check your connection and try again.", 
         variant: "destructive" 
       });
       return;
