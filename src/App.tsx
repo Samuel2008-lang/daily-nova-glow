@@ -47,6 +47,23 @@ const App = () => {
     notificationService.setupDailyReminders();
   }, []);
 
+  useEffect(() => {
+    const clearTapFocus = () => {
+      const active = document.activeElement as HTMLElement | null;
+      if (active?.matches?.('button, a, [role="button"], [data-radix-collection-item]')) {
+        window.setTimeout(() => active.blur(), 0);
+      }
+    };
+    window.addEventListener("pointerup", clearTapFocus, true);
+    window.addEventListener("touchend", clearTapFocus, true);
+    window.addEventListener("click", clearTapFocus, true);
+    return () => {
+      window.removeEventListener("pointerup", clearTapFocus, true);
+      window.removeEventListener("touchend", clearTapFocus, true);
+      window.removeEventListener("click", clearTapFocus, true);
+    };
+  }, []);
+
   const handleSplashComplete = () => {
     sessionStorage.setItem("dailynova_splash_shown", "true");
     setShowSplash(false);
