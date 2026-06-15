@@ -110,7 +110,7 @@ export const notificationService = {
         body: config.body,
         schedule: { at: date, allowWhileIdle: true },
         channelId,
-        smallIcon: "ic_stat_icon_config_sample",
+        smallIcon: "ic_stat_icon",
         iconColor: "#a855f7",
         // @ts-ignore — handled by native patch (full-screen intent + long sound)
         extra: {
