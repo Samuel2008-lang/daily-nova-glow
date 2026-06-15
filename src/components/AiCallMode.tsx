@@ -170,8 +170,20 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
     let cancelled = false;
 
     const loop = async () => {
+      try {
+        await ensureMicrophonePermission();
+      } catch (err) {
+        toast({
+          title: "Microphone needed",
+          description: err instanceof Error ? err.message : "Allow microphone access to use voice call.",
+          variant: "destructive",
+        });
+        endCall();
+        return;
+      }
+
       const greeting = initialMessages.length === 0
-        ? "Hi! I'm listening — what's on your mind?"
+        ? "Hi. Tap the mic when you're ready to speak."
         : "I'm here. Go ahead.";
       
       setState("speaking");
@@ -185,6 +197,8 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
             await new Promise((r) => setTimeout(r, 400));
             continue;
           }
+          if (!resumeListeningRef.current) await waitForMicTap();
+          if (cancelled || endedRef.current) break;
           setState("listening");
           const userText = await listenOnce();
           if (cancelled || endedRef.current) break;
@@ -228,6 +242,12 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
     }
   };
 
+  const startListeningTurn = () => {
+    haptics.light();
+    resumeListeningRef.current?.();
+    resumeListeningRef.current = null;
+  };
+
   const toggleSpeaker = () => {
     speakerRef.current = !speakerRef.current;
     setSpeakerOn(speakerRef.current);
@@ -239,6 +259,7 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
 
   const statusText =
     state === "connecting" ? "Connecting…" :
+    state === "idle" ? "Tap mic to speak" :
     state === "listening" ? "Listening" :
     state === "thinking" ? "Thinking…" :
     state === "speaking" ? "Speaking" :
