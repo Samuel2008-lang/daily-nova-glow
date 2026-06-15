@@ -141,6 +141,24 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
   const listenOnce = useCallback((): Promise<string> => {
     return new Promise((resolve) => {
       if (endedRef.current) return resolve("");
+      if (Capacitor.isNativePlatform()) {
+        (async () => {
+          try {
+            const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
+            const result = await SpeechRecognition.start({
+              language: "en-US",
+              maxResults: 1,
+              partialResults: false,
+              popup: false,
+            });
+            resolve(result?.matches?.[0]?.trim() || "");
+          } catch (err) {
+            console.error("Native call speech error:", err);
+            resolve("");
+          }
+        })();
+        return;
+      }
       const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SR) return resolve("");
       const rec = new SR();
