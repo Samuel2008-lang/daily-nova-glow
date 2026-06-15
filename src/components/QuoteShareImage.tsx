@@ -15,26 +15,29 @@ export const useQuoteShareImage = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
 
-    // Deep navy background (matches reference)
-    const grad = ctx.createLinearGradient(0, 0, size, size);
-    grad.addColorStop(0, "#0a0d3d");
-    grad.addColorStop(1, "#06083a");
+    // Deep blue reference-style background: rich navy with a subtle center glow.
+    const grad = ctx.createRadialGradient(size * 0.5, size * 0.52, 120, size * 0.5, size * 0.5, size * 0.78);
+    grad.addColorStop(0, "#061a63");
+    grad.addColorStop(0.42, "#04145a");
+    grad.addColorStop(1, "#020735");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, size, size);
 
-    // Purple border frame
-    const PURPLE = "#8b5cf6";
+    const PURPLE = "#a45cff";
     ctx.strokeStyle = PURPLE;
-    ctx.lineWidth = 4;
-    const inset = 50;
+    ctx.lineWidth = 5;
+    const inset = 36;
     ctx.strokeRect(inset, inset, size - inset * 2, size - inset * 2);
+    ctx.strokeStyle = "rgba(164, 92, 255, 0.38)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(inset + 16, inset + 16, size - (inset + 16) * 2, size - (inset + 16) * 2);
 
     // Safe content padding so nothing crosses the border
     const PAD = 130;
     const contentWidth = size - PAD * 2;
 
     // Wrap quote text
-    const fontSize = text.length > 180 ? 40 : text.length > 110 ? 48 : 56;
+    const fontSize = text.length > 180 ? 40 : text.length > 110 ? 50 : 58;
     ctx.font = `italic ${fontSize}px Georgia, 'Times New Roman', serif`;
     const words = text.split(" ");
     const lines: string[] = [];
@@ -52,17 +55,17 @@ export const useQuoteShareImage = () => {
 
     const lineHeight = fontSize * 1.4;
     const blockHeight = lines.length * lineHeight;
-    const startY = (size - blockHeight) / 2 - 40;
+    const startY = (size - blockHeight) / 2 - 35;
 
     // Opening quote mark (top-left, well inside border)
     ctx.fillStyle = PURPLE;
-    ctx.font = `bold 110px Georgia, serif`;
+    ctx.font = `bold 96px Georgia, serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     ctx.fillText("\u201C", PAD - 20, startY - 30);
 
     // Quote text (centered, white)
-    ctx.fillStyle = "#f1f1ff";
+    ctx.fillStyle = "#f7f4ff";
     ctx.font = `italic ${fontSize}px Georgia, 'Times New Roman', serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -74,12 +77,12 @@ export const useQuoteShareImage = () => {
 
     // Closing quote mark (right side, below text)
     ctx.fillStyle = PURPLE;
-    ctx.font = `bold 110px Georgia, serif`;
+    ctx.font = `bold 96px Georgia, serif`;
     ctx.textAlign = "right";
     ctx.fillText("\u201D", size - PAD + 20, startY + blockHeight + 20);
 
     // Author
-    ctx.fillStyle = "#b794f4";
+    ctx.fillStyle = PURPLE;
     ctx.font = `400 32px 'Segoe UI', Arial, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";

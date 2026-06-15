@@ -16,6 +16,7 @@ const config: CapacitorConfig = {
     LocalNotifications: {
       smallIcon: 'ic_stat_icon_config_sample',
       iconColor: '#ff69b4',
+      sound: 'dailynova_alarm_short.wav',
     },
     SpeechRecognition: {
       // Permissions auto-requested at runtime

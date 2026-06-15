@@ -37,9 +37,30 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, onPointerUp, onMouseUp, onTouchEnd, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+    const clearPressedState = (event: React.SyntheticEvent<HTMLButtonElement>) => {
+      window.setTimeout(() => event.currentTarget.blur(), 0);
+    };
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        onPointerUp={(event: React.PointerEvent<HTMLButtonElement>) => {
+          onPointerUp?.(event);
+          clearPressedState(event);
+        }}
+        onMouseUp={(event: React.MouseEvent<HTMLButtonElement>) => {
+          onMouseUp?.(event);
+          clearPressedState(event);
+        }}
+        onTouchEnd={(event: React.TouchEvent<HTMLButtonElement>) => {
+          onTouchEnd?.(event);
+          clearPressedState(event);
+        }}
+        {...props}
+      />
+    );
   },
 );
 Button.displayName = "Button";

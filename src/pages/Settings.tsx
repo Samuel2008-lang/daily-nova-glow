@@ -154,8 +154,15 @@ const Settings = () => {
 
   const clearAllData = () => {
     localStorage.clear();
+    sessionStorage.setItem("dailynova_splash_shown", "true");
+    sessionStorage.setItem("dailynova_app_unlocked", "true");
     toast({ title: "Data cleared", description: "All app data has been deleted." });
-    setTimeout(() => window.location.reload(), 1000);
+    setLockEnabled(false);
+    setDiaryLock(false);
+    setJournalLock(false);
+    setHasDiaryPin(false);
+    setHasJournalPin(false);
+    setBiometricEnabled(false);
   };
 
   if (showPinSetup) {

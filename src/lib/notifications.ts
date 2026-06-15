@@ -6,9 +6,9 @@ const isNative = Capacitor.isNativePlatform();
 type AlertLevel = "light" | "medium" | "strong";
 
 const channelForAlert = (level: AlertLevel): string => {
-  if (level === "strong") return "alarms-strong";
-  if (level === "medium") return "alarms-medium";
-  return "alarms-light";
+  if (level === "strong") return "dailynova-reminders-strong";
+  if (level === "medium") return "dailynova-reminders-medium";
+  return "dailynova-reminders-light";
 };
 
 export const notificationService = {
@@ -41,7 +41,11 @@ export const notificationService = {
               on: { hour: config.hour, minute: config.minute },
               allowWhileIdle: true,
             },
-            channelId: "alarms-medium",
+            channelId: "dailynova-reminders-medium",
+            smallIcon: "ic_stat_icon_config_sample",
+            iconColor: "#ff69b4",
+            group: "daily-reminders",
+            autoCancel: true,
           },
         ],
       });
@@ -104,21 +108,32 @@ export const notificationService = {
         }
       }
 
-      const notifications = occurrences.map((date, idx) => ({
+      await this.cancelNotification(config.id);
+      const notifications = occurrences.filter((date) => date > new Date()).map((date, idx) => ({
         id: config.id + idx, // unique per occurrence
         title: config.title,
         body: config.body,
-        schedule: { at: date, allowWhileIdle: true },
+        largeBody: config.body,
+        schedule: { 
+          at: date, 
+          allowWhileIdle: true,
+        },
         channelId,
         smallIcon: "ic_stat_icon_config_sample",
-        iconColor: "#a855f7",
-        // @ts-ignore — handled by native patch (full-screen intent + long sound)
+        iconColor: "#ff69b4",
+        group: `task-${config.id}`,
+        threadIdentifier: `task-${config.id}`,
+        autoCancel: true,
+        sound: alertLevel === "strong" ? "dailynova_alarm_long.wav" : "dailynova_alarm_short.wav",
+        // Extra data for potential native listener
         extra: {
           taskGroupId: config.id,
-          fullScreen: alertLevel !== "light",
-          importance: alertLevel === "strong" ? 5 : alertLevel === "medium" ? 5 : 4,
-          longSound: alertLevel === "strong",
+          visibleId: config.id,
           alertLevel,
+          importance: alertLevel === "strong" ? 5 : alertLevel === "medium" ? 5 : 4,
+          fullScreen: alertLevel !== "light",
+          longSound: alertLevel === "strong",
+          repeatIndex: idx,
         },
       }));
 
@@ -132,39 +147,38 @@ export const notificationService = {
   async ensureAlarmsChannel() {
     if (!isNative) return;
     try {
-      // @ts-ignore
       await LocalNotifications.createChannel?.({
-        id: "alarms-light",
+        id: "dailynova-reminders-light",
         name: "Reminders (Light)",
-        description: "Standard notification + short sound",
-        importance: 4,
+        description: "Standard notification with a short sound.",
+        importance: 3,
         visibility: 1,
         vibration: true,
         lights: true,
-        lightColor: "#a855f7",
-      });
-      // @ts-ignore
+        lightColor: "#ff69b4",
+      } as any);
+
       await LocalNotifications.createChannel?.({
-        id: "alarms-medium",
+        id: "dailynova-reminders-medium",
         name: "Reminders (Medium)",
-        description: "Full-screen alert + short sound",
+        description: "High priority notification that pops up on screen.",
         importance: 5,
         visibility: 1,
         vibration: true,
         lights: true,
-        lightColor: "#a855f7",
-      });
-      // @ts-ignore
+        lightColor: "#ff69b4",
+      } as any);
+
       await LocalNotifications.createChannel?.({
-        id: "alarms-strong",
+        id: "dailynova-reminders-strong",
         name: "Reminders (Strong)",
-        description: "Full-screen alert + long sound",
+        description: "Maximum priority alert for important tasks.",
         importance: 5,
         visibility: 1,
         vibration: true,
         lights: true,
-        lightColor: "#a855f7",
-      });
+        lightColor: "#ff69b4",
+      } as any);
     } catch (err) {
       console.error("Failed to create alarm channels:", err);
     }
@@ -173,7 +187,6 @@ export const notificationService = {
   async cancelNotification(id: number) {
     if (!isNative) return;
     try {
-      // Cancel the original + a window of expanded occurrence IDs (id..id+59).
       const ids = Array.from({ length: 60 }, (_, i) => ({ id: id + i }));
       await LocalNotifications.cancel({ notifications: ids });
     } catch (err) {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Gift } from "lucide-react";
+import { Gift, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdMob } from "@/hooks/use-admob";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,15 @@ export const RewardedAdButton = ({ onReward, label = "Watch Ad for Reward", clas
       return;
     }
 
+    if (!navigator.onLine) {
+      toast({ 
+        title: "No internet connection", 
+        description: "Please check your connection and try again.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const rewarded = await showRewarded();
@@ -32,8 +41,13 @@ export const RewardedAdButton = ({ onReward, label = "Watch Ad for Reward", clas
       } else {
         toast({ title: "Ad not completed", description: "Watch the full ad to get your reward.", variant: "destructive" });
       }
-    } catch {
-      toast({ title: "Ad unavailable", description: "Please try again later.", variant: "destructive" });
+    } catch (error) {
+      console.error("RewardedAdButton error:", error);
+      toast({ 
+        title: "Ad unavailable", 
+        description: "The ad server couldn't be reached. Try again in a moment.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsLoading(false);
     }
@@ -41,8 +55,17 @@ export const RewardedAdButton = ({ onReward, label = "Watch Ad for Reward", clas
 
   return (
     <Button onClick={handleClick} disabled={isLoading} variant="outline" className={className}>
-      <Gift className="w-4 h-4 mr-2" />
-      {isLoading ? "Loading..." : label}
+      {isLoading ? (
+        <span className="flex items-center">
+          <span className="animate-spin mr-2">⏳</span>
+          Loading...
+        </span>
+      ) : (
+        <>
+          <Gift className="w-4 h-4 mr-2" />
+          {label}
+        </>
+      )}
     </Button>
   );
 };
