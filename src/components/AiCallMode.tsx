@@ -311,11 +311,13 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
       <div className="relative pb-14 px-8">
         <div className="flex items-center justify-center gap-8">
           <button
-            onClick={toggleMute}
-            aria-label={muted ? "Unmute" : "Mute"}
-            className="w-14 h-14 rounded-full bg-muted/40 border border-border/40 flex items-center justify-center active:scale-95 transition-transform"
+            onClick={state === "idle" ? startListeningTurn : toggleMute}
+            aria-label={state === "idle" ? "Start speaking" : muted ? "Unmute" : "Mute"}
+            className={`w-14 h-14 rounded-full border flex items-center justify-center active:scale-95 transition-transform ${
+              state === "idle" ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/30" : "bg-muted/40 border-border/40 text-foreground"
+            }`}
           >
-            {muted ? <MicOff className="w-6 h-6 text-foreground" /> : <Mic className="w-6 h-6 text-foreground" />}
+            {muted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
           </button>
 
           <button
