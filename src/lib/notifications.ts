@@ -43,7 +43,8 @@ export const notificationService = {
             },
             channelId: "alarms-medium",
             smallIcon: "ic_stat_icon",
-            iconColor: "#a855f7",
+            iconColor: "#7c3aed",
+            group: "daily-reminders",
           },
         ],
       });
@@ -117,7 +118,8 @@ export const notificationService = {
         channelId,
         smallIcon: "ic_stat_icon",
         iconColor: "#7c3aed",
-        // Extra data for potential native listener (e.g. for full-screen intent)
+        group: `task-${config.id}`,
+        // Extra data for potential native listener
         extra: {
           taskGroupId: config.id,
           alertLevel,
@@ -136,34 +138,31 @@ export const notificationService = {
   async ensureAlarmsChannel() {
     if (!isNative) return;
     try {
-      // Light: Normal notification
       await LocalNotifications.createChannel?.({
         id: "alarms-light",
         name: "Reminders (Light)",
         description: "Standard notification with a short sound.",
-        importance: 3, // Default
+        importance: 3,
         visibility: 1,
         vibration: true,
       } as any);
 
-      // Medium: High priority, head-up notification
       await LocalNotifications.createChannel?.({
         id: "alarms-medium",
         name: "Reminders (Medium)",
         description: "High priority notification that pops up on screen.",
-        importance: 4, // High
+        importance: 4,
         visibility: 1,
         vibration: true,
         lights: true,
         lightColor: "#7c3aed",
       } as any);
 
-      // Strong: Max priority, potentially persistent or long sound
       await LocalNotifications.createChannel?.({
         id: "alarms-strong",
         name: "Reminders (Strong)",
         description: "Maximum priority alert for important tasks.",
-        importance: 5, // Max
+        importance: 5,
         visibility: 1,
         vibration: true,
         lights: true,
@@ -177,7 +176,6 @@ export const notificationService = {
   async cancelNotification(id: number) {
     if (!isNative) return;
     try {
-      // Cancel the original + a window of expanded occurrence IDs (id..id+59).
       const ids = Array.from({ length: 60 }, (_, i) => ({ id: id + i }));
       await LocalNotifications.cancel({ notifications: ids });
     } catch (err) {

@@ -14,11 +14,6 @@ interface AiCallModeProps {
 
 type CallState = "connecting" | "listening" | "thinking" | "speaking" | "muted";
 
-/**
- * Clean phone-call style voice interface — similar to ChatGPT / Claude voice.
- * Full-screen solid background, top: avatar + name + status, center: waveform,
- * bottom: mute / speaker / end-call.
- */
 const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps) => {
   const { toast } = useToast();
   const [state, setState] = useState<CallState>("connecting");
@@ -31,14 +26,19 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
   const mutedRef = useRef(false);
   const speakerRef = useRef(true);
 
-  // call timer
   useEffect(() => {
     const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
   }, []);
 
   const stopAll = useCallback(() => {
-    try { recognitionRef.current?.stop(); } catch {}
+    try { 
+      if (recognitionRef.current) {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.abort(); 
+      }
+    } catch {}
     try { window.speechSynthesis?.cancel(); } catch {}
   }, []);
 
@@ -51,7 +51,7 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
 
   const speak = useCallback((text: string): Promise<void> => {
     return new Promise((resolve) => {
-      if (!("speechSynthesis" in window) || !speakerRef.current) return resolve();
+      if (!("speechSynthesis" in window) || !speakerRef.current || endedRef.current) return resolve();
       const utter = new SpeechSynthesisUtterance(text);
       utter.rate = 1.0;
       utter.pitch = 1.05;
@@ -85,6 +85,10 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
     const dec = new TextDecoder();
     let buf = ""; let content = "";
     while (true) {
+      if (endedRef.current) {
+        reader.cancel();
+        break;
+      }
       const { done, value } = await reader.read();
       if (done) break;
       buf += dec.decode(value, { stream: true });
@@ -107,9 +111,10 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
   }, [systemPrompt]);
 
   const listenOnce = useCallback((): Promise<string> => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
+      if (endedRef.current) return resolve("");
       const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!SR) return reject(new Error("Speech recognition not supported"));
+      if (!SR) return resolve("");
       const rec = new SR();
       rec.continuous = false;
       rec.interimResults = true;
@@ -122,48 +127,28 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
         }
       };
       rec.onerror = (e: any) => {
-        // Swallow recoverable errors so the loop can continue
-        if (e.error === "no-speech" || e.error === "aborted" || e.error === "audio-capture" || e.error === "network") {
-          resolve("");
-        } else if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-          reject(new Error("Microphone permission denied. Allow mic access to use voice call."));
-        } else {
-          resolve("");
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+          toast({ title: "Microphone denied", description: "Allow mic access to use voice call.", variant: "destructive" });
         }
+        resolve("");
       };
       rec.onend = () => resolve(final.trim());
       recognitionRef.current = rec;
       try { rec.start(); } catch (err) { resolve(""); }
     });
-  }, []);
+  }, [toast]);
 
-  // Main conversation loop
   useEffect(() => {
     let cancelled = false;
 
     const loop = async () => {
-      // Pre-request microphone permission so SpeechRecognition won't error with "not-allowed".
-      try {
-        if (navigator.mediaDevices?.getUserMedia) {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          // Release tracks — SpeechRecognition manages its own stream.
-          stream.getTracks().forEach((t) => t.stop());
-        }
-      } catch {
-        toast({
-          title: "Microphone needed",
-          description: "Allow microphone access to use voice call.",
-          variant: "destructive",
-        });
-        endCall();
-        return;
-      }
-
       const greeting = initialMessages.length === 0
         ? "Hi! I'm listening — what's on your mind?"
         : "I'm here. Go ahead.";
+      
       setState("speaking");
       await speak(greeting);
+      if (cancelled || endedRef.current) return;
 
       while (!cancelled && !endedRef.current) {
         try {
@@ -174,7 +159,7 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
           }
           setState("listening");
           const userText = await listenOnce();
-          if (cancelled || endedRef.current) return;
+          if (cancelled || endedRef.current) break;
           if (!userText || mutedRef.current) continue;
 
           haptics.light();
@@ -183,19 +168,16 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
 
           setState("thinking");
           const reply = await streamReply(newMsgs);
-          if (cancelled || endedRef.current) return;
+          if (cancelled || endedRef.current) break;
           if (!reply) continue;
 
           messagesRef.current = [...newMsgs, { role: "assistant", content: reply }];
           setState("speaking");
           await speak(reply);
+          if (cancelled || endedRef.current) break;
         } catch (err) {
           console.error("Call loop error:", err);
-          toast({
-            title: "Voice error",
-            description: err instanceof Error ? err.message : "Try again.",
-            variant: "destructive",
-          });
+          if (cancelled || endedRef.current) break;
           await new Promise((r) => setTimeout(r, 800));
         }
       }
@@ -214,7 +196,7 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
     setMuted(mutedRef.current);
     haptics.light();
     if (mutedRef.current) {
-      try { recognitionRef.current?.stop(); } catch {}
+      try { recognitionRef.current?.abort(); } catch {}
     }
   };
 
@@ -239,21 +221,17 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-background">
-      {/* subtle ambient glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
       </div>
 
-      {/* Top: name + timer */}
       <div className="relative pt-16 pb-8 px-6 text-center">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{mm}:{ss}</p>
         <h2 className="mt-2 text-3xl font-semibold text-foreground">Daily Nova</h2>
         <p className="mt-1 text-sm text-muted-foreground">{statusText}</p>
       </div>
 
-      {/* Center: avatar + waveform */}
       <div className="relative flex-1 flex flex-col items-center justify-center gap-10">
-        {/* Avatar circle */}
         <div className="relative">
           <div className={`absolute inset-0 rounded-full bg-primary/20 blur-2xl ${state === "speaking" || state === "listening" ? "animate-pulse" : ""}`} />
           <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 border border-primary/40 flex items-center justify-center backdrop-blur">
@@ -261,7 +239,6 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
           </div>
         </div>
 
-        {/* Waveform */}
         <div className="flex items-end justify-center gap-1.5 h-12">
           {[0, 1, 2, 3, 4, 5, 6].map((i) => (
             <span
@@ -282,7 +259,6 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
         </div>
       </div>
 
-      {/* Bottom controls: mute | end | speaker */}
       <div className="relative pb-14 px-8">
         <div className="flex items-center justify-center gap-8">
           <button
