@@ -74,24 +74,47 @@ All colors MUST be HSL.
     min-height: 100vh;
   }
 
-  /* On touch devices, neutralize sticky :hover (which lingers after tap) and stray focus rings. */
-  @media (hover: none) {
-    *:hover {
-      background-color: revert;
-      color: revert;
-      border-color: revert;
-      box-shadow: revert;
-      opacity: revert;
-      filter: revert;
+  input:focus, input:focus-visible,
+  textarea:focus, textarea:focus-visible,
+  select:focus, select:focus-visible,
+  [contenteditable="true"]:focus, [contenteditable="true"]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+  }
+
+  button:focus:not(:focus-visible),
+  a:focus:not(:focus-visible),
+  [role="button"]:focus:not(:focus-visible) {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* On touch devices, neutralize sticky :hover/focus visuals that linger after tap in webviews. */
+  @media (hover: none), (pointer: coarse) {
+    button:hover, a:hover, [role="button"]:hover,
+    .hover\:bg-accent:hover, .hover\:bg-muted:hover, .hover\:bg-muted\/50:hover,
+    .hover\:text-accent-foreground:hover, .hover\:text-foreground:hover,
+    .hover\:text-primary:hover, .hover\:text-secondary:hover, .hover\:text-success:hover,
+    .hover\:text-destructive:hover, .hover\:border-primary\/40:hover,
+    .hover\:border-primary\/50:hover, .hover\:scale-105:hover,
+    .hover\:scale-110:hover, .hover\:scale-\[1\.03\]:hover,
+    .hover\:scale-\[1\.02\]:hover {
+      transform: none !important;
+      box-shadow: none !important;
+      filter: none !important;
     }
+
     button:focus, button:focus-visible,
     a:focus, a:focus-visible,
     [role="button"]:focus, [role="button"]:focus-visible,
     [data-radix-collection-item]:focus,
     [data-state]:focus {
-      outline: none;
-      box-shadow: none;
-      background-color: revert;
+      outline: none !important;
+      box-shadow: none !important;
+      --tw-ring-shadow: 0 0 #0000 !important;
+      --tw-ring-offset-shadow: 0 0 #0000 !important;
     }
   }
 
@@ -99,6 +122,10 @@ All colors MUST be HSL.
   button:active, [role="button"]:active, a:active {
     opacity: 0.75;
     transition: opacity 60ms ease-out;
+  }
+
+  button, a, [role="button"], input, textarea, select {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
