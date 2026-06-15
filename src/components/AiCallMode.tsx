@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { PhoneOff, Mic, MicOff, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { haptics } from "@/lib/haptics";
 import { useToast } from "@/hooks/use-toast";
+import { Capacitor } from "@capacitor/core";
 
 type Msg = { role: string; content: string };
 
@@ -12,7 +13,7 @@ interface AiCallModeProps {
   onClose: (finalMessages: Msg[]) => void;
 }
 
-type CallState = "connecting" | "listening" | "thinking" | "speaking" | "muted";
+type CallState = "connecting" | "idle" | "listening" | "thinking" | "speaking" | "muted";
 
 const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps) => {
   const { toast } = useToast();
@@ -25,6 +26,7 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
   const endedRef = useRef(false);
   const mutedRef = useRef(false);
   const speakerRef = useRef(true);
+  const resumeListeningRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setElapsed((e) => e + 1), 1000);
@@ -39,7 +41,33 @@ const AiCallMode = ({ initialMessages, systemPrompt, onClose }: AiCallModeProps)
         recognitionRef.current.abort(); 
       }
     } catch {}
+    resumeListeningRef.current?.();
+    resumeListeningRef.current = null;
     try { window.speechSynthesis?.cancel(); } catch {}
+  }, []);
+
+  const ensureMicrophonePermission = useCallback(async () => {
+    if (Capacitor.isNativePlatform()) {
+      const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
+      const checked = await SpeechRecognition.checkPermissions();
+      const result = checked.speechRecognition === "granted" ? checked : await SpeechRecognition.requestPermissions();
+      if (result.speechRecognition !== "granted") {
+        throw new Error("Microphone permission is not enabled for Daily Nova.");
+      }
+      return;
+    }
+
+    if (navigator.mediaDevices?.getUserMedia) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    }
+  }, []);
+
+  const waitForMicTap = useCallback(() => {
+    setState("idle");
+    return new Promise<void>((resolve) => {
+      resumeListeningRef.current = resolve;
+    });
   }, []);
 
   const endCall = useCallback(() => {
