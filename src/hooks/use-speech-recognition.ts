@@ -40,10 +40,13 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
   const { toast } = useToast();
   const accumulatedRef = useRef<string>("");
   const stoppedRef = useRef(false);
+  const finalizedRef = useRef(false);
   const autoEnhanceRef = useRef(false);
   const contextRef = useRef<string>("note");
 
   const finalize = useCallback(async () => {
+    if (finalizedRef.current) return;
+    finalizedRef.current = true;
     const raw = accumulatedRef.current.trim();
     accumulatedRef.current = "";
     recordingState.set(false);
@@ -88,39 +91,29 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
 
       accumulatedRef.current = "";
       stoppedRef.current = false;
+      finalizedRef.current = false;
       setIsListening(true);
       recordingState.set(true);
       toast({ title: "Listening…", description: "Tap the mic again to stop." });
 
-      const loop = async () => {
-        let firstRun = true;
-        while (!stoppedRef.current) {
-          try {
-            if (!firstRun) {
-              // Delay between restarts to avoid "beep loops"
-              await new Promise(r => setTimeout(r, 600));
-            }
-            if (stoppedRef.current) break;
-            
-            const result = await SpeechRecognition.start({
-              language: "en-US",
-              maxResults: 1,
-              partialResults: false,
-              popup: false,
-            });
-            firstRun = false;
-            const text = result?.matches?.[0]?.trim();
-            if (text) {
-              accumulatedRef.current = (accumulatedRef.current ? accumulatedRef.current + " " : "") + text;
-            }
-          } catch (err) {
-            if (stoppedRef.current) break;
-            firstRun = false;
-          }
+      // Start once only. Restarting after silence causes Android/iOS to replay
+      // the system mic beep repeatedly, so natural silence now finalizes input.
+      try {
+        const result = await SpeechRecognition.start({
+          language: "en-US",
+          maxResults: 1,
+          partialResults: false,
+          popup: false,
+        });
+        const text = result?.matches?.[0]?.trim();
+        if (text) {
+          accumulatedRef.current = text;
         }
+      } catch (err) {
+        if (!stoppedRef.current) console.error("Native speech error:", err);
+      } finally {
         finalize();
-      };
-      loop();
+      }
     } catch (error) {
       console.error("Native speech error:", error);
       setIsListening(false);
@@ -136,8 +129,8 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
       await SpeechRecognition.stop();
     } catch {}
-    setTimeout(() => { if (isListening) finalize(); }, 300);
-  }, [finalize, isListening]);
+    setTimeout(() => finalize(), 200);
+  }, [finalize]);
 
   useEffect(() => () => {
     stoppedRef.current = true;
