@@ -106,17 +106,22 @@ function generateAppAssets() {
     const assetsDir = join(ROOT, 'assets');
     if (!existsSync(assetsDir)) mkdirSync(assetsDir, { recursive: true });
 
-    // Standard / legacy icon = full-bleed gradient (fills tile edge-to-edge on iOS + legacy Android)
+    // Standard icon
     copyFileSync(sourceIcon, join(assetsDir, 'icon.png'));
+    
+    // Notification icon (grayscale/alpha for Android)
+    // If we have a dedicated one use it, otherwise use main icon
+    if (existsSync(join(ROOT, 'public', 'notification-icon.png'))) {
+      copyFileSync(join(ROOT, 'public', 'notification-icon.png'), join(assetsDir, 'notification-icon.png'));
+    } else {
+      copyFileSync(sourceIcon, join(assetsDir, 'notification-icon.png'));
+    }
 
-    // Adaptive icon for modern Android (One UI / Samsung): use full gradient as the BACKGROUND
-    // and the sparkle as the FOREGROUND. This makes the tile fill edge-to-edge instead of
-    // being shrunk inside the OS safe-zone (the previous "tiny icon" bug).
+    // Adaptive icon for modern Android
     copyFileSync(sourceIcon, join(assetsDir, 'icon-background.png'));
     if (existsSync(sourceForeground)) {
       copyFileSync(sourceForeground, join(assetsDir, 'icon-foreground.png'));
     } else {
-      // Fallback: reuse full icon as foreground
       copyFileSync(sourceIcon, join(assetsDir, 'icon-foreground.png'));
     }
 
@@ -124,7 +129,7 @@ function generateAppAssets() {
       cwd: ROOT,
       stdio: 'inherit',
     });
-    console.log('✓ Generated full-bleed launcher icons + splash (adaptive bg=gradient, fg=sparkle)');
+    console.log('✓ Generated full-bleed launcher icons + splash + notification icons');
     return true;
   } catch (err) {
     console.warn('⚠ Icon generation skipped:', err.message);
