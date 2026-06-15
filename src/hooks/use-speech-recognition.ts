@@ -122,7 +122,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
       const loop = async () => {
         while (!stoppedRef.current) {
           try {
-            const result = await SpeechRecognition.start({
+            const result = await new Promise(r => setTimeout(r, 800)); await SpeechRecognition.start({
               language: "en-US",
               maxResults: 1,
               partialResults: false,
