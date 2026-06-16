@@ -15,22 +15,22 @@ export const useQuoteShareImage = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
 
-    // Deep blue reference-style background: rich navy with a subtle center glow.
-    const grad = ctx.createRadialGradient(size * 0.5, size * 0.52, 120, size * 0.5, size * 0.5, size * 0.78);
-    grad.addColorStop(0, "#061a63");
-    grad.addColorStop(0.42, "#04145a");
-    grad.addColorStop(1, "#020735");
+    // Reference-style background: deep purple radial glow with darker edges.
+    const grad = ctx.createRadialGradient(size * 0.5, size * 0.52, 80, size * 0.5, size * 0.5, size * 0.82);
+    grad.addColorStop(0, "#3a0458");
+    grad.addColorStop(0.48, "#25003d");
+    grad.addColorStop(1, "#11001f");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, size, size);
 
-    const PURPLE = "#a45cff";
+    const PURPLE = "#ff5df4";
     ctx.strokeStyle = PURPLE;
-    ctx.lineWidth = 5;
-    const inset = 36;
+    ctx.lineWidth = 6;
+    const inset = 40;
     ctx.strokeRect(inset, inset, size - inset * 2, size - inset * 2);
-    ctx.strokeStyle = "rgba(164, 92, 255, 0.38)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(inset + 16, inset + 16, size - (inset + 16) * 2, size - (inset + 16) * 2);
+    ctx.strokeStyle = "rgba(255, 93, 244, 0.22)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(inset + 18, inset + 18, size - (inset + 18) * 2, size - (inset + 18) * 2);
 
     // Safe content padding so nothing crosses the border
     const PAD = 130;
@@ -58,7 +58,7 @@ export const useQuoteShareImage = () => {
     const startY = (size - blockHeight) / 2 - 35;
 
     // Opening quote mark (top-left, well inside border)
-    ctx.fillStyle = PURPLE;
+    ctx.fillStyle = "rgba(255, 93, 244, 0.35)";
     ctx.font = `bold 96px Georgia, serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
@@ -76,14 +76,14 @@ export const useQuoteShareImage = () => {
     });
 
     // Closing quote mark (right side, below text)
-    ctx.fillStyle = PURPLE;
+    ctx.fillStyle = "rgba(255, 93, 244, 0.35)";
     ctx.font = `bold 96px Georgia, serif`;
     ctx.textAlign = "right";
     ctx.fillText("\u201D", size - PAD + 20, startY + blockHeight + 20);
 
     // Author
     ctx.fillStyle = PURPLE;
-    ctx.font = `400 32px 'Segoe UI', Arial, sans-serif`;
+    ctx.font = `700 38px 'Segoe UI', Arial, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
     ctx.fillText(`— ${author}`, size / 2, startY + blockHeight + 110);
