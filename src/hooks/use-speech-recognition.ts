@@ -55,7 +55,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
     setIsProcessing(false);
   }, [onResult]);
 
-  const startListening = useCallback(async () => {
+  const startListening = useCallback(async (_autoEnhance: boolean = false, _context?: string) => {
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
 
@@ -158,7 +158,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     onResult(formatVoiceText(text));
   }, [onResult]);
 
-  const startListening = useCallback(async () => {
+  const startListening = useCallback(async (_autoEnhance: boolean = false, _context?: string) => {
     if (!isSupported) {
       toast({ title: "Not supported", description: "Speech recognition is not supported in your browser.", variant: "destructive" });
       return;
