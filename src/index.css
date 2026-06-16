@@ -64,6 +64,7 @@ All colors MUST be HSL.
     @apply border-border;
     /* Remove iOS/Android sticky tap highlight; we use explicit :active states instead */
     -webkit-tap-highlight-color: transparent;
+    tap-highlight-color: transparent;
   }
 
   body {
@@ -80,8 +81,14 @@ All colors MUST be HSL.
   [contenteditable="true"]:focus, [contenteditable="true"]:focus-visible {
     outline: none !important;
     box-shadow: none !important;
+    border-color: hsl(var(--border)) !important;
     --tw-ring-shadow: 0 0 #0000 !important;
     --tw-ring-offset-shadow: 0 0 #0000 !important;
+  }
+
+  button:focus, button:active {
+    outline: none !important;
+    box-shadow: none !important;
   }
 
   button:focus:not(:focus-visible),
