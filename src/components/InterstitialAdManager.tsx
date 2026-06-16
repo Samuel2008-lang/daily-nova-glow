@@ -7,7 +7,7 @@ const PAGE_CHANGE_THRESHOLD = 8;
 const MIN_GAP_MS = 2 * 60 * 1000; // 2 minutes between interstitials
 
 // Routes where the user is actively writing/reading and ads must never appear.
-const PROTECTED_ROUTES = ["/diary", "/journal", "/notes", "/diary/ai", "/journal/ai"];
+const PROTECTED_ROUTES = ["/diary", "/journal", "/notes"];
 
 /**
  * Tracks page changes and shows an interstitial after N transitions, throttled.
