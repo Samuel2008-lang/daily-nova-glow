@@ -6,9 +6,9 @@ const isNative = Capacitor.isNativePlatform();
 type AlertLevel = "light" | "medium" | "strong";
 
 const channelForAlert = (level: AlertLevel): string => {
-  if (level === "strong") return "dailynova-reminders-strong";
-  if (level === "medium") return "dailynova-reminders-medium";
-  return "dailynova-reminders-light";
+  if (level === "strong") return "dailynova-reminders-strong-pink";
+  if (level === "medium") return "dailynova-reminders-medium-pink";
+  return "dailynova-reminders-light-pink";
 };
 
 export const notificationService = {
@@ -42,7 +42,7 @@ export const notificationService = {
               on: { hour: config.hour, minute: config.minute },
               allowWhileIdle: true,
             },
-            channelId: "dailynova-reminders-medium",
+            channelId: "dailynova-reminders-medium-pink",
             smallIcon: "ic_stat_icon_config_sample",
             iconColor: "#ff69b4",
             group: "daily-reminders",
@@ -152,7 +152,7 @@ export const notificationService = {
     if (!isNative) return;
     try {
       await LocalNotifications.createChannel?.({
-        id: "dailynova-reminders-light",
+        id: "dailynova-reminders-light-pink",
         name: "Reminders (Light)",
         description: "Standard notification with a short sound.",
         importance: 3,
@@ -163,7 +163,7 @@ export const notificationService = {
       } as any);
 
       await LocalNotifications.createChannel?.({
-        id: "dailynova-reminders-medium",
+        id: "dailynova-reminders-medium-pink",
         name: "Reminders (Medium)",
         description: "High priority notification that pops up on screen.",
         importance: 5,
@@ -174,7 +174,7 @@ export const notificationService = {
       } as any);
 
       await LocalNotifications.createChannel?.({
-        id: "dailynova-reminders-strong",
+        id: "dailynova-reminders-strong-pink",
         name: "Reminders (Strong)",
         description: "Maximum priority alert for important tasks.",
         importance: 5,
