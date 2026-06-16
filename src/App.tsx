@@ -9,9 +9,7 @@ import Notes from "./pages/Notes";
 import Tasks from "./pages/Tasks";
 import Habits from "./pages/Habits";
 import Diary from "./pages/Diary";
-import DiaryAi from "./pages/DiaryAi";
 import Journal from "./pages/Journal";
-import JournalAi from "./pages/JournalAi";
 import Quotes from "./pages/Quotes";
 import Premium from "./pages/Premium";
 import Settings from "./pages/Settings";
@@ -108,9 +106,7 @@ const App = () => {
             <Route path="/habits" element={<Habits />} />
             <Route path="/timeline" element={<Timeline />} />
             <Route path="/diary" element={<PinGate storageKey="dailynova_diary_lock" pinKey="dailynova_diary_pin" title="Unlock Diary"><Diary /></PinGate>} />
-            <Route path="/diary/ai" element={<PinGate storageKey="dailynova_diary_lock" pinKey="dailynova_diary_pin" title="Unlock Diary"><DiaryAi /></PinGate>} />
             <Route path="/journal" element={<PinGate storageKey="dailynova_journal_lock" pinKey="dailynova_journal_pin" title="Unlock Journal"><Journal /></PinGate>} />
-            <Route path="/journal/ai" element={<PinGate storageKey="dailynova_journal_lock" pinKey="dailynova_journal_pin" title="Unlock Journal"><JournalAi /></PinGate>} />
             <Route path="/quotes" element={<Quotes />} />
             <Route path="/premium" element={<Premium />} />
             <Route path="/settings" element={<Settings />} />
