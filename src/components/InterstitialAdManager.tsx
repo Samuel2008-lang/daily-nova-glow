@@ -34,11 +34,13 @@ export const InterstitialAdManager = () => {
     // Never show on writing/reading screens or while mic is active
     if (PROTECTED_ROUTES.some((p) => location.pathname.startsWith(p))) return;
     if (recordingState.isActive()) return;
+    if (document.activeElement?.matches?.("input, textarea, select, [contenteditable='true']")) return;
 
     pageChangeCount.current = 0;
     lastShownAt.current = now;
     setTimeout(() => {
       if (recordingState.isActive()) return;
+      if (document.activeElement?.matches?.("input, textarea, select, [contenteditable='true']")) return;
       showInterstitial();
     }, 500);
   }, [location.pathname, showInterstitial, isNative]);
