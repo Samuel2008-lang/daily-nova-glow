@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
-import { enhanceTranscript } from "@/lib/transcript-ai";
 import { recordingState } from "@/lib/recording-state";
 
 interface UseSpeechRecognitionProps {
@@ -51,18 +50,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
     accumulatedRef.current = "";
     recordingState.set(false);
     if (raw) {
-      const formatted = formatVoiceText(raw);
-      if (autoEnhanceRef.current) {
-        setIsProcessing(true);
-        try {
-          const enhanced = await enhanceTranscript(formatted, contextRef.current);
-          onResult(enhanced);
-        } catch {
-          onResult(formatted);
-        }
-      } else {
-        onResult(formatted);
-      }
+      onResult(formatVoiceText(raw));
     }
     setIsListening(false);
     setIsProcessing(false);
@@ -96,23 +84,15 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
       recordingState.set(true);
       toast({ title: "Listening…", description: "Tap the mic again to stop." });
 
-      // Start once only. Restarting after silence causes Android/iOS to replay
-      // the system mic beep repeatedly, so natural silence now finalizes input.
       try {
-        const result = await SpeechRecognition.start({
-          language: "en-US",
-          maxResults: 1,
-          partialResults: false,
-          popup: false,
+        const partialListener = await SpeechRecognition.addListener("partialResults", (data: { matches?: string[] }) => {
+          const text = data.matches?.[0]?.trim();
+          if (text) accumulatedRef.current = text;
         });
-        const text = result?.matches?.[0]?.trim();
-        if (text) {
-          accumulatedRef.current = text;
-        }
+        (recognitionCleanupRef.current as any) = () => partialListener.remove();
+        await SpeechRecognition.start({ language: "en-US", maxResults: 1, partialResults: true, popup: false });
       } catch (err) {
         if (!stoppedRef.current) console.error("Native speech error:", err);
-      } finally {
-        finalize();
       }
     } catch (error) {
       console.error("Native speech error:", error);
