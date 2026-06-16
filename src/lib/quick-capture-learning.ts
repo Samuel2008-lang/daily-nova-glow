@@ -1,4 +1,4 @@
-// Local on-device learning for QuickCapture auto-detection.
+// Local on-device learning for Quick Capture auto-detection.
 // Stores user corrections (text → chosen type) and uses them to bias future
 // classification. 100% offline, no network calls, fully zero-cost.
 
@@ -6,7 +6,7 @@ export type EntryType = "note" | "task" | "diary" | "journal" | "habit";
 
 interface LearningRecord {
   text: string;          // original text user wrote
-  predicted: EntryType;  // what AI/regex picked
+  predicted: EntryType;  // what local rules picked
   chosen: EntryType;     // what the user actually selected
   at: string;
 }
