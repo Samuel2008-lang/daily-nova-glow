@@ -23,10 +23,10 @@ export const BannerAd = ({ position = "bottom" }: BannerAdProps) => {
     
     const init = async () => {
       try {
-        await showBanner(position);
+        const ok = await showBanner(position);
         if (!cancelled) {
-          setLoaded(true);
-          setIsVisible(true);
+          setLoaded(ok);
+          setIsVisible(ok);
         }
       } catch (err) {
         console.error("BannerAd: Failed to load", err);
@@ -50,7 +50,7 @@ export const BannerAd = ({ position = "bottom" }: BannerAdProps) => {
     await hideBanner();
   };
 
-  if (!isNative || !isVisible) return null;
+  if (!isNative || !isVisible || !loaded) return null;
 
   // The close button is rendered in the webview. 
   // We position it where the banner is expected to be.
