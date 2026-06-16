@@ -38,10 +38,9 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const accumulatedRef = useRef<string>("");
+  const listenerCleanupRef = useRef<(() => void) | null>(null);
   const stoppedRef = useRef(false);
   const finalizedRef = useRef(false);
-  const autoEnhanceRef = useRef(false);
-  const contextRef = useRef<string>("note");
 
   const finalize = useCallback(async () => {
     if (finalizedRef.current) return;
@@ -56,9 +55,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
     setIsProcessing(false);
   }, [onResult]);
 
-  const startListening = useCallback(async (autoEnhance: boolean = false, context?: string) => {
-    autoEnhanceRef.current = autoEnhance;
-    contextRef.current = context || "note";
+  const startListening = useCallback(async () => {
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
 
@@ -89,7 +86,8 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
           const text = data.matches?.[0]?.trim();
           if (text) accumulatedRef.current = text;
         });
-        (recognitionCleanupRef.current as any) = () => partialListener.remove();
+        listenerCleanupRef.current?.();
+        listenerCleanupRef.current = () => partialListener.remove();
         await SpeechRecognition.start({ language: "en-US", maxResults: 1, partialResults: true, popup: false });
       } catch (err) {
         if (!stoppedRef.current) console.error("Native speech error:", err);
@@ -109,12 +107,16 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
       await SpeechRecognition.stop();
     } catch {}
+    listenerCleanupRef.current?.();
+    listenerCleanupRef.current = null;
     setTimeout(() => finalize(), 200);
   }, [finalize]);
 
   useEffect(() => () => {
     stoppedRef.current = true;
     recordingState.set(false);
+    listenerCleanupRef.current?.();
+    listenerCleanupRef.current = null;
     (async () => {
       try {
         const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
@@ -139,8 +141,6 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   const processedRef = useRef(false);
   const fullTranscriptRef = useRef<string>("");
   const capturedIndicesRef = useRef<Set<number>>(new Set());
-  const autoEnhanceRef = useRef(false);
-  const contextRef = useRef<string>("note");
 
   const emitAndReset = useCallback(async () => {
     if (processedRef.current) return;
@@ -154,31 +154,16 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
       setIsProcessing(false);
       return;
     }
-    const formatted = formatVoiceText(text);
-    if (autoEnhanceRef.current) {
-      setIsProcessing(true);
-      try {
-        const enhanced = await enhanceTranscript(formatted, contextRef.current);
-        onResult(enhanced);
-      } catch {
-        onResult(formatted);
-      } finally {
-        setIsProcessing(false);
-      }
-    } else {
-      setIsProcessing(false);
-      onResult(formatted);
-    }
+    setIsProcessing(false);
+    onResult(formatVoiceText(text));
   }, [onResult]);
 
-  const startListening = useCallback(async (autoEnhance: boolean = false, context?: string) => {
+  const startListening = useCallback(async () => {
     if (!isSupported) {
       toast({ title: "Not supported", description: "Speech recognition is not supported in your browser.", variant: "destructive" });
       return;
     }
 
-    autoEnhanceRef.current = autoEnhance;
-    contextRef.current = context || "note";
     fullTranscriptRef.current = "";
     capturedIndicesRef.current.clear();
     processedRef.current = false;
@@ -207,8 +192,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     };
 
     recognition.onend = () => {
-      // End naturally on silence. Do not auto-restart because it loops the mic beep.
-      emitAndReset();
+      if (stoppedByUserRef.current) emitAndReset();
     };
 
     recognition.onerror = (event: any) => {
@@ -220,7 +204,6 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
       }
       
       if (event.error === "no-speech" || event.error === "audio-capture" || event.error === "network") {
-        emitAndReset();
         return;
       }
       
