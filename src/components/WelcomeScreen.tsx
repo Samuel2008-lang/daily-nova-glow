@@ -12,7 +12,7 @@ const features = [
   { icon: CheckCircle2, title: "Tasks", description: "Stay organized and productive", color: "text-accent" },
   { icon: Target, title: "Habits", description: "Build streaks and track progress", color: "text-accent" },
   { icon: PenLine, title: "Diary", description: "Reflect on your daily experiences", color: "text-success" },
-  { icon: MessageSquare, title: "Journal", description: "Deep self-exploration with AI", color: "text-secondary" },
+  { icon: MessageSquare, title: "Journal", description: "Deep self-exploration and reflection", color: "text-secondary" },
   { icon: Quote, title: "Quotes", description: "Daily inspiration to motivate you", color: "text-accent" },
 ];
 
@@ -47,18 +47,17 @@ const WelcomeScreen = ({ onComplete }: WelcomeScreenProps) => {
       </div>
     </div>,
 
-    // Page 3: AI Features
-    <div key="ai" className="flex flex-col items-center text-center px-6">
+    // Page 3: Private by design
+    <div key="privacy" className="flex flex-col items-center text-center px-6">
       <div className="w-16 h-16 rounded-full bg-secondary/20 flex items-center justify-center mb-6">
         <Sparkles className="w-8 h-8 text-secondary animate-pulse" />
       </div>
-      <h2 className="text-2xl font-bold mb-4 text-secondary">AI-Powered Assistance</h2>
+      <h2 className="text-2xl font-bold mb-4 text-secondary">Private by Design</h2>
       <p className="text-muted-foreground max-w-md mb-6">
-        Get personalized guidance, encouragement, and insights from your AI companion in your Diary and Journal. 
-        Share your thoughts and receive thoughtful responses, prayers, and wisdom.
+        Notes, diary entries, journal writing, tasks, and habits stay on your device so your personal life remains yours.
       </p>
       <div className="flex flex-wrap justify-center gap-2">
-        {["Emotional Support", "Reflective Questions", "Creative Prompts", "Spiritual Guidance"].map((tag) => (
+        {["Offline Core", "Local Storage", "Voice Input", "Daily Reminders"].map((tag) => (
           <span key={tag} className="px-3 py-1 bg-secondary/20 rounded-full text-xs text-secondary">
             {tag}
           </span>
