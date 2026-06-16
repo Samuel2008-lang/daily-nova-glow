@@ -39,8 +39,8 @@ export const useAdMob = () => {
     initAdMob();
   }, []);
 
-  const showBanner = useCallback(async (position: "top" | "bottom" = "bottom") => {
-    if (!isNative()) return;
+  const showBanner = useCallback(async (position: "top" | "bottom" = "bottom"): Promise<boolean> => {
+    if (!isNative()) return false;
 
     try {
       const { AdMob, BannerAdPosition, BannerAdSize } = await import("@capacitor-community/admob");
@@ -50,8 +50,10 @@ export const useAdMob = () => {
         position: position === "top" ? BannerAdPosition.TOP_CENTER : BannerAdPosition.BOTTOM_CENTER,
         margin: 0,
       });
+      return true;
     } catch (error) {
       console.error("Banner ad error:", error);
+      return false;
     }
   }, []);
 
