@@ -21,6 +21,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Note } from "@/lib/storage";
 import { format } from "date-fns";
+import { askNoteFormat, saveNoteFile, shareNoteFile } from "@/lib/note-export";
 
 interface NoteItemProps {
   note: Note;
@@ -42,39 +43,23 @@ const NoteItem = ({ note, onView, onDelete }: NoteItemProps) => {
   };
 
   const handleShare = async () => {
-    const shareText = `${note.topic}\n\n${note.content}\n\n— Note from DailyNova`;
-    
+    const chosen = askNoteFormat();
+    if (!chosen) return;
     try {
-      const isNativePlatform = typeof (window as any).Capacitor !== "undefined" && (window as any).Capacitor.isNativePlatform();
-      
-      if (isNativePlatform) {
-        const { Share } = await import("@capacitor/share");
-        await Share.share({ title: note.topic, text: shareText });
-      } else if (navigator.share) {
-        await navigator.share({ title: note.topic, text: shareText });
-      } else {
-        await navigator.clipboard.writeText(shareText);
+      const result = await shareNoteFile({ topic: note.topic, content: note.content, dateLabel: format(new Date(note.createdAt), "MMMM d, yyyy"), fileBaseName: note.topic }, chosen);
+      if (result === "copied") {
         toast({ title: "Copied!", description: "Note copied to clipboard for sharing." });
       }
     } catch (err: any) {
-      if (err?.name !== 'AbortError') {
-        toast({ title: "Share failed", description: "Could not share note.", variant: "destructive" });
-      }
+      toast({ title: "Share failed", description: "Could not share note.", variant: "destructive" });
     }
   };
 
-  const handleSaveToPhone = () => {
-    const content = `${note.topic}\n\nCreated: ${format(new Date(note.createdAt), "MMMM d, yyyy")}\n\n${note.content}`;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${note.topic.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${format(new Date(note.createdAt), "yyyy-MM-dd")}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast({ title: "Downloaded!", description: "Note saved to your device." });
+  const handleSaveToPhone = async () => {
+    const chosen = askNoteFormat();
+    if (!chosen) return;
+    await saveNoteFile({ topic: note.topic, content: note.content, dateLabel: format(new Date(note.createdAt), "MMMM d, yyyy"), fileBaseName: note.topic }, chosen);
+    toast({ title: "Saved", description: "Note saved to your device." });
   };
 
   const preview = note.content.length > 100 
