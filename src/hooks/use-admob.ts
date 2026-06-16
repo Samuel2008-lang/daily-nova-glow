@@ -78,8 +78,8 @@ export const useAdMob = () => {
     }
   }, []);
 
-  const showRewarded = useCallback(async (): Promise<boolean> => {
-    if (!isNative()) return false;
+  const showRewarded = useCallback(async (): Promise<"rewarded" | "dismissed" | "failed"> => {
+    if (!isNative()) return "failed";
 
     try {
       const { AdMob, RewardAdPluginEvents } = await import("@capacitor-community/admob");
@@ -91,7 +91,7 @@ export const useAdMob = () => {
           if (!resolved) {
             resolved = true;
             rewardListener.remove();
-            resolve(true);
+            resolve("rewarded");
           }
         });
 
@@ -99,7 +99,7 @@ export const useAdMob = () => {
           if (!resolved) {
             resolved = true;
             dismissListener.remove();
-            resolve(false);
+            resolve("dismissed");
           }
         });
 
@@ -110,12 +110,12 @@ export const useAdMob = () => {
           console.error("Rewarded ad error:", error);
           rewardListener.remove();
           dismissListener.remove();
-          resolve(false);
+          resolve("failed");
         }
       });
     } catch (error) {
       console.error("Rewarded ad error:", error);
-      return false;
+      return "failed";
     }
   }, []);
 
