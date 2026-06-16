@@ -32,47 +32,6 @@ serve(async (req) => {
       console.error("ZenQuotes failed:", e);
     }
 
-    // Fallback: use Lovable AI to generate quotes
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (LOVABLE_API_KEY) {
-      try {
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
-            messages: [
-              {
-                role: "user",
-                content: `Generate 3 unique, real inspirational quotes from famous people. Return ONLY a JSON array with objects having "text" and "author" fields. No markdown, no explanation. Example: [{"text":"Quote here","author":"Person Name"}]`,
-              },
-            ],
-          }),
-        });
-
-        if (aiResp.ok) {
-          const aiData = await aiResp.json();
-          const content = aiData.choices?.[0]?.message?.content || "";
-          const match = content.match(/\[[\s\S]*\]/);
-          if (match) {
-            const quotes = JSON.parse(match[0]);
-            if (Array.isArray(quotes) && quotes.length > 0) {
-              return new Response(JSON.stringify({ quotes }), {
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              });
-            }
-          }
-        } else {
-          console.error("AI fallback failed:", aiResp.status, await aiResp.text());
-        }
-      } catch (aiErr) {
-        console.error("AI quote generation error:", aiErr);
-      }
-    }
-
     // Final fallback: hardcoded quotes
     const fallbackQuotes = [
       { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },

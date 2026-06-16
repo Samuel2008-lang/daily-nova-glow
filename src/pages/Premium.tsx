@@ -8,13 +8,10 @@ const Premium = () => {
     "Basic notes and tasks",
     "Voice input",
     "Daily diary entries",
-    "Basic AI assistance",
     "5 habits tracking",
   ];
 
   const premiumFeatures = [
-    "Unlimited AI conversations",
-    "Advanced AI insights & analysis",
     "Unlimited habits tracking",
     "Export all data",
     "Priority voice processing",
@@ -107,9 +104,9 @@ const Premium = () => {
               <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
                 <Sparkles className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="font-semibold mb-2">Unlimited AI Power</h3>
+              <h3 className="font-semibold mb-2">Unlimited Productivity</h3>
               <p className="text-sm text-muted-foreground">
-                Get unlimited access to advanced AI features for deeper insights and better productivity
+                Get more room for habits, exports, and advanced productivity tools
               </p>
             </div>
 

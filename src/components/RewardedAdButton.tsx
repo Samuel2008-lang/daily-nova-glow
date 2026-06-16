@@ -35,17 +35,17 @@ export const RewardedAdButton = ({ onReward, label = "Watch Ad for Reward", clas
     setIsLoading(true);
     try {
       const rewarded = await showRewarded();
-      if (rewarded) {
+      if (rewarded === "rewarded") {
         onReward();
         toast({ title: "Reward unlocked!", description: "Thank you for watching!" });
-      } else {
-        toast({ title: "Ad not completed", description: "Watch the full ad to get your reward.", variant: "destructive" });
+      } else if (rewarded === "failed") {
+        toast({ title: "Ad unavailable", description: "Please try again later.", variant: "destructive" });
       }
     } catch (error) {
       console.error("RewardedAdButton error:", error);
       toast({ 
         title: "Ad unavailable", 
-        description: "The ad server couldn't be reached. Try again in a moment.", 
+        description: "Please try again later.", 
         variant: "destructive" 
       });
     } finally {

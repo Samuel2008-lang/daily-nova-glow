@@ -13,6 +13,7 @@ import { format, isFuture, startOfDay, isToday } from "date-fns";
 import NoteItem from "@/components/NoteItem";
 import { BannerAd } from "@/components/BannerAd";
 import { haptics } from "@/lib/haptics";
+import { askNoteFormat, saveNoteFile, shareNoteFile } from "@/lib/note-export";
 
 const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -174,39 +175,23 @@ const Notes = () => {
   };
 
   const shareNote = async () => {
-    const shareText = `${noteTopic}\n\n${noteContent}\n\n— Note from DailyNova`;
-    
+    const chosen = askNoteFormat();
+    if (!chosen) return;
     try {
-      const isNativePlatform = typeof (window as any).Capacitor !== "undefined" && (window as any).Capacitor.isNativePlatform();
-      
-      if (isNativePlatform) {
-        const { Share } = await import("@capacitor/share");
-        await Share.share({ title: noteTopic, text: shareText });
-      } else if (navigator.share) {
-        await navigator.share({ title: noteTopic, text: shareText });
-      } else {
-        await navigator.clipboard.writeText(shareText);
+      const result = await shareNoteFile({ topic: noteTopic, content: noteContent, dateLabel: format(selectedDate, "MMMM d, yyyy"), fileBaseName: `${noteTopic}-${format(selectedDate, "yyyy-MM-dd")}` }, chosen);
+      if (result === "copied") {
         toast({ title: "Copied!", description: "Note copied to clipboard for sharing." });
       }
     } catch (err: any) {
-      if (err?.name !== 'AbortError') {
-        toast({ title: "Share failed", description: "Could not share note.", variant: "destructive" });
-      }
+      toast({ title: "Share failed", description: "Could not share note.", variant: "destructive" });
     }
   };
 
-  const saveToFile = () => {
-    const content = `${noteTopic}\n\nDate: ${format(selectedDate, "MMMM d, yyyy")}\n\n${noteContent}`;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${noteTopic.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${format(selectedDate, "yyyy-MM-dd")}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast({ title: "Downloaded!", description: "Note saved to your device." });
+  const saveToFile = async () => {
+    const chosen = askNoteFormat();
+    if (!chosen) return;
+    await saveNoteFile({ topic: noteTopic, content: noteContent, dateLabel: format(selectedDate, "MMMM d, yyyy"), fileBaseName: `${noteTopic}-${format(selectedDate, "yyyy-MM-dd")}` }, chosen);
+    toast({ title: "Saved", description: "Note saved to your device." });
   };
 
   // Read mode view

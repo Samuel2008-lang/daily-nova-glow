@@ -3,15 +3,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Notes from "./pages/Notes";
 import Tasks from "./pages/Tasks";
 import Habits from "./pages/Habits";
 import Diary from "./pages/Diary";
-import DiaryAi from "./pages/DiaryAi";
 import Journal from "./pages/Journal";
-import JournalAi from "./pages/JournalAi";
 import Quotes from "./pages/Quotes";
 import Premium from "./pages/Premium";
 import Settings from "./pages/Settings";
@@ -30,6 +28,26 @@ import { storage } from "./lib/storage";
 import { notificationService } from "./lib/notifications";
 
 const queryClient = new QueryClient();
+
+const NotificationRouter = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    let handle: { remove: () => void } | undefined;
+    (async () => {
+      try {
+        const { Capacitor } = await import("@capacitor/core");
+        if (!Capacitor.isNativePlatform()) return;
+        const { LocalNotifications } = await import("@capacitor/local-notifications");
+        handle = await LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
+          const route = event.notification.extra?.route;
+          navigate(typeof route === "string" && route.startsWith("/") ? route : "/");
+        });
+      } catch {}
+    })();
+    return () => handle?.remove();
+  }, [navigate]);
+  return null;
+};
 
 const App = () => {
   // Splash & app lock only on TRUE cold-start within a session — never re-trigger on navigation.
@@ -98,6 +116,7 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Navigation />
+          <NotificationRouter />
           <InterstitialAdManager />
           <QuickCapture />
           <DailyReset />
@@ -108,9 +127,7 @@ const App = () => {
             <Route path="/habits" element={<Habits />} />
             <Route path="/timeline" element={<Timeline />} />
             <Route path="/diary" element={<PinGate storageKey="dailynova_diary_lock" pinKey="dailynova_diary_pin" title="Unlock Diary"><Diary /></PinGate>} />
-            <Route path="/diary/ai" element={<PinGate storageKey="dailynova_diary_lock" pinKey="dailynova_diary_pin" title="Unlock Diary"><DiaryAi /></PinGate>} />
             <Route path="/journal" element={<PinGate storageKey="dailynova_journal_lock" pinKey="dailynova_journal_pin" title="Unlock Journal"><Journal /></PinGate>} />
-            <Route path="/journal/ai" element={<PinGate storageKey="dailynova_journal_lock" pinKey="dailynova_journal_pin" title="Unlock Journal"><JournalAi /></PinGate>} />
             <Route path="/quotes" element={<Quotes />} />
             <Route path="/premium" element={<Premium />} />
             <Route path="/settings" element={<Settings />} />

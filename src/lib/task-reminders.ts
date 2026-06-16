@@ -54,11 +54,12 @@ export const scheduleTaskNotifications = async (task: Task) => {
 
   await notificationService.scheduleTaskAlarm({
     id: getTaskNotificationId(task.id, 2000),
-    title: task.title,
+    title: "Daily Nova reminder",
     body: task.memo || `${label}, ${task.dueTime}`,
     at: taskTime,
     repeat,
     alertLevel: task.alertLevel || 'light',
+    route: "/tasks",
   });
 
   if (task.reminderBefore) {
@@ -66,10 +67,11 @@ export const scheduleTaskNotifications = async (task: Task) => {
     if (beforeTime > new Date()) {
       await notificationService.scheduleTaskAlarm({
         id: getTaskNotificationId(task.id, 3000),
-        title: task.title,
-        body: `${task.reminderBefore} minutes remaining`,
+        title: "Daily Nova reminder",
+        body: `${task.title} · ${task.reminderBefore} minutes remaining`,
         at: beforeTime,
         alertLevel: task.alertLevel || 'light',
+        route: "/tasks",
       });
     }
   }
@@ -77,10 +79,11 @@ export const scheduleTaskNotifications = async (task: Task) => {
   if (task.reminderAfter) {
     await notificationService.scheduleTaskAlarm({
       id: getTaskNotificationId(task.id, 4000),
-      title: task.title,
-      body: "Did you complete it?",
+    title: "Daily Nova reminder",
+    body: `${task.title} · Did you complete it?`,
       at: new Date(taskTime.getTime() + minutes(task.reminderAfter)),
       alertLevel: task.alertLevel || 'light',
+    route: "/tasks",
     });
   }
 };

@@ -214,6 +214,7 @@ const Tasks = () => {
           <div className="mb-8">
             <ReminderEditor
               initialTitle={editingTask?.title || newTask}
+              initialTask={editingTask}
               onCancel={() => { setShowEditor(false); setEditingTask(null); }}
               onSave={handleSaveReminder}
             />

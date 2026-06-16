@@ -13,6 +13,7 @@ import { haptics } from "@/lib/haptics";
 
 interface ReminderEditorProps {
   initialTitle?: string;
+  initialTask?: Task | null;
   onCancel: () => void;
   onSave: (data: {
     title: string;
@@ -49,25 +50,37 @@ const toMinStr = (d: Date) => String(d.getMinutes());
 /**
  * Samsung-style reminder editor: memo, time, repeat, duration, alert level.
  */
-const ReminderEditor = ({ initialTitle = "", onCancel, onSave }: ReminderEditorProps) => {
-  const [title, setTitle] = useState(initialTitle);
-  const [memo, setMemo] = useState("");
+const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSave }: ReminderEditorProps) => {
+  const [title, setTitle] = useState(initialTask?.title || initialTitle);
+  const [memo, setMemo] = useState(initialTask?.memo || "");
 
   const now = new Date();
-  const [date, setDate] = useState(toDateStr(now));
-  const [hour, setHour] = useState(toHourStr(now));
-  const [minute, setMinute] = useState(toMinStr(now));
+  const [date, setDate] = useState(initialTask?.dueDate || toDateStr(now));
+  const [hour, setHour] = useState(initialTask?.dueTime ? String(parseInt(initialTask.dueTime.split(":")[0], 10)) : toHourStr(now));
+  const [minute, setMinute] = useState(initialTask?.dueTime ? String(parseInt(initialTask.dueTime.split(":")[1], 10)) : toMinStr(now));
 
-  const [repeatUnit, setRepeatUnit] = useState<RepeatUnit>("none");
-  const [repeatEvery, setRepeatEvery] = useState(1);
+  const [repeatUnit, setRepeatUnit] = useState<RepeatUnit>(initialTask?.repeat?.unit || "none");
+  const [repeatEvery, setRepeatEvery] = useState(initialTask?.repeat?.every || 1);
 
-  const [durationType, setDurationType] = useState<DurationType>("forever");
-  const [durationCount, setDurationCount] = useState(5);
-  const [durationUntil, setDurationUntil] = useState(toDateStr(new Date(Date.now() + 7 * 86400000)));
+  const [durationType, setDurationType] = useState<DurationType>(initialTask?.duration?.type || "forever");
+  const [durationCount, setDurationCount] = useState(initialTask?.duration?.count || 5);
+  const [durationUntil, setDurationUntil] = useState(initialTask?.duration?.until || toDateStr(new Date(Date.now() + 7 * 86400000)));
 
-  const [alertLevel, setAlertLevel] = useState<AlertLevel>("light");
+  const [alertLevel, setAlertLevel] = useState<AlertLevel>(initialTask?.alertLevel || "light");
 
-  useEffect(() => setTitle(initialTitle), [initialTitle]);
+  useEffect(() => {
+    setTitle(initialTask?.title || initialTitle);
+    setMemo(initialTask?.memo || "");
+    setDate(initialTask?.dueDate || toDateStr(new Date()));
+    setHour(initialTask?.dueTime ? String(parseInt(initialTask.dueTime.split(":")[0], 10)) : toHourStr(new Date()));
+    setMinute(initialTask?.dueTime ? String(parseInt(initialTask.dueTime.split(":")[1], 10)) : toMinStr(new Date()));
+    setRepeatUnit(initialTask?.repeat?.unit || "none");
+    setRepeatEvery(initialTask?.repeat?.every || 1);
+    setDurationType(initialTask?.duration?.type || "forever");
+    setDurationCount(initialTask?.duration?.count || 5);
+    setDurationUntil(initialTask?.duration?.until || toDateStr(new Date(Date.now() + 7 * 86400000)));
+    setAlertLevel(initialTask?.alertLevel || "light");
+  }, [initialTitle, initialTask]);
 
   const applyPreset = (preset: "1h" | "07" | "15" | "22") => {
     haptics.light();

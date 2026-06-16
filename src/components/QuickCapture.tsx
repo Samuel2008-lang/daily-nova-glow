@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-import { recordCorrection, suggestFromLearning, type EntryType } from "@/lib/ai-learning";
+import { recordCorrection, suggestFromLearning, type EntryType } from "@/lib/quick-capture-learning";
 import { haptics } from "@/lib/haptics";
 import { parseTaskReminder, scheduleTaskNotifications } from "@/lib/task-reminders";
 
@@ -109,8 +109,8 @@ const QuickCapture = () => {
       title: kind === "up" ? "Thanks! 👍" : "Got it 👎",
       description:
         kind === "up"
-          ? "The AI will keep doing this."
-          : "The AI will adjust. Pick the right type below to teach it faster.",
+          ? "Quick Capture will keep doing this."
+          : "Pick the right type below to improve future detection.",
     });
   };
 
@@ -244,7 +244,7 @@ const QuickCapture = () => {
             })}
           </div>
 
-          {/* AI feedback row — separate from app-level feedback; teaches the auto-detector */}
+          {/* Local feedback row — teaches the offline auto-detector */}
           {autoDetected && text.trim() && (
             <div className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/20 pt-2">
               <span>{`Auto-detected: ${TYPE_CONFIG[predictedType].label}`}</span>

@@ -6,9 +6,9 @@ const isNative = Capacitor.isNativePlatform();
 type AlertLevel = "light" | "medium" | "strong";
 
 const channelForAlert = (level: AlertLevel): string => {
-  if (level === "strong") return "dailynova-reminders-strong";
-  if (level === "medium") return "dailynova-reminders-medium";
-  return "dailynova-reminders-light";
+  if (level === "strong") return "dailynova-reminders-strong-pink";
+  if (level === "medium") return "dailynova-reminders-medium-pink";
+  return "dailynova-reminders-light-pink";
 };
 
 export const notificationService = {
@@ -28,6 +28,7 @@ export const notificationService = {
     body: string;
     hour: number;
     minute: number;
+    route?: string;
   }) {
     if (!isNative) return;
     try {
@@ -41,11 +42,12 @@ export const notificationService = {
               on: { hour: config.hour, minute: config.minute },
               allowWhileIdle: true,
             },
-            channelId: "dailynova-reminders-medium",
+            channelId: "dailynova-reminders-medium-pink",
             smallIcon: "ic_stat_icon_config_sample",
             iconColor: "#ff69b4",
             group: "daily-reminders",
             autoCancel: true,
+            extra: { route: config.route || "/" },
           },
         ],
       });
@@ -70,6 +72,7 @@ export const notificationService = {
       until?: string; // YYYY-MM-DD
     };
     alertLevel?: AlertLevel;
+    route?: string;
   }) {
     if (!isNative) return;
     const alertLevel = config.alertLevel || "light";
@@ -129,6 +132,7 @@ export const notificationService = {
         extra: {
           taskGroupId: config.id,
           visibleId: config.id,
+          route: config.route || "/tasks",
           alertLevel,
           importance: alertLevel === "strong" ? 5 : alertLevel === "medium" ? 5 : 4,
           fullScreen: alertLevel !== "light",
@@ -148,7 +152,7 @@ export const notificationService = {
     if (!isNative) return;
     try {
       await LocalNotifications.createChannel?.({
-        id: "dailynova-reminders-light",
+        id: "dailynova-reminders-light-pink",
         name: "Reminders (Light)",
         description: "Standard notification with a short sound.",
         importance: 3,
@@ -159,7 +163,7 @@ export const notificationService = {
       } as any);
 
       await LocalNotifications.createChannel?.({
-        id: "dailynova-reminders-medium",
+        id: "dailynova-reminders-medium-pink",
         name: "Reminders (Medium)",
         description: "High priority notification that pops up on screen.",
         importance: 5,
@@ -170,7 +174,7 @@ export const notificationService = {
       } as any);
 
       await LocalNotifications.createChannel?.({
-        id: "dailynova-reminders-strong",
+        id: "dailynova-reminders-strong-pink",
         name: "Reminders (Strong)",
         description: "Maximum priority alert for important tasks.",
         importance: 5,
@@ -216,9 +220,9 @@ export const notificationService = {
     if (!enabled) return;
     const hour = parseInt(localStorage.getItem("dailynova_diary_hour") || "21", 10);
     const minute = parseInt(localStorage.getItem("dailynova_diary_minute") || "0", 10);
-    await this.scheduleDailyReminder({ id: 1001, title: "📖 Write in your Diary", body: "Take a moment to reflect on your day!", hour, minute });
+    await this.scheduleDailyReminder({ id: 1001, title: "Diary reminder", body: "Time to write your diary entry.", hour, minute, route: "/diary" });
     const followHour = (hour + 2) % 24;
-    await this.scheduleDailyReminder({ id: 1011, title: "📖 Diary Reminder", body: "You haven't written in your diary today. Don't miss it!", hour: followHour, minute });
+    await this.scheduleDailyReminder({ id: 1011, title: "Diary reminder", body: "Your diary is ready when you are.", hour: followHour, minute, route: "/diary" });
   },
 
   async setupJournalReminder() {
@@ -231,9 +235,9 @@ export const notificationService = {
     if (!enabled) return;
     const hour = parseInt(localStorage.getItem("dailynova_journal_hour") || "21", 10);
     const minute = parseInt(localStorage.getItem("dailynova_journal_minute") || "0", 10);
-    await this.scheduleDailyReminder({ id: 1002, title: "✍️ Journal Time", body: "Time to write today's journal entry!", hour, minute });
+    await this.scheduleDailyReminder({ id: 1002, title: "Journal reminder", body: "Time to write in your journal.", hour, minute, route: "/journal" });
     const followHour = (hour + 2) % 24;
-    await this.scheduleDailyReminder({ id: 1012, title: "✍️ Journal Reminder", body: "You haven't journaled today. Take a few minutes!", hour: followHour, minute });
+    await this.scheduleDailyReminder({ id: 1012, title: "Journal reminder", body: "Your journal is ready when you are.", hour: followHour, minute, route: "/journal" });
   },
 
   async scheduleHabitReminder(habitId: string, habitName: string, hour: number, minute: number) {

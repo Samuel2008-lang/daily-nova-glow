@@ -141,7 +141,7 @@ const Quotes = () => {
 
   const fetchNewQuotes = async (count = DAILY_QUOTE_LIMIT, replaceToday = false, retries = 3): Promise<boolean> => {
     if (!isOnline) {
-      toast({ title: "Offline", description: "Connect to the internet to get new quotes.", variant: "destructive" });
+      toast({ title: "No internet connection", description: "Turn on mobile data to watch ads for more quotes.", variant: "destructive" });
       return false;
     }
 
@@ -213,7 +213,8 @@ const Quotes = () => {
     const want = Math.min(REWARDED_QUOTE_COUNT, remaining);
     const success = await fetchNewQuotes(want, false);
     if (!success) {
-      toast({ title: "Using cached quotes", description: "New quotes will load when connection is available." });
+      if (!isOnline) return;
+      toast({ title: "Ad unavailable", description: "Please try again later.", variant: "destructive" });
     }
   };
 
@@ -262,9 +263,7 @@ const Quotes = () => {
             ) : (
               <WifiOff className="w-4 h-4 text-muted-foreground" />
             )}
-            <span className="text-xs text-muted-foreground">
-              {isOnline ? "Online" : "Offline — browsing cached quotes"}
-            </span>
+            <span className="text-xs text-muted-foreground">{isOnline ? "Online" : "Offline"}</span>
           </div>
         </div>
 
@@ -322,9 +321,7 @@ const Quotes = () => {
           </div>
         ) : (
           <div className="flex justify-center mt-4">
-            <p className="text-xs text-muted-foreground italic">
-              You're offline — ads paused. Browsing cached quotes.
-            </p>
+            <p className="text-xs text-muted-foreground italic">No internet connection. Turn on mobile data to watch ads for more quotes.</p>
           </div>
         )}
 

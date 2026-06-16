@@ -7,7 +7,7 @@ const PAGE_CHANGE_THRESHOLD = 8;
 const MIN_GAP_MS = 2 * 60 * 1000; // 2 minutes between interstitials
 
 // Routes where the user is actively writing/reading and ads must never appear.
-const PROTECTED_ROUTES = ["/diary", "/journal", "/notes", "/diary/ai", "/journal/ai"];
+const PROTECTED_ROUTES = ["/diary", "/journal", "/notes"];
 
 /**
  * Tracks page changes and shows an interstitial after N transitions, throttled.
@@ -34,11 +34,13 @@ export const InterstitialAdManager = () => {
     // Never show on writing/reading screens or while mic is active
     if (PROTECTED_ROUTES.some((p) => location.pathname.startsWith(p))) return;
     if (recordingState.isActive()) return;
+    if (document.activeElement?.matches?.("input, textarea, select, [contenteditable='true']")) return;
 
     pageChangeCount.current = 0;
     lastShownAt.current = now;
     setTimeout(() => {
       if (recordingState.isActive()) return;
+      if (document.activeElement?.matches?.("input, textarea, select, [contenteditable='true']")) return;
       showInterstitial();
     }, 500);
   }, [location.pathname, showInterstitial, isNative]);
