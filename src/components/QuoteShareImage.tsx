@@ -15,29 +15,23 @@ export const useQuoteShareImage = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
 
-    // Reference-style background: deep purple radial glow with darker edges.
-    const grad = ctx.createRadialGradient(size * 0.5, size * 0.52, 80, size * 0.5, size * 0.5, size * 0.82);
-    grad.addColorStop(0, "#3a0458");
-    grad.addColorStop(0.48, "#25003d");
-    grad.addColorStop(1, "#11001f");
-    ctx.fillStyle = grad;
+    // Reference background: solid deep navy blue (matches user's reference image).
+    ctx.fillStyle = "#0a1141";
     ctx.fillRect(0, 0, size, size);
 
-    const PURPLE = "#ff5df4";
+    // Single thin purple border, well inside the canvas
+    const PURPLE = "#8b6dff";
     ctx.strokeStyle = PURPLE;
-    ctx.lineWidth = 6;
-    const inset = 40;
+    ctx.lineWidth = 3;
+    const inset = 48;
     ctx.strokeRect(inset, inset, size - inset * 2, size - inset * 2);
-    ctx.strokeStyle = "rgba(255, 93, 244, 0.22)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(inset + 18, inset + 18, size - (inset + 18) * 2, size - (inset + 18) * 2);
 
     // Safe content padding so nothing crosses the border
     const PAD = 130;
     const contentWidth = size - PAD * 2;
 
     // Wrap quote text
-    const fontSize = text.length > 180 ? 40 : text.length > 110 ? 50 : 58;
+    const fontSize = text.length > 180 ? 42 : text.length > 110 ? 52 : 60;
     ctx.font = `italic ${fontSize}px Georgia, 'Times New Roman', serif`;
     const words = text.split(" ");
     const lines: string[] = [];
@@ -55,17 +49,17 @@ export const useQuoteShareImage = () => {
 
     const lineHeight = fontSize * 1.4;
     const blockHeight = lines.length * lineHeight;
-    const startY = (size - blockHeight) / 2 - 35;
+    const startY = (size - blockHeight) / 2 - 40;
 
-    // Opening quote mark (top-left, well inside border)
-    ctx.fillStyle = "rgba(255, 93, 244, 0.35)";
-    ctx.font = `bold 96px Georgia, serif`;
+    // Opening quote mark (top-left)
+    ctx.fillStyle = PURPLE;
+    ctx.font = `bold 110px Georgia, serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText("\u201C", PAD - 20, startY - 30);
+    ctx.fillText("\u201C", PAD - 10, startY - 20);
 
     // Quote text (centered, white)
-    ctx.fillStyle = "#f7f4ff";
+    ctx.fillStyle = "#ffffff";
     ctx.font = `italic ${fontSize}px Georgia, 'Times New Roman', serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -75,27 +69,27 @@ export const useQuoteShareImage = () => {
       ctx.fillText(`${prefix}${l}${suffix}`, size / 2, startY + i * lineHeight + lineHeight / 2);
     });
 
-    // Closing quote mark (right side, below text)
-    ctx.fillStyle = "rgba(255, 93, 244, 0.35)";
-    ctx.font = `bold 96px Georgia, serif`;
-    ctx.textAlign = "right";
-    ctx.fillText("\u201D", size - PAD + 20, startY + blockHeight + 20);
-
-    // Author
+    // Closing quote mark (bottom-right of text)
     ctx.fillStyle = PURPLE;
-    ctx.font = `700 38px 'Segoe UI', Arial, sans-serif`;
+    ctx.font = `bold 110px Georgia, serif`;
+    ctx.textAlign = "right";
+    ctx.fillText("\u201D", size - PAD + 10, startY + blockHeight + 30);
+
+    // Author with leading dash
+    ctx.fillStyle = PURPLE;
+    ctx.font = `400 36px 'Segoe UI', Arial, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText(`— ${author}`, size / 2, startY + blockHeight + 110);
+    ctx.fillText(`— ${author}`, size / 2, startY + blockHeight + 120);
 
     // Branding (well above bottom border)
     const brandY = size - PAD - 10;
     ctx.fillStyle = PURPLE;
-    ctx.font = `bold 32px 'Segoe UI', Arial, sans-serif`;
+    ctx.font = `bold 30px 'Segoe UI', Arial, sans-serif`;
     ctx.fillText("\u2726  DailyNova  \u2726", size / 2, brandY);
-    ctx.fillStyle = "rgba(183, 148, 244, 0.7)";
+    ctx.fillStyle = "rgba(139, 109, 255, 0.7)";
     ctx.font = `14px 'Segoe UI', Arial, sans-serif`;
-    ctx.fillText("Your Daily Inspiration", size / 2, brandY + 28);
+    ctx.fillText("Your Daily Inspiration", size / 2, brandY + 26);
 
     return new Promise((resolve) => {
       canvas.toBlob((blob) => resolve(blob), "image/png");

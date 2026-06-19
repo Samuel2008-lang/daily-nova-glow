@@ -1,53 +1,50 @@
 import { useState } from "react";
-import { Gift, WifiOff } from "lucide-react";
+import { Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdMob } from "@/hooks/use-admob";
 import { useToast } from "@/hooks/use-toast";
 
 interface RewardedAdButtonProps {
   onReward: () => void;
+  onUnavailable?: () => void;
   label?: string;
   className?: string;
 }
 
-export const RewardedAdButton = ({ onReward, label = "Watch Ad for Reward", className }: RewardedAdButtonProps) => {
+export const RewardedAdButton = ({ onReward, onUnavailable, label = "Watch Ad for Reward", className }: RewardedAdButtonProps) => {
   const { showRewarded, isNative } = useAdMob();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleClick = async () => {
     if (!isNative) {
-      // In web, simulate reward
       toast({ title: "Reward unlocked!", description: "Ads only work in the native app." });
       onReward();
       return;
     }
 
     if (!navigator.onLine) {
-      toast({ 
-        title: "No internet connection", 
-        description: "Please check your connection and try again.", 
-        variant: "destructive" 
+      toast({
+        title: "No internet connection",
+        description: "Please check your connection and try again.",
+        variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
     try {
-      const rewarded = await showRewarded();
-      if (rewarded === "rewarded") {
+      const result = await showRewarded();
+      if (result === "rewarded") {
         onReward();
         toast({ title: "Reward unlocked!", description: "Thank you for watching!" });
-      } else if (rewarded === "failed") {
-        toast({ title: "Ad unavailable", description: "Please try again later.", variant: "destructive" });
+      } else {
+        // "dismissed" or "failed" — let the parent decide what to show.
+        onUnavailable?.();
       }
     } catch (error) {
       console.error("RewardedAdButton error:", error);
-      toast({ 
-        title: "Ad unavailable", 
-        description: "Please try again later.", 
-        variant: "destructive" 
-      });
+      onUnavailable?.();
     } finally {
       setIsLoading(false);
     }

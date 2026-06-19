@@ -229,6 +229,9 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     const inst = recognitionRef.current;
     if (inst) {
       try { inst.stop(); } catch {}
+      // Hard fallback: if onend never fires (happens in some Android WebViews),
+      // force-finalize after 600ms so the mic toggle is never stuck on "Listening…".
+      setTimeout(() => emitAndReset(), 600);
     } else {
       emitAndReset();
     }
