@@ -204,6 +204,7 @@ const Quotes = () => {
     return false;
   };
 
+  const AD_FREEBIE_KEY = "daily-quote-ad-freebie-date";
   const handleBonusQuoteReward = async () => {
     if (allQuotes.length >= SESSION_CAP) {
       toast({ title: "Daily limit reached", description: `You've unlocked all ${SESSION_CAP} quotes for today. Come back tomorrow!` });
@@ -211,11 +212,21 @@ const Quotes = () => {
     }
     const remaining = SESSION_CAP - allQuotes.length;
     const want = Math.min(REWARDED_QUOTE_COUNT, remaining);
-    const success = await fetchNewQuotes(want, false);
-    if (!success) {
-      if (!isOnline) return;
-      toast({ title: "Ad unavailable", description: "Please try again later.", variant: "destructive" });
+    await fetchNewQuotes(want, false);
+  };
+
+  // Called when the rewarded ad couldn't play (no fill / dismissed early).
+  // First time per day: grant one free quote so the user isn't blocked.
+  // Subsequent times: silently return to the quote screen — no scary toast.
+  const handleAdUnavailable = async () => {
+    if (!navigator.onLine) return; // offline path is handled by RewardedAdButton
+    const today = new Date().toDateString();
+    const usedFreebie = localStorage.getItem(AD_FREEBIE_KEY);
+    if (usedFreebie !== today && allQuotes.length < SESSION_CAP) {
+      localStorage.setItem(AD_FREEBIE_KEY, today);
+      await fetchNewQuotes(1, false);
     }
+    // Otherwise: stay on the quote screen quietly.
   };
 
   const seeMoreQuotes = () => setShowNavigation(true);
@@ -312,6 +323,7 @@ const Quotes = () => {
           <div className="flex justify-center mt-4">
             <RewardedAdButton
               onReward={handleBonusQuoteReward}
+              onUnavailable={handleAdUnavailable}
               label={
                 allQuotes.length >= SESSION_CAP
                   ? `Daily limit reached (${SESSION_CAP}/${SESSION_CAP})`
