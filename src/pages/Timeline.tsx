@@ -96,7 +96,14 @@ const Timeline = () => {
     storage.getTasks().forEach((t) => {
       const isToday = new Date(t.createdAt).toDateString() === todayStr || t.dueDate === todayLocal;
       if (isToday) {
-        timeline.push({ id: `task-${t.id}`, rawId: t.id, type: "task", title: t.title, preview: t.description?.slice(0, 80), time: t.dueTime || formatTime(t.createdAt), timestamp: new Date(t.createdAt).getTime(), completed: t.completed });
+        // For scheduled tasks, the sort key is the scheduled time (dueDate + dueTime).
+        // This way a task set for 12:50 today appears above items created earlier today.
+        let ts = new Date(t.createdAt).getTime();
+        if (t.dueDate && t.dueTime) {
+          const sched = new Date(`${t.dueDate}T${t.dueTime}`).getTime();
+          if (!Number.isNaN(sched)) ts = sched;
+        }
+        timeline.push({ id: `task-${t.id}`, rawId: t.id, type: "task", title: t.title, preview: t.description?.slice(0, 80), time: t.dueTime || formatTime(t.createdAt), timestamp: ts, completed: t.completed });
       }
     });
 
@@ -117,6 +124,8 @@ const Timeline = () => {
       }
     });
 
+    // Sort newest first. `timestamp` = scheduled time for tasks (when set),
+    // otherwise createdAt. Result: most recent / next-up entries appear at the top.
     timeline.sort((a, b) => b.timestamp - a.timestamp);
     setItems(timeline);
   };

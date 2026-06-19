@@ -67,6 +67,14 @@ All colors MUST be HSL.
     tap-highlight-color: transparent;
   }
 
+  button:focus, button:active,
+  [role="button"]:focus, [role="button"]:active,
+  a:focus, a:active {
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     /* Plain deep black — no patterns or gradients */
