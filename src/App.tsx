@@ -26,6 +26,7 @@ import LockScreen from "./components/LockScreen";
 import PinGate from "./components/PinGate";
 import { storage } from "./lib/storage";
 import { notificationService } from "./lib/notifications";
+import { cancelTaskNotifications, getTaskNotificationId, rescheduleAllTaskNotifications } from "./lib/task-reminders";
 
 const queryClient = new QueryClient();
 
@@ -38,8 +39,45 @@ const NotificationRouter = () => {
         const { Capacitor } = await import("@capacitor/core");
         if (!Capacitor.isNativePlatform()) return;
         const { LocalNotifications } = await import("@capacitor/local-notifications");
-        handle = await LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
-          const route = event.notification.extra?.route;
+        handle = await LocalNotifications.addListener("localNotificationActionPerformed", async (event) => {
+          const extra = event.notification.extra || {};
+          const actionId = event.actionId;
+          const taskId = extra.taskId as string | undefined;
+          const visibleId = Number(extra.visibleId || extra.taskGroupId || event.notification.id);
+
+          if ((actionId === "complete" || actionId === "snooze") && Number.isFinite(visibleId)) {
+            await notificationService.clearVisibleNotification(visibleId);
+          }
+
+          if (actionId === "complete" && taskId) {
+            const tasks = storage.getTasks();
+            const task = tasks.find((t) => t.id === taskId);
+            if (task) {
+              storage.saveTasks(tasks.map((t) => (t.id === taskId ? { ...t, completed: true } : t)));
+              await cancelTaskNotifications(task);
+            }
+            return;
+          }
+
+          if (actionId === "snooze" && taskId) {
+            const task = storage.getTasks().find((t) => t.id === taskId);
+            const snoozeMinutes = Math.max(1, Number(extra.snoozeMinutes || task?.snoozeMinutes || 10));
+            const snoozeAt = new Date(Date.now() + snoozeMinutes * 60 * 1000);
+            await notificationService.scheduleTaskAlarm({
+              id: getTaskNotificationId(taskId, 9000),
+              title: task?.title || event.notification.title || "Reminder",
+              body: `Snoozed for ${snoozeMinutes} minutes`,
+              at: snoozeAt,
+              alertLevel: (task?.alertLevel || extra.alertLevel || "medium") as any,
+              notificationSound: (task?.notificationSound || extra.notificationSound || "gentle") as any,
+              taskId,
+              snoozeMinutes,
+              route: "/tasks",
+            });
+            return;
+          }
+
+          const route = extra.route;
           navigate(typeof route === "string" && route.startsWith("/") ? route : "/");
         });
       } catch {}
@@ -63,6 +101,7 @@ const App = () => {
   useEffect(() => {
     if (storage.isFirstLaunch()) setShowWelcome(true);
     notificationService.setupDailyReminders();
+    rescheduleAllTaskNotifications();
   }, []);
 
   useEffect(() => {
