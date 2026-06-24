@@ -1,14 +1,16 @@
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
+import type { ReminderSound } from "@/lib/storage";
 
 const isNative = Capacitor.isNativePlatform();
 
 type AlertLevel = "light" | "medium" | "strong";
 
-const channelForAlert = (level: AlertLevel): string => {
-  if (level === "strong") return "dailynova-reminders-strong-pink";
-  if (level === "medium") return "dailynova-reminders-medium-pink";
-  return "dailynova-reminders-light-pink";
+const soundFileFor = (sound: ReminderSound = "gentle") =>
+  sound === "classic" ? "dailynova_alarm_classic.wav" : "dailynova_alarm_short.wav";
+
+const channelForAlert = (level: AlertLevel, sound: ReminderSound = "gentle"): string => {
+  return `dailynova-reminders-${level}-${sound}-pink-v2`;
 };
 
 export const notificationService = {
@@ -42,7 +44,7 @@ export const notificationService = {
               on: { hour: config.hour, minute: config.minute },
               allowWhileIdle: true,
             },
-            channelId: "dailynova-reminders-medium-pink",
+            channelId: channelForAlert("medium", "gentle"),
             smallIcon: "ic_stat_icon_config_sample",
             iconColor: "#ff69b4",
             group: "daily-reminders",
@@ -72,20 +74,27 @@ export const notificationService = {
       until?: string; // YYYY-MM-DD
     };
     alertLevel?: AlertLevel;
+    notificationSound?: ReminderSound;
+    taskId?: string;
+    snoozeMinutes?: number;
     route?: string;
   }) {
     if (!isNative) return;
     const alertLevel = config.alertLevel || "light";
-    const channelId = channelForAlert(alertLevel);
+    const notificationSound = config.notificationSound || "gentle";
+    const channelId = channelForAlert(alertLevel, notificationSound);
 
     try {
+      await this.ensureAlarmsChannel();
+      const repeatEvery = Math.max(1, config.repeat?.every || 1);
+      const repeatEveryMs = config.repeat ? intervalMs(config.repeat.unit, repeatEvery) : undefined;
+      const repeatsForever = !!config.repeat && !config.repeat.count && !config.repeat.until;
       const occurrences: Date[] = [config.at];
 
-      if (config.repeat) {
-        const every = Math.max(1, config.repeat.every || 1);
+      if (config.repeat && !repeatsForever) {
         const untilDate = config.repeat.until ? new Date(`${config.repeat.until}T23:59:59`) : null;
         // Hard ceiling on occurrences to avoid OS notification limits.
-        const MAX = 60;
+        const MAX = 500;
         const targetCount = config.repeat.count && config.repeat.count > 0
           ? Math.min(config.repeat.count, MAX)
           : MAX;
@@ -93,12 +102,12 @@ export const notificationService = {
         const stepFromUnit = (d: Date): Date => {
           const next = new Date(d);
           switch (config.repeat!.unit) {
-            case "minute": next.setMinutes(next.getMinutes() + every); break;
-            case "hour":   next.setHours(next.getHours() + every); break;
-            case "day":    next.setDate(next.getDate() + every); break;
-            case "week":   next.setDate(next.getDate() + every * 7); break;
-            case "month":  next.setMonth(next.getMonth() + every); break;
-            case "year":   next.setFullYear(next.getFullYear() + every); break;
+            case "minute": next.setMinutes(next.getMinutes() + repeatEvery); break;
+            case "hour":   next.setHours(next.getHours() + repeatEvery); break;
+            case "day":    next.setDate(next.getDate() + repeatEvery); break;
+            case "week":   next.setDate(next.getDate() + repeatEvery * 7); break;
+            case "month":  next.setMonth(next.getMonth() + repeatEvery); break;
+            case "year":   next.setFullYear(next.getFullYear() + repeatEvery); break;
           }
           return next;
         };
@@ -113,30 +122,37 @@ export const notificationService = {
 
       await this.cancelNotification(config.id);
       const notifications = occurrences.filter((date) => date > new Date()).map((date, idx) => ({
-        id: config.id + idx, // unique per occurrence
+        id: repeatsForever ? config.id : config.id + idx,
         title: config.title,
         body: config.body,
         largeBody: config.body,
         schedule: { 
           at: date, 
           allowWhileIdle: true,
+          repeats: repeatsForever,
         },
         channelId,
         smallIcon: "ic_stat_icon_config_sample",
         iconColor: "#ff69b4",
         group: `task-${config.id}`,
         threadIdentifier: `task-${config.id}`,
-        autoCancel: true,
-        sound: alertLevel === "strong" ? "dailynova_alarm_long.wav" : "dailynova_alarm_short.wav",
-        // Extra data for potential native listener
+        autoCancel: alertLevel !== "strong",
+        ongoing: alertLevel === "strong",
+        sound: soundFileFor(notificationSound),
+        actionTypeId: alertLevel === "light" ? undefined : "dailynova_reminder_actions",
         extra: {
+          taskId: config.taskId,
           taskGroupId: config.id,
           visibleId: config.id,
           route: config.route || "/tasks",
           alertLevel,
+          notificationSound,
+          snoozeMinutes: config.snoozeMinutes || 10,
           importance: alertLevel === "strong" ? 5 : alertLevel === "medium" ? 5 : 4,
           fullScreen: alertLevel !== "light",
-          longSound: alertLevel === "strong",
+          timeoutAfterMs: alertLevel === "light" ? 7000 : undefined,
+          insistent: alertLevel === "strong",
+          repeatEveryMs,
           repeatIndex: idx,
         },
       }));
@@ -151,38 +167,55 @@ export const notificationService = {
   async ensureAlarmsChannel() {
     if (!isNative) return;
     try {
-      await LocalNotifications.createChannel?.({
-        id: "dailynova-reminders-light-pink",
-        name: "Reminders (Light)",
-        description: "Standard notification with a short sound.",
-        importance: 3,
-        visibility: 1,
-        vibration: true,
-        lights: true,
-        lightColor: "#ff69b4",
-      } as any);
+      await LocalNotifications.registerActionTypes?.({
+        types: [
+          {
+            id: "dailynova_reminder_actions",
+            actions: [
+              { id: "snooze", title: "Snooze" },
+              { id: "complete", title: "Complete" },
+            ],
+          },
+        ],
+      });
 
-      await LocalNotifications.createChannel?.({
-        id: "dailynova-reminders-medium-pink",
-        name: "Reminders (Medium)",
-        description: "High priority notification that pops up on screen.",
-        importance: 5,
-        visibility: 1,
-        vibration: true,
-        lights: true,
-        lightColor: "#ff69b4",
-      } as any);
+      for (const sound of ["gentle", "classic"] as ReminderSound[]) {
+        await LocalNotifications.createChannel?.({
+          id: channelForAlert("light", sound),
+          name: `Reminders Light (${sound})`,
+          description: "Standard notification with one short sound.",
+          importance: 3,
+          visibility: 1,
+          vibration: true,
+          lights: true,
+          lightColor: "#ff69b4",
+          sound: soundFileFor(sound),
+        } as any);
 
-      await LocalNotifications.createChannel?.({
-        id: "dailynova-reminders-strong-pink",
-        name: "Reminders (Strong)",
-        description: "Maximum priority alert for important tasks.",
-        importance: 5,
-        visibility: 1,
-        vibration: true,
-        lights: true,
-        lightColor: "#ff69b4",
-      } as any);
+        await LocalNotifications.createChannel?.({
+          id: channelForAlert("medium", sound),
+          name: `Reminders Medium (${sound})`,
+          description: "High priority full-screen reminder with one short sound.",
+          importance: 5,
+          visibility: 1,
+          vibration: true,
+          lights: true,
+          lightColor: "#ff69b4",
+          sound: soundFileFor(sound),
+        } as any);
+
+        await LocalNotifications.createChannel?.({
+          id: channelForAlert("strong", sound),
+          name: `Reminders Strong (${sound})`,
+          description: "Maximum priority full-screen reminder that keeps sounding until handled.",
+          importance: 5,
+          visibility: 1,
+          vibration: true,
+          lights: true,
+          lightColor: "#ff69b4",
+          sound: soundFileFor(sound),
+        } as any);
+      }
     } catch (err) {
       console.error("Failed to create alarm channels:", err);
     }
@@ -191,11 +224,19 @@ export const notificationService = {
   async cancelNotification(id: number) {
     if (!isNative) return;
     try {
-      const ids = Array.from({ length: 60 }, (_, i) => ({ id: id + i }));
+      const ids = Array.from({ length: 500 }, (_, i) => ({ id: id + i }));
       await LocalNotifications.cancel({ notifications: ids });
+      await LocalNotifications.removeDeliveredNotifications?.({ notifications: ids } as any);
     } catch (err) {
       console.error("Failed to cancel notification:", err);
     }
+  },
+
+  async clearVisibleNotification(id: number) {
+    if (!isNative) return;
+    try {
+      await LocalNotifications.removeDeliveredNotifications?.({ notifications: [{ id }] } as any);
+    } catch {}
   },
 
   async cancelAll() {
@@ -280,6 +321,17 @@ export const notificationService = {
     }
   },
 };
+
+function intervalMs(unit: "minute" | "hour" | "day" | "week" | "month" | "year", every: number): number {
+  switch (unit) {
+    case "minute": return every * 60 * 1000;
+    case "hour": return every * 60 * 60 * 1000;
+    case "day": return every * 24 * 60 * 60 * 1000;
+    case "week": return every * 7 * 24 * 60 * 60 * 1000;
+    case "month": return every * 30 * 24 * 60 * 60 * 1000;
+    case "year": return every * 365 * 24 * 60 * 60 * 1000;
+  }
+}
 
 function hashCode(str: string): number {
   let hash = 0;
