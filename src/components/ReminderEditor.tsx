@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { Bell, Clock, Repeat, AlarmClock, X, Volume2 } from "lucide-react";
+import { Clock, Repeat, AlarmClock, X, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
