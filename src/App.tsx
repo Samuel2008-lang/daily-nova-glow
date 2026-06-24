@@ -26,7 +26,10 @@ import LockScreen from "./components/LockScreen";
 import PinGate from "./components/PinGate";
 import { storage } from "./lib/storage";
 import { notificationService } from "./lib/notifications";
-import { cancelTaskNotifications, getTaskNotificationId, rescheduleAllTaskNotifications } from "./lib/task-reminders";
+import { rescheduleAllTaskNotifications } from "./lib/task-reminders";
+import { completeReminder, ReminderActionPayload, snoozeReminder } from "./lib/reminder-actions";
+import { Button } from "./components/ui/button";
+import { Card } from "./components/ui/card";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +37,7 @@ const NotificationRouter = () => {
   const navigate = useNavigate();
   useEffect(() => {
     let handle: { remove: () => void } | undefined;
+    let receiveHandle: { remove: () => void } | undefined;
     (async () => {
       try {
         const { Capacitor } = await import("@capacitor/core");
@@ -42,49 +46,99 @@ const NotificationRouter = () => {
         handle = await LocalNotifications.addListener("localNotificationActionPerformed", async (event) => {
           const extra = event.notification.extra || {};
           const actionId = event.actionId;
-          const taskId = extra.taskId as string | undefined;
-          const visibleId = Number(extra.visibleId || extra.taskGroupId || event.notification.id);
+          const payload: ReminderActionPayload = {
+            taskId: extra.taskId,
+            visibleId: Number(extra.visibleId || extra.taskGroupId || event.notification.id),
+            title: event.notification.title,
+            alertLevel: extra.alertLevel,
+            notificationSound: extra.notificationSound,
+            snoozeMinutes: Number(extra.snoozeMinutes || 10),
+          };
 
-          if ((actionId === "complete" || actionId === "snooze") && Number.isFinite(visibleId)) {
-            await notificationService.clearVisibleNotification(visibleId);
-          }
-
-          if (actionId === "complete" && taskId) {
-            const tasks = storage.getTasks();
-            const task = tasks.find((t) => t.id === taskId);
-            if (task) {
-              storage.saveTasks(tasks.map((t) => (t.id === taskId ? { ...t, completed: true } : t)));
-              await cancelTaskNotifications(task);
-            }
+          if (actionId === "complete") {
+            await completeReminder(payload);
             return;
           }
 
-          if (actionId === "snooze" && taskId) {
-            const task = storage.getTasks().find((t) => t.id === taskId);
-            const snoozeMinutes = Math.max(1, Number(extra.snoozeMinutes || task?.snoozeMinutes || 10));
-            const snoozeAt = new Date(Date.now() + snoozeMinutes * 60 * 1000);
-            await notificationService.scheduleTaskAlarm({
-              id: getTaskNotificationId(taskId, 9000),
-              title: task?.title || event.notification.title || "Reminder",
-              body: `Snoozed for ${snoozeMinutes} minutes`,
-              at: snoozeAt,
-              alertLevel: (task?.alertLevel || extra.alertLevel || "medium") as any,
-              notificationSound: (task?.notificationSound || extra.notificationSound || "gentle") as any,
-              taskId,
-              snoozeMinutes,
-              route: "/tasks",
-            });
+          if (actionId === "snooze") {
+            await snoozeReminder(payload);
             return;
+          }
+
+          if (extra.fullScreen && payload.taskId) {
+            window.dispatchEvent(new CustomEvent("dailynova:reminder-alert", { detail: payload }));
           }
 
           const route = extra.route;
           navigate(typeof route === "string" && route.startsWith("/") ? route : "/");
         });
+        receiveHandle = await LocalNotifications.addListener("localNotificationReceived", (notification) => {
+          const extra = notification.extra || {};
+          if (extra.fullScreen && extra.taskId) {
+            window.dispatchEvent(new CustomEvent("dailynova:reminder-alert", {
+              detail: {
+                taskId: extra.taskId,
+                visibleId: Number(extra.visibleId || extra.taskGroupId || notification.id),
+                title: notification.title,
+                alertLevel: extra.alertLevel,
+                notificationSound: extra.notificationSound,
+                snoozeMinutes: Number(extra.snoozeMinutes || 10),
+              } satisfies ReminderActionPayload,
+            }));
+          }
+        });
       } catch {}
     })();
-    return () => handle?.remove();
+    return () => {
+      handle?.remove();
+      receiveHandle?.remove();
+    };
   }, [navigate]);
   return null;
+};
+
+const FullScreenReminderOverlay = () => {
+  const [reminder, setReminder] = useState<ReminderActionPayload | null>(null);
+
+  useEffect(() => {
+    const onReminder = (event: Event) => setReminder((event as CustomEvent<ReminderActionPayload>).detail);
+    window.addEventListener("dailynova:reminder-alert", onReminder);
+    return () => window.removeEventListener("dailynova:reminder-alert", onReminder);
+  }, []);
+
+  if (!reminder) return null;
+
+  const title = storage.getTasks().find((task) => task.id === reminder.taskId)?.title || reminder.title || "Reminder";
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 backdrop-blur-xl px-6 animate-fade-in">
+      <Card className="glass glow-pink w-full max-w-sm p-6 text-center border-accent/40">
+        <div className="mx-auto mb-5 h-14 w-14 rounded-2xl bg-accent/20 flex items-center justify-center text-2xl">🔔</div>
+        <p className="text-xs uppercase tracking-[0.3em] text-accent mb-3">Reminder</p>
+        <h2 className="text-2xl font-bold text-foreground mb-8">{title}</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              await snoozeReminder(reminder);
+              setReminder(null);
+            }}
+          >
+            Snooze
+          </Button>
+          <Button
+            className="glow-pink"
+            onClick={async () => {
+              await completeReminder(reminder);
+              setReminder(null);
+            }}
+          >
+            Complete
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
 };
 
 const App = () => {
@@ -156,6 +210,7 @@ const App = () => {
         <BrowserRouter>
           <Navigation />
           <NotificationRouter />
+          <FullScreenReminderOverlay />
           <InterstitialAdManager />
           <QuickCapture />
           <DailyReset />
