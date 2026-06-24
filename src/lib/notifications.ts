@@ -130,7 +130,7 @@ export const notificationService = {
         schedule: { 
           at: date, 
           allowWhileIdle: true,
-          repeats: repeatsForever,
+          repeats: repeatsForever || undefined,
         },
         channelId,
         smallIcon: "ic_stat_icon_config_sample",
