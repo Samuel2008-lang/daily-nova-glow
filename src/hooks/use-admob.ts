@@ -51,17 +51,28 @@ export const useAdMob = () => {
       let settled = false;
       let loadedListener: { remove: () => void } | undefined;
       let failedListener: { remove: () => void } | undefined;
+      let sizeListener: { remove: () => void } | undefined;
+      const cleanupBannerListeners = () => {
+        loadedListener?.remove();
+        failedListener?.remove();
+        sizeListener?.remove();
+      };
       loadedListener = await AdMob.addListener(BannerAdPluginEvents.Loaded, () => {
         settled = true;
         onVisible?.();
-        loadedListener?.remove();
-        failedListener?.remove();
+        cleanupBannerListeners();
       });
       failedListener = await AdMob.addListener(BannerAdPluginEvents.FailedToLoad, () => {
         settled = true;
         onFailed?.();
-        loadedListener?.remove();
-        failedListener?.remove();
+        cleanupBannerListeners();
+      });
+      sizeListener = await AdMob.addListener(BannerAdPluginEvents.SizeChanged, (info: any) => {
+        if (Number(info?.height || 0) > 0) {
+          settled = true;
+          onVisible?.();
+          cleanupBannerListeners();
+        }
       });
       await AdMob.showBanner({
         adId: AD_CONFIG.banner,
@@ -70,8 +81,8 @@ export const useAdMob = () => {
         margin: 0,
       });
       window.setTimeout(() => {
-        if (!settled) onVisible?.();
-      }, 2500);
+        if (!settled) cleanupBannerListeners();
+      }, 5000);
       return true;
     } catch (error) {
       console.error("Banner ad error:", error);
