@@ -1,15 +1,44 @@
-import { Task } from "@/lib/storage";
+import { storage, Task } from "@/lib/storage";
 import { notificationService } from "@/lib/notifications";
 
 const minutes = (value: number) => value * 60 * 1000;
 
-const getTaskNotificationId = (taskId: string, offset: number) => {
+const nextFutureOccurrence = (start: Date, task: Task): Date => {
+  const repeat = getTaskRepeatConfig(task);
+  if (!repeat || start > new Date()) return start;
+
+  const next = new Date(start);
+  const now = new Date();
+  const every = Math.max(1, repeat.every || 1);
+  while (next <= now) {
+    switch (repeat.unit) {
+      case "minute": next.setMinutes(next.getMinutes() + every); break;
+      case "hour": next.setHours(next.getHours() + every); break;
+      case "day": next.setDate(next.getDate() + every); break;
+      case "week": next.setDate(next.getDate() + every * 7); break;
+      case "month": next.setMonth(next.getMonth() + every); break;
+      case "year": next.setFullYear(next.getFullYear() + every); break;
+    }
+  }
+  return next;
+};
+
+export const getTaskNotificationId = (taskId: string, offset: number) => {
   const numeric = Number.parseInt(taskId, 10);
   if (Number.isFinite(numeric)) return offset + (numeric % 100000);
   let hash = 0;
   for (let i = 0; i < taskId.length; i++) hash = ((hash << 5) - hash + taskId.charCodeAt(i)) | 0;
   return offset + (Math.abs(hash) % 100000);
 };
+
+export const getTaskRepeatConfig = (task: Task) => task.repeat && task.repeat.unit !== 'none'
+  ? {
+      unit: task.repeat.unit as 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year',
+      every: Math.max(1, task.repeat.every || 1),
+      count: task.duration?.type === 'count' ? task.duration.count : undefined,
+      until: task.duration?.type === 'until' ? task.duration.until : undefined,
+    }
+  : undefined;
 
 export const parseTaskReminder = (text: string): Pick<Task, "dueDate" | "dueTime"> => {
   const lower = text.toLowerCase();
@@ -39,26 +68,24 @@ export const parseTaskReminder = (text: string): Pick<Task, "dueDate" | "dueTime
 
 export const scheduleTaskNotifications = async (task: Task) => {
   if (!task.dueDate || !task.dueTime) return;
-  const taskTime = new Date(`${task.dueDate}T${task.dueTime}`);
-  if (Number.isNaN(taskTime.getTime()) || taskTime <= new Date()) return;
+  let taskTime = new Date(`${task.dueDate}T${task.dueTime}`);
+  if (Number.isNaN(taskTime.getTime())) return;
+  taskTime = nextFutureOccurrence(taskTime, task);
+  if (taskTime <= new Date()) return;
 
   const label = taskTime.toDateString() === new Date().toDateString() ? "Today" : task.dueDate;
-  const repeat = task.repeat && task.repeat.unit !== 'none'
-    ? {
-        unit: task.repeat.unit as 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year',
-        every: task.repeat.every,
-        count: task.duration?.type === 'count' ? task.duration.count : undefined,
-        until: task.duration?.type === 'until' ? task.duration.until : undefined,
-      }
-    : undefined;
+  const repeat = getTaskRepeatConfig(task);
 
   await notificationService.scheduleTaskAlarm({
     id: getTaskNotificationId(task.id, 2000),
-    title: "Daily Nova reminder",
-    body: task.memo || `${label}, ${task.dueTime}`,
+    title: task.title,
+    body: `${label} · ${task.dueTime}`,
     at: taskTime,
     repeat,
     alertLevel: task.alertLevel || 'light',
+    notificationSound: task.notificationSound || 'gentle',
+    taskId: task.id,
+    snoozeMinutes: task.snoozeMinutes || 10,
     route: "/tasks",
   });
 
@@ -71,6 +98,9 @@ export const scheduleTaskNotifications = async (task: Task) => {
         body: `${task.title} · ${task.reminderBefore} minutes remaining`,
         at: beforeTime,
         alertLevel: task.alertLevel || 'light',
+        notificationSound: task.notificationSound || 'gentle',
+        taskId: task.id,
+        snoozeMinutes: task.snoozeMinutes || 10,
         route: "/tasks",
       });
     }
@@ -79,11 +109,14 @@ export const scheduleTaskNotifications = async (task: Task) => {
   if (task.reminderAfter) {
     await notificationService.scheduleTaskAlarm({
       id: getTaskNotificationId(task.id, 4000),
-    title: "Daily Nova reminder",
-    body: `${task.title} · Did you complete it?`,
+      title: task.title,
+      body: `Did you complete it?`,
       at: new Date(taskTime.getTime() + minutes(task.reminderAfter)),
       alertLevel: task.alertLevel || 'light',
-    route: "/tasks",
+      notificationSound: task.notificationSound || 'gentle',
+      taskId: task.id,
+      snoozeMinutes: task.snoozeMinutes || 10,
+      route: "/tasks",
     });
   }
 };
@@ -92,4 +125,11 @@ export const cancelTaskNotifications = async (task: Task) => {
   await notificationService.cancelNotification(getTaskNotificationId(task.id, 2000));
   await notificationService.cancelNotification(getTaskNotificationId(task.id, 3000));
   await notificationService.cancelNotification(getTaskNotificationId(task.id, 4000));
+};
+
+export const rescheduleAllTaskNotifications = async () => {
+  const tasks = storage.getTasks().filter((task) => !task.completed && task.dueDate && task.dueTime);
+  for (const task of tasks) {
+    await scheduleTaskNotifications(task);
+  }
 };

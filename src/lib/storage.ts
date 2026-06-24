@@ -12,6 +12,7 @@ export interface Note {
 export type RepeatUnit = 'none' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
 export type AlertLevel = 'light' | 'medium' | 'strong';
 export type DurationType = 'forever' | 'count' | 'until';
+export type ReminderSound = 'gentle' | 'classic';
 
 export interface TaskRepeat { unit: RepeatUnit; every: number }
 export interface TaskDuration { type: DurationType; count?: number; until?: string }
@@ -29,6 +30,8 @@ export interface Task {
   repeat?: TaskRepeat;
   duration?: TaskDuration;
   alertLevel?: AlertLevel;
+  notificationSound?: ReminderSound;
+  snoozeMinutes?: number;
   createdAt: string;
 }
 

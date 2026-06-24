@@ -124,7 +124,15 @@ function patchNotificationPlugin() {
     if (!java.includes('DN_FULLSCREEN_PATCH')) {
       java = java.replace(
         '        createActionIntents(localNotification, mBuilder);',
-        `        createActionIntents(localNotification, mBuilder);\n        // DN_FULLSCREEN_PATCH: medium/strong Daily Nova reminders use heads-up/full-screen alerts.\n        JSObject dnExtra = localNotification.getExtra();\n        if (dnExtra != null) {\n            Boolean dnFullScreen = dnExtra.getBoolean("fullScreen", false);\n            Integer dnImportance = dnExtra.getInteger("importance", 3);\n            if (dnImportance != null && dnImportance >= 5) {\n                mBuilder.setPriority(NotificationCompat.PRIORITY_MAX);\n            } else if (dnImportance != null && dnImportance >= 4) {\n                mBuilder.setPriority(NotificationCompat.PRIORITY_HIGH);\n            }\n            if (Boolean.TRUE.equals(dnFullScreen)) {\n                Intent fsIntent = buildIntent(localNotification, DEFAULT_PRESS_ACTION);\n                PendingIntent fsPendingIntent = PendingIntent.getActivity(context, localNotification.getId() + 900000, fsIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);\n                mBuilder.setFullScreenIntent(fsPendingIntent, true);\n            }\n        }`
+        `        createActionIntents(localNotification, mBuilder);\n        // DN_FULLSCREEN_PATCH: Samsung-style Daily Nova reminder behavior.\n        JSObject dnExtra = localNotification.getExtra();\n        if (dnExtra != null) {\n            Boolean dnFullScreen = dnExtra.getBoolean("fullScreen", false);\n            Boolean dnInsistent = dnExtra.getBoolean("insistent", false);\n            Integer dnImportance = dnExtra.getInteger("importance", 3);\n            Integer dnTimeout = dnExtra.getInteger("timeoutAfterMs", null);\n            if (dnImportance != null && dnImportance >= 5) {\n                mBuilder.setPriority(NotificationCompat.PRIORITY_MAX);\n                mBuilder.setCategory(NotificationCompat.CATEGORY_ALARM);\n            } else if (dnImportance != null && dnImportance >= 4) {\n                mBuilder.setPriority(NotificationCompat.PRIORITY_HIGH);\n            }\n            if (dnTimeout != null && dnTimeout > 0) {\n                mBuilder.setTimeoutAfter(dnTimeout.longValue());\n            }\n            if (Boolean.TRUE.equals(dnInsistent)) {\n                mBuilder.setOnlyAlertOnce(false);\n            }\n            if (Boolean.TRUE.equals(dnFullScreen)) {\n                Intent fsIntent = buildIntent(localNotification, DEFAULT_PRESS_ACTION);\n                PendingIntent fsPendingIntent = PendingIntent.getActivity(context, localNotification.getId() + 900000, fsIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);\n                mBuilder.setFullScreenIntent(fsPendingIntent, true);\n            }\n        }`
+      );
+      java = java.replace(
+        '        Notification buildNotification = mBuilder.build();',
+        `        Notification buildNotification = mBuilder.build();\n        if (dnExtra != null && Boolean.TRUE.equals(dnExtra.getBoolean("insistent", false))) {\n            buildNotification.flags |= Notification.FLAG_INSISTENT;\n        }`
+      );
+      java = java.replace(
+        '                long interval = at.getTime() - new Date().getTime();\n                alarmManager.setRepeating(AlarmManager.RTC, at.getTime(), interval, pendingIntent);',
+        `                long interval = at.getTime() - new Date().getTime();\n                try {\n                    JSObject dnRepeatExtra = request.getExtra();\n                    if (dnRepeatExtra != null && dnRepeatExtra.has("repeatEveryMs") && !dnRepeatExtra.isNull("repeatEveryMs")) {\n                        interval = dnRepeatExtra.getLong("repeatEveryMs");\n                    }\n                } catch (Exception ignored) {}\n                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, at.getTime(), interval, pendingIntent);`
       );
       writeFileSync(managerPath, java, 'utf8');
       changed = true;
@@ -136,7 +144,7 @@ function patchNotificationPlugin() {
     if (!java.includes('DN_VISIBLE_ID_PATCH')) {
       java = java.replace(
         '        notificationManager.notify(id, notification);',
-        `        // DN_VISIBLE_ID_PATCH: use a stable visible notification id so repeats replace instead of stacking.\n        int visibleId = id;\n        if (notificationJson != null) {\n            JSObject extra = notificationJson.getJSObject("extra");\n            if (extra != null && extra.getInteger("visibleId") != null) {\n                visibleId = extra.getInteger("visibleId");\n            }\n        }\n        notificationManager.notify(visibleId, notification);`
+        `        // DN_VISIBLE_ID_PATCH: use a stable visible notification id so repeats replace instead of stacking.\n        int visibleId = id;\n        if (notificationJson != null) {\n            JSObject extra = notificationJson.getJSObject("extra");\n            if (extra != null && extra.getInteger("visibleId") != null) {\n                visibleId = extra.getInteger("visibleId");\n            }\n            if (extra != null && Boolean.TRUE.equals(extra.getBoolean("insistent", false))) {\n                notification.flags |= Notification.FLAG_INSISTENT;\n            }\n        }\n        notificationManager.notify(visibleId, notification);`
       );
       writeFileSync(publisherPath, java, 'utf8');
       changed = true;
@@ -147,7 +155,7 @@ function patchNotificationPlugin() {
   if (existsSync(join(ROOT, 'android'))) {
     mkdirSync(rawDir, { recursive: true });
     writeWav(join(rawDir, 'dailynova_alarm_short.wav'), 0.45, 880);
-    writeWav(join(rawDir, 'dailynova_alarm_long.wav'), 2.8, 740);
+    writeWav(join(rawDir, 'dailynova_alarm_classic.wav'), 0.55, 1040);
     changed = true;
   }
   if (changed) console.log('✓ Patched local notifications (replace repeats + full-screen alerts + sounds)');

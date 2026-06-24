@@ -39,12 +39,17 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
   const { toast } = useToast();
   const accumulatedRef = useRef<string>("");
   const listenerCleanupRef = useRef<(() => void) | null>(null);
+  const stopFallbackRef = useRef<number | null>(null);
   const stoppedRef = useRef(false);
   const finalizedRef = useRef(false);
 
   const finalize = useCallback(async () => {
     if (finalizedRef.current) return;
     finalizedRef.current = true;
+    if (stopFallbackRef.current) {
+      window.clearTimeout(stopFallbackRef.current);
+      stopFallbackRef.current = null;
+    }
     const raw = accumulatedRef.current.trim();
     accumulatedRef.current = "";
     recordingState.set(false);
@@ -77,7 +82,9 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
       accumulatedRef.current = "";
       stoppedRef.current = false;
       finalizedRef.current = false;
+      if (stopFallbackRef.current) window.clearTimeout(stopFallbackRef.current);
       setIsListening(true);
+      setIsProcessing(false);
       recordingState.set(true);
       toast({ title: "Listening…", description: "Tap the mic again to stop." });
 
@@ -86,8 +93,14 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
           const text = data.matches?.[0]?.trim();
           if (text) accumulatedRef.current = text;
         });
+        const stateListener = await SpeechRecognition.addListener("listeningState", (data: { status?: "started" | "stopped" }) => {
+          if (data.status === "stopped" && stoppedRef.current) finalize();
+        });
         listenerCleanupRef.current?.();
-        listenerCleanupRef.current = () => partialListener.remove();
+        listenerCleanupRef.current = () => {
+          partialListener.remove();
+          stateListener.remove();
+        };
         await SpeechRecognition.start({ language: "en-US", maxResults: 1, partialResults: true, popup: false });
       } catch (err) {
         if (!stoppedRef.current) console.error("Native speech error:", err);
@@ -96,25 +109,34 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
       console.error("Native speech error:", error);
       setIsListening(false);
       setIsProcessing(false);
+      recordingState.set(false);
       toast({ title: "Error", description: "Speech recognition failed.", variant: "destructive" });
     }
   }, [toast, finalize]);
 
   const stopListening = useCallback(async () => {
+    if (finalizedRef.current) return;
     stoppedRef.current = true;
     recordingState.set(false);
+    setIsListening(false);
+    setIsProcessing(true);
+    if (stopFallbackRef.current) window.clearTimeout(stopFallbackRef.current);
+    stopFallbackRef.current = window.setTimeout(() => finalize(), 900);
     try {
       const { SpeechRecognition } = await import("@capacitor-community/speech-recognition");
       await SpeechRecognition.stop();
     } catch {}
-    listenerCleanupRef.current?.();
-    listenerCleanupRef.current = null;
-    setTimeout(() => finalize(), 200);
+    window.setTimeout(() => {
+      listenerCleanupRef.current?.();
+      listenerCleanupRef.current = null;
+      finalize();
+    }, 120);
   }, [finalize]);
 
   useEffect(() => () => {
     stoppedRef.current = true;
     recordingState.set(false);
+    if (stopFallbackRef.current) window.clearTimeout(stopFallbackRef.current);
     listenerCleanupRef.current?.();
     listenerCleanupRef.current = null;
     (async () => {
@@ -139,14 +161,21 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   const recognitionRef = useRef<any>(null);
   const stoppedByUserRef = useRef(false);
   const processedRef = useRef(false);
+  const stopFallbackRef = useRef<number | null>(null);
   const fullTranscriptRef = useRef<string>("");
+  const latestInterimRef = useRef<string>("");
   const capturedIndicesRef = useRef<Set<number>>(new Set());
 
   const emitAndReset = useCallback(async () => {
     if (processedRef.current) return;
     processedRef.current = true;
-    const text = fullTranscriptRef.current.trim();
+    if (stopFallbackRef.current) {
+      window.clearTimeout(stopFallbackRef.current);
+      stopFallbackRef.current = null;
+    }
+    const text = (fullTranscriptRef.current.trim() || latestInterimRef.current.trim());
     fullTranscriptRef.current = "";
+    latestInterimRef.current = "";
     capturedIndicesRef.current.clear();
     setIsListening(false);
     recordingState.set(false);
@@ -165,6 +194,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     }
 
     fullTranscriptRef.current = "";
+    latestInterimRef.current = "";
     capturedIndicesRef.current.clear();
     processedRef.current = false;
     stoppedByUserRef.current = false;
@@ -172,7 +202,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SR();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = "en-US";
 
     recognition.onstart = () => {
@@ -183,10 +213,13 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
 
     recognition.onresult = (event: any) => {
       for (let i = 0; i < event.results.length; i++) {
+        const chunk = event.results[i][0].transcript.trim();
         if (event.results[i].isFinal && !capturedIndicesRef.current.has(i)) {
           capturedIndicesRef.current.add(i);
-          const chunk = event.results[i][0].transcript.trim();
           if (chunk) fullTranscriptRef.current += (fullTranscriptRef.current ? " " : "") + chunk;
+        } else if (!event.results[i].isFinal && chunk) {
+          // Keep the latest interim text so a fast Stop tap still produces transcription.
+          latestInterimRef.current = chunk;
         }
       }
     };
@@ -204,6 +237,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
       }
       
       if (event.error === "no-speech" || event.error === "audio-capture" || event.error === "network") {
+        if (stoppedByUserRef.current) emitAndReset();
         return;
       }
       
@@ -215,6 +249,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
 
     try {
       recognition.start();
+      recognitionRef.current = recognition;
       toast({ title: "Listening…", description: "Tap the mic again when you're done." });
     } catch (error) {
       console.error("Error starting recognition:", error);
@@ -224,14 +259,21 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   }, [isSupported, toast, emitAndReset]);
 
   const stopListening = useCallback(() => {
+    if (processedRef.current) return;
     stoppedByUserRef.current = true;
     recordingState.set(false);
+    setIsListening(false);
+    setIsProcessing(true);
     const inst = recognitionRef.current;
     if (inst) {
       try { inst.stop(); } catch {}
       // Hard fallback: if onend never fires (happens in some Android WebViews),
       // force-finalize after 600ms so the mic toggle is never stuck on "Listening…".
-      setTimeout(() => emitAndReset(), 600);
+      if (stopFallbackRef.current) window.clearTimeout(stopFallbackRef.current);
+      stopFallbackRef.current = window.setTimeout(() => {
+        try { inst.abort(); } catch {}
+        emitAndReset();
+      }, 900);
     } else {
       emitAndReset();
     }
@@ -240,6 +282,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   useEffect(() => () => {
     stoppedByUserRef.current = true;
     recordingState.set(false);
+    if (stopFallbackRef.current) window.clearTimeout(stopFallbackRef.current);
     const inst = recognitionRef.current;
     if (inst) {
       try { inst.abort(); } catch {}

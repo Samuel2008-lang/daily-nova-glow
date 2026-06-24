@@ -39,20 +39,54 @@ export const useAdMob = () => {
     initAdMob();
   }, []);
 
-  const showBanner = useCallback(async (position: "top" | "bottom" = "bottom"): Promise<boolean> => {
+  const showBanner = useCallback(async (
+    position: "top" | "bottom" = "bottom",
+    onVisible?: () => void,
+    onFailed?: () => void,
+  ): Promise<boolean> => {
     if (!isNative()) return false;
 
     try {
-      const { AdMob, BannerAdPosition, BannerAdSize } = await import("@capacitor-community/admob");
+      const { AdMob, BannerAdPosition, BannerAdSize, BannerAdPluginEvents } = await import("@capacitor-community/admob");
+      let settled = false;
+      let loadedListener: { remove: () => void } | undefined;
+      let failedListener: { remove: () => void } | undefined;
+      let sizeListener: { remove: () => void } | undefined;
+      const cleanupBannerListeners = () => {
+        loadedListener?.remove();
+        failedListener?.remove();
+        sizeListener?.remove();
+      };
+      loadedListener = await AdMob.addListener(BannerAdPluginEvents.Loaded, () => {
+        settled = true;
+        onVisible?.();
+        cleanupBannerListeners();
+      });
+      failedListener = await AdMob.addListener(BannerAdPluginEvents.FailedToLoad, () => {
+        settled = true;
+        onFailed?.();
+        cleanupBannerListeners();
+      });
+      sizeListener = await AdMob.addListener(BannerAdPluginEvents.SizeChanged, (info: any) => {
+        if (Number(info?.height || 0) > 0) {
+          settled = true;
+          onVisible?.();
+          cleanupBannerListeners();
+        }
+      });
       await AdMob.showBanner({
         adId: AD_CONFIG.banner,
         adSize: BannerAdSize.ADAPTIVE_BANNER,
         position: position === "top" ? BannerAdPosition.TOP_CENTER : BannerAdPosition.BOTTOM_CENTER,
         margin: 0,
       });
+      window.setTimeout(() => {
+        if (!settled) cleanupBannerListeners();
+      }, 5000);
       return true;
     } catch (error) {
       console.error("Banner ad error:", error);
+      onFailed?.();
       return false;
     }
   }, []);
@@ -88,30 +122,57 @@ export const useAdMob = () => {
       
       return new Promise(async (resolve) => {
         let resolved = false;
+        const cleanup = (listeners: Array<{ remove: () => void } | undefined>) => {
+          listeners.forEach((listener) => listener?.remove());
+        };
+        let rewardListener: { remove: () => void } | undefined;
+        let dismissListener: { remove: () => void } | undefined;
+        let failedLoadListener: { remove: () => void } | undefined;
+        let failedShowListener: { remove: () => void } | undefined;
         
-        const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
+        rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
           if (!resolved) {
             resolved = true;
-            rewardListener.remove();
+            cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
             resolve("rewarded");
           }
         });
 
-        const dismissListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+        dismissListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
           if (!resolved) {
             resolved = true;
-            dismissListener.remove();
+            cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
             resolve("dismissed");
+          }
+        });
+
+        failedLoadListener = await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => {
+          if (!resolved) {
+            resolved = true;
+            cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
+            resolve("failed");
+          }
+        });
+
+        failedShowListener = await AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => {
+          if (!resolved) {
+            resolved = true;
+            cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
+            resolve("failed");
           }
         });
 
         try {
           await AdMob.prepareRewardVideoAd({ adId: AD_CONFIG.rewarded });
-          await AdMob.showRewardVideoAd();
+          const directReward = await AdMob.showRewardVideoAd();
+          if (!resolved && directReward) {
+            resolved = true;
+            cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
+            resolve("rewarded");
+          }
         } catch (error) {
           console.error("Rewarded ad error:", error);
-          rewardListener.remove();
-          dismissListener.remove();
+          cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
           resolve("failed");
         }
       });

@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
-import { Bell, Clock, Repeat, AlarmClock, X, Tag } from "lucide-react";
+import { Clock, Repeat, AlarmClock, X, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { AlertLevel, DurationType, RepeatUnit, Task, TaskDuration, TaskRepeat } from "@/lib/storage";
+import type { AlertLevel, DurationType, ReminderSound, RepeatUnit, Task, TaskDuration, TaskRepeat } from "@/lib/storage";
 import { haptics } from "@/lib/haptics";
 
 interface ReminderEditorProps {
@@ -17,12 +16,13 @@ interface ReminderEditorProps {
   onCancel: () => void;
   onSave: (data: {
     title: string;
-    memo?: string;
     dueDate: string;
     dueTime: string;
     repeat: TaskRepeat;
     duration: TaskDuration;
     alertLevel: AlertLevel;
+    notificationSound: ReminderSound;
+    snoozeMinutes: number;
   }) => void;
 }
 
@@ -37,9 +37,14 @@ const REPEAT_UNITS: { value: RepeatUnit; label: string }[] = [
 ];
 
 const ALERT_LEVELS: { value: AlertLevel; label: string; desc: string }[] = [
-  { value: "light", label: "Light", desc: "Notification + short sound" },
-  { value: "medium", label: "Medium", desc: "Full-screen alert + short sound" },
-  { value: "strong", label: "Strong", desc: "Full-screen alert + long sound" },
+  { value: "light", label: "Light", desc: "Banner only · one short sound · auto-dismiss" },
+  { value: "medium", label: "Medium", desc: "Full-screen reminder · one short sound" },
+  { value: "strong", label: "Strong", desc: "Full-screen reminder · repeats sound until snoozed/completed" },
+];
+
+const SOUND_OPTIONS: { value: ReminderSound; label: string; desc: string }[] = [
+  { value: "gentle", label: "Daily Nova", desc: "Soft pink reminder tone" },
+  { value: "classic", label: "Classic", desc: "Brighter short alert tone" },
 ];
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -48,11 +53,10 @@ const toHourStr = (d: Date) => String(d.getHours());
 const toMinStr = (d: Date) => String(d.getMinutes());
 
 /**
- * Samsung-style reminder editor: memo, time, repeat, duration, alert level.
+ * Samsung-style reminder editor: main reminder text, time, repeat, duration, sound, snooze, alert level.
  */
 const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSave }: ReminderEditorProps) => {
   const [title, setTitle] = useState(initialTask?.title || initialTitle);
-  const [memo, setMemo] = useState(initialTask?.memo || "");
 
   const now = new Date();
   const [date, setDate] = useState(initialTask?.dueDate || toDateStr(now));
@@ -67,10 +71,11 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
   const [durationUntil, setDurationUntil] = useState(initialTask?.duration?.until || toDateStr(new Date(Date.now() + 7 * 86400000)));
 
   const [alertLevel, setAlertLevel] = useState<AlertLevel>(initialTask?.alertLevel || "light");
+  const [notificationSound, setNotificationSound] = useState<ReminderSound>(initialTask?.notificationSound || "gentle");
+  const [snoozeMinutes, setSnoozeMinutes] = useState(initialTask?.snoozeMinutes || 10);
 
   useEffect(() => {
     setTitle(initialTask?.title || initialTitle);
-    setMemo(initialTask?.memo || "");
     setDate(initialTask?.dueDate || toDateStr(new Date()));
     setHour(initialTask?.dueTime ? String(parseInt(initialTask.dueTime.split(":")[0], 10)) : toHourStr(new Date()));
     setMinute(initialTask?.dueTime ? String(parseInt(initialTask.dueTime.split(":")[1], 10)) : toMinStr(new Date()));
@@ -80,6 +85,8 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
     setDurationCount(initialTask?.duration?.count || 5);
     setDurationUntil(initialTask?.duration?.until || toDateStr(new Date(Date.now() + 7 * 86400000)));
     setAlertLevel(initialTask?.alertLevel || "light");
+    setNotificationSound(initialTask?.notificationSound || "gentle");
+    setSnoozeMinutes(initialTask?.snoozeMinutes || 10);
   }, [initialTitle, initialTask]);
 
   const applyPreset = (preset: "1h" | "07" | "15" | "22") => {
@@ -105,7 +112,6 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
     haptics.success();
     onSave({
       title: title.trim(),
-      memo: memo.trim() || undefined,
       dueDate: date,
       dueTime: `${pad(parseInt(hour, 10))}:${pad(parseInt(minute, 10))}`,
       repeat: { unit: repeatUnit, every: Math.max(1, repeatEvery) },
@@ -116,6 +122,8 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
           ? { type: "until", until: durationUntil }
           : { type: "forever" },
       alertLevel,
+      notificationSound,
+      snoozeMinutes: Math.max(1, snoozeMinutes),
     });
   };
 
@@ -137,13 +145,6 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         className="bg-background/50 border-border/50 text-base font-medium"
-      />
-
-      <Textarea
-        placeholder="Add memo (optional)"
-        value={memo}
-        onChange={(e) => setMemo(e.target.value)}
-        className="bg-background/50 border-border/50 text-sm min-h-[60px]"
       />
 
       {/* Time */}
@@ -262,6 +263,41 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
             </label>
           ))}
         </RadioGroup>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-secondary">
+            <Volume2 className="w-4 h-4" /> Sound
+          </div>
+          <Select value={notificationSound} onValueChange={(v) => setNotificationSound(v as ReminderSound)}>
+            <SelectTrigger className="bg-background/50 border-border/50 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SOUND_OPTIONS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground">{SOUND_OPTIONS.find((s) => s.value === notificationSound)?.desc}</p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-secondary">Snooze</div>
+          <Select value={String(snoozeMinutes)} onValueChange={(v) => setSnoozeMinutes(parseInt(v, 10))}>
+            <SelectTrigger className="bg-background/50 border-border/50 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">5 minutes</SelectItem>
+              <SelectItem value="10">10 minutes</SelectItem>
+              <SelectItem value="15">15 minutes</SelectItem>
+              <SelectItem value="30">30 minutes</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground">Used by full-screen reminders.</p>
+        </div>
       </section>
 
       {/* Footer */}

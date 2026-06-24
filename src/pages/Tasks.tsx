@@ -72,12 +72,13 @@ const Tasks = () => {
       const updated: Task = {
         ...editingTask,
         title: data.title,
-        memo: data.memo,
         dueDate: data.dueDate,
         dueTime: data.dueTime,
         repeat: data.repeat,
         duration: data.duration,
         alertLevel: data.alertLevel,
+        notificationSound: data.notificationSound,
+        snoozeMinutes: data.snoozeMinutes,
       };
       const next = tasks.map((x) => (x.id === editingTask.id ? updated : x));
       setTasks(next);
@@ -88,13 +89,14 @@ const Tasks = () => {
       const task: Task = {
         id: Date.now().toString(),
         title: data.title,
-        memo: data.memo,
         completed: false,
         dueDate: data.dueDate,
         dueTime: data.dueTime,
         repeat: data.repeat,
         duration: data.duration,
         alertLevel: data.alertLevel,
+        notificationSound: data.notificationSound,
+        snoozeMinutes: data.snoozeMinutes,
         createdAt: new Date().toISOString(),
       };
       const next = [task, ...tasks];
@@ -168,7 +170,6 @@ const Tasks = () => {
           <p className={`text-foreground font-medium ${task.completed ? "line-through opacity-60" : ""}`}>
             {task.title}
           </p>
-          {task.memo && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{task.memo}</p>}
           <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
             {task.dueTime && (
               <span className="flex items-center gap-1">
