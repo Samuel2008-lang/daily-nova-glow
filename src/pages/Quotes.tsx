@@ -210,9 +210,19 @@ const Quotes = () => {
       toast({ title: "Daily limit reached", description: `You've unlocked all ${SESSION_CAP} quotes for today. Come back tomorrow!` });
       return;
     }
+    setShowNavigation(true);
     const remaining = SESSION_CAP - allQuotes.length;
     const want = Math.min(REWARDED_QUOTE_COUNT, remaining);
-    await fetchNewQuotes(want, false);
+    const success = await fetchNewQuotes(want, false);
+    if (!success) {
+      const bonus = fallbackQuotes[(Date.now() + allQuotes.length) % fallbackQuotes.length];
+      const final = enforceStorageLimit([...allQuotes, bonus].filter((q, i, arr) => arr.findIndex(x => x.text === q.text) === i));
+      setAllQuotes(final);
+      const nextIndex = final.length - 1;
+      setCurrentIndex(nextIndex);
+      localStorage.setItem(QUOTE_INDEX_KEY, String(nextIndex));
+      toast({ title: "Quote unlocked", description: "A bonus quote is ready." });
+    }
   };
 
   // Called when the rewarded ad couldn't play (no fill / dismissed early).
