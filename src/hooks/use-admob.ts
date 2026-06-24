@@ -39,20 +39,41 @@ export const useAdMob = () => {
     initAdMob();
   }, []);
 
-  const showBanner = useCallback(async (position: "top" | "bottom" = "bottom"): Promise<boolean> => {
+  const showBanner = useCallback(async (
+    position: "top" | "bottom" = "bottom",
+    onVisible?: () => void,
+    onFailed?: () => void,
+  ): Promise<boolean> => {
     if (!isNative()) return false;
 
     try {
-      const { AdMob, BannerAdPosition, BannerAdSize } = await import("@capacitor-community/admob");
+      const { AdMob, BannerAdPosition, BannerAdSize, BannerAdPluginEvents } = await import("@capacitor-community/admob");
+      let settled = false;
+      const loadedListener = await AdMob.addListener(BannerAdPluginEvents.Loaded, () => {
+        settled = true;
+        onVisible?.();
+        loadedListener.remove();
+        failedListener.remove();
+      });
+      const failedListener = await AdMob.addListener(BannerAdPluginEvents.FailedToLoad, () => {
+        settled = true;
+        onFailed?.();
+        loadedListener.remove();
+        failedListener.remove();
+      });
       await AdMob.showBanner({
         adId: AD_CONFIG.banner,
         adSize: BannerAdSize.ADAPTIVE_BANNER,
         position: position === "top" ? BannerAdPosition.TOP_CENTER : BannerAdPosition.BOTTOM_CENTER,
         margin: 0,
       });
+      window.setTimeout(() => {
+        if (!settled) onVisible?.();
+      }, 2500);
       return true;
     } catch (error) {
       console.error("Banner ad error:", error);
+      onFailed?.();
       return false;
     }
   }, []);
@@ -88,11 +109,14 @@ export const useAdMob = () => {
       
       return new Promise(async (resolve) => {
         let resolved = false;
+        const cleanup = (listeners: Array<{ remove: () => void } | undefined>) => {
+          listeners.forEach((listener) => listener?.remove());
+        };
         
         const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
           if (!resolved) {
             resolved = true;
-            rewardListener.remove();
+            cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
             resolve("rewarded");
           }
         });
@@ -100,18 +124,38 @@ export const useAdMob = () => {
         const dismissListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
           if (!resolved) {
             resolved = true;
-            dismissListener.remove();
+            cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
             resolve("dismissed");
+          }
+        });
+
+        const failedLoadListener = await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => {
+          if (!resolved) {
+            resolved = true;
+            cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
+            resolve("failed");
+          }
+        });
+
+        const failedShowListener = await AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => {
+          if (!resolved) {
+            resolved = true;
+            cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
+            resolve("failed");
           }
         });
 
         try {
           await AdMob.prepareRewardVideoAd({ adId: AD_CONFIG.rewarded });
-          await AdMob.showRewardVideoAd();
+          const directReward = await AdMob.showRewardVideoAd();
+          if (!resolved && directReward) {
+            resolved = true;
+            cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
+            resolve("rewarded");
+          }
         } catch (error) {
           console.error("Rewarded ad error:", error);
-          rewardListener.remove();
-          dismissListener.remove();
+          cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
           resolve("failed");
         }
       });
