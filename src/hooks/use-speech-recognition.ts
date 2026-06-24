@@ -163,6 +163,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   const processedRef = useRef(false);
   const stopFallbackRef = useRef<number | null>(null);
   const fullTranscriptRef = useRef<string>("");
+  const latestInterimRef = useRef<string>("");
   const capturedIndicesRef = useRef<Set<number>>(new Set());
 
   const emitAndReset = useCallback(async () => {
@@ -172,8 +173,9 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
       window.clearTimeout(stopFallbackRef.current);
       stopFallbackRef.current = null;
     }
-    const text = fullTranscriptRef.current.trim();
+    const text = (fullTranscriptRef.current.trim() || latestInterimRef.current.trim());
     fullTranscriptRef.current = "";
+    latestInterimRef.current = "";
     capturedIndicesRef.current.clear();
     setIsListening(false);
     recordingState.set(false);
@@ -192,6 +194,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     }
 
     fullTranscriptRef.current = "";
+    latestInterimRef.current = "";
     capturedIndicesRef.current.clear();
     processedRef.current = false;
     stoppedByUserRef.current = false;
@@ -214,9 +217,9 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
         if (event.results[i].isFinal && !capturedIndicesRef.current.has(i)) {
           capturedIndicesRef.current.add(i);
           if (chunk) fullTranscriptRef.current += (fullTranscriptRef.current ? " " : "") + chunk;
-        } else if (!event.results[i].isFinal && chunk && !fullTranscriptRef.current) {
+        } else if (!event.results[i].isFinal && chunk) {
           // Keep the latest interim text so a fast Stop tap still produces transcription.
-          fullTranscriptRef.current = chunk;
+          latestInterimRef.current = chunk;
         }
       }
     };
