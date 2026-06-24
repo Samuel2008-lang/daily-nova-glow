@@ -34,6 +34,7 @@ export const notificationService = {
   }) {
     if (!isNative) return;
     try {
+      await this.ensureAlarmsChannel();
       await LocalNotifications.schedule({
         notifications: [
           {
