@@ -27,7 +27,8 @@ import PinGate from "./components/PinGate";
 import { storage } from "./lib/storage";
 import { notificationService } from "./lib/notifications";
 import { rescheduleAllTaskNotifications } from "./lib/task-reminders";
-import { completeReminder, ReminderActionPayload, snoozeReminder } from "./lib/reminder-actions";
+import { completeReminder, snoozeReminder } from "./lib/reminder-actions";
+import type { ReminderActionPayload } from "./lib/reminder-actions";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
 
