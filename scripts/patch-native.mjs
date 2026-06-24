@@ -132,7 +132,7 @@ function patchNotificationPlugin() {
       );
       java = java.replace(
         '                long interval = at.getTime() - new Date().getTime();\n                alarmManager.setRepeating(AlarmManager.RTC, at.getTime(), interval, pendingIntent);',
-        `                long interval = at.getTime() - new Date().getTime();\n                try {\n                    JSObject dnRepeatExtra = request.getExtra();\n                    if (dnRepeatExtra != null && dnRepeatExtra.getLong("repeatEveryMs") != null) {\n                        interval = dnRepeatExtra.getLong("repeatEveryMs");\n                    }\n                } catch (Exception ignored) {}\n                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, at.getTime(), interval, pendingIntent);`
+        `                long interval = at.getTime() - new Date().getTime();\n                try {\n                    JSObject dnRepeatExtra = request.getExtra();\n                    if (dnRepeatExtra != null && dnRepeatExtra.has("repeatEveryMs") && !dnRepeatExtra.isNull("repeatEveryMs")) {\n                        interval = dnRepeatExtra.getLong("repeatEveryMs");\n                    }\n                } catch (Exception ignored) {}\n                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, at.getTime(), interval, pendingIntent);`
       );
       writeFileSync(managerPath, java, 'utf8');
       changed = true;
