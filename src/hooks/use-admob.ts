@@ -49,17 +49,19 @@ export const useAdMob = () => {
     try {
       const { AdMob, BannerAdPosition, BannerAdSize, BannerAdPluginEvents } = await import("@capacitor-community/admob");
       let settled = false;
-      const loadedListener = await AdMob.addListener(BannerAdPluginEvents.Loaded, () => {
+      let loadedListener: { remove: () => void } | undefined;
+      let failedListener: { remove: () => void } | undefined;
+      loadedListener = await AdMob.addListener(BannerAdPluginEvents.Loaded, () => {
         settled = true;
         onVisible?.();
-        loadedListener.remove();
-        failedListener.remove();
+        loadedListener?.remove();
+        failedListener?.remove();
       });
-      const failedListener = await AdMob.addListener(BannerAdPluginEvents.FailedToLoad, () => {
+      failedListener = await AdMob.addListener(BannerAdPluginEvents.FailedToLoad, () => {
         settled = true;
         onFailed?.();
-        loadedListener.remove();
-        failedListener.remove();
+        loadedListener?.remove();
+        failedListener?.remove();
       });
       await AdMob.showBanner({
         adId: AD_CONFIG.banner,
@@ -112,8 +114,12 @@ export const useAdMob = () => {
         const cleanup = (listeners: Array<{ remove: () => void } | undefined>) => {
           listeners.forEach((listener) => listener?.remove());
         };
+        let rewardListener: { remove: () => void } | undefined;
+        let dismissListener: { remove: () => void } | undefined;
+        let failedLoadListener: { remove: () => void } | undefined;
+        let failedShowListener: { remove: () => void } | undefined;
         
-        const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
+        rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
           if (!resolved) {
             resolved = true;
             cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
@@ -121,7 +127,7 @@ export const useAdMob = () => {
           }
         });
 
-        const dismissListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
+        dismissListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
           if (!resolved) {
             resolved = true;
             cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
@@ -129,7 +135,7 @@ export const useAdMob = () => {
           }
         });
 
-        const failedLoadListener = await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => {
+        failedLoadListener = await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => {
           if (!resolved) {
             resolved = true;
             cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
@@ -137,7 +143,7 @@ export const useAdMob = () => {
           }
         });
 
-        const failedShowListener = await AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => {
+        failedShowListener = await AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => {
           if (!resolved) {
             resolved = true;
             cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
