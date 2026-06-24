@@ -88,7 +88,7 @@ export const notificationService = {
       await this.ensureAlarmsChannel();
       const repeatEvery = Math.max(1, config.repeat?.every || 1);
       const repeatEveryMs = config.repeat ? intervalMs(config.repeat.unit, repeatEvery) : undefined;
-      const repeatsForever = !!config.repeat && !config.repeat.count && !config.repeat.until;
+      const repeatsForever = Capacitor.getPlatform() === "android" && !!config.repeat && !config.repeat.count && !config.repeat.until;
       const occurrences: Date[] = [config.at];
 
       if (config.repeat && !repeatsForever) {

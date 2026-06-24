@@ -3,6 +3,26 @@ import { notificationService } from "@/lib/notifications";
 
 const minutes = (value: number) => value * 60 * 1000;
 
+const nextFutureOccurrence = (start: Date, task: Task): Date => {
+  const repeat = getTaskRepeatConfig(task);
+  if (!repeat || start > new Date()) return start;
+
+  const next = new Date(start);
+  const now = new Date();
+  const every = Math.max(1, repeat.every || 1);
+  while (next <= now) {
+    switch (repeat.unit) {
+      case "minute": next.setMinutes(next.getMinutes() + every); break;
+      case "hour": next.setHours(next.getHours() + every); break;
+      case "day": next.setDate(next.getDate() + every); break;
+      case "week": next.setDate(next.getDate() + every * 7); break;
+      case "month": next.setMonth(next.getMonth() + every); break;
+      case "year": next.setFullYear(next.getFullYear() + every); break;
+    }
+  }
+  return next;
+};
+
 export const getTaskNotificationId = (taskId: string, offset: number) => {
   const numeric = Number.parseInt(taskId, 10);
   if (Number.isFinite(numeric)) return offset + (numeric % 100000);
@@ -48,8 +68,10 @@ export const parseTaskReminder = (text: string): Pick<Task, "dueDate" | "dueTime
 
 export const scheduleTaskNotifications = async (task: Task) => {
   if (!task.dueDate || !task.dueTime) return;
-  const taskTime = new Date(`${task.dueDate}T${task.dueTime}`);
-  if (Number.isNaN(taskTime.getTime()) || taskTime <= new Date()) return;
+  let taskTime = new Date(`${task.dueDate}T${task.dueTime}`);
+  if (Number.isNaN(taskTime.getTime())) return;
+  taskTime = nextFutureOccurrence(taskTime, task);
+  if (taskTime <= new Date()) return;
 
   const label = taskTime.toDateString() === new Date().toDateString() ? "Today" : task.dueDate;
   const repeat = getTaskRepeatConfig(task);
