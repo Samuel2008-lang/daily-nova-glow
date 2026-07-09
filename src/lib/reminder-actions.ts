@@ -20,9 +20,11 @@ export const completeReminder = async (payload: ReminderActionPayload) => {
   if (payload.visibleId) await notificationService.clearVisibleNotification(payload.visibleId);
   const task = getTask(payload.taskId);
   if (!task) return;
-  storage.saveTasks(storage.getTasks().map((t) => (t.id === task.id ? { ...t, completed: true } : t)));
+  const nowIso = new Date().toISOString();
+  storage.saveTasks(storage.getTasks().map((t) => (t.id === task.id ? { ...t, completed: true, completedAt: nowIso } : t)));
   await cancelTaskNotifications(task);
 };
+
 
 export const snoozeReminder = async (payload: ReminderActionPayload) => {
   if (payload.visibleId) await notificationService.clearVisibleNotification(payload.visibleId);

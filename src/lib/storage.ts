@@ -17,12 +17,22 @@ export type ReminderSound = 'gentle' | 'classic';
 export interface TaskRepeat { unit: RepeatUnit; every: number }
 export interface TaskDuration { type: DurationType; count?: number; until?: string }
 
+export interface ChecklistItem { id: string; text: string; done: boolean }
+
 export interface Task {
   id: string;
+  /** Primary reminder text. `title` is kept in sync for backward compatibility. */
   title: string;
-  description?: string;
   memo?: string;
+  description?: string;
   completed: boolean;
+  completedAt?: string;
+  important?: boolean;
+  color?: string;
+  category?: string;
+  checklist?: ChecklistItem[];
+  /** IDs of images stored in IndexedDB via `reminder-images.ts`. */
+  imageIds?: string[];
   dueDate?: string;
   dueTime?: string;
   reminderBefore?: number;
@@ -34,6 +44,7 @@ export interface Task {
   snoozeMinutes?: number;
   createdAt: string;
 }
+
 
 export interface Habit {
   id: string;
