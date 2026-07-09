@@ -31,8 +31,12 @@ const ANDROID_PERMISSIONS = [
   'android.permission.USE_FULL_SCREEN_INTENT',
   'android.permission.USE_BIOMETRIC',
   'android.permission.USE_FINGERPRINT',
+  'android.permission.CAMERA',
+  'android.permission.READ_MEDIA_IMAGES',
+  'android.permission.READ_EXTERNAL_STORAGE',
   'com.google.android.gms.permission.AD_ID',
 ];
+
 
 function patchAndroidManifest() {
   const manifestPath = join(ROOT, 'android', 'app', 'src', 'main', 'AndroidManifest.xml');
@@ -79,8 +83,12 @@ function patchIosInfoPlist() {
     NSMicrophoneUsageDescription: 'DailyNova needs microphone access for voice capture.',
     NSSpeechRecognitionUsageDescription: 'DailyNova converts your voice to text on-device.',
     NSFaceIDUsageDescription: 'DailyNova uses Face ID to unlock the app.',
+    NSCameraUsageDescription: 'DailyNova uses the camera to attach photos to your reminders.',
+    NSPhotoLibraryUsageDescription: 'DailyNova lets you attach photos from your library to reminders.',
+    NSPhotoLibraryAddUsageDescription: 'DailyNova saves attached reminder photos to your library.',
     GADApplicationIdentifier: ADMOB_APP_ID,
   };
+
 
   for (const [key, value] of Object.entries(usages)) {
     if (!xml.includes(`<key>${key}</key>`)) {
