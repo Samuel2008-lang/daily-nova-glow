@@ -100,6 +100,7 @@ const NotificationRouter = () => {
 
 const FullScreenReminderOverlay = () => {
   const [reminder, setReminder] = useState<ReminderActionPayload | null>(null);
+  const [thumb, setThumb] = useState<string | null>(null);
 
   useEffect(() => {
     const onReminder = (event: Event) => setReminder((event as CustomEvent<ReminderActionPayload>).detail);
@@ -107,40 +108,43 @@ const FullScreenReminderOverlay = () => {
     return () => window.removeEventListener("dailynova:reminder-alert", onReminder);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    setThumb(null);
+    if (!reminder?.taskId) return;
+    const task = storage.getTasks().find((t) => t.id === reminder.taskId);
+    const first = task?.imageIds?.[0];
+    if (!first) return;
+    import("./lib/reminder-images").then(({ reminderImages }) =>
+      reminderImages.get(first).then((img) => { if (!cancelled && img) setThumb(img.dataUrl); })
+    );
+    return () => { cancelled = true; };
+  }, [reminder?.taskId]);
+
   if (!reminder) return null;
 
-  const title = storage.getTasks().find((task) => task.id === reminder.taskId)?.title || reminder.title || "Reminder";
+  const task = storage.getTasks().find((t) => t.id === reminder.taskId);
+  const title = task?.memo || task?.title || reminder.title || "Reminder";
+  const strong = reminder.alertLevel === "strong";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 backdrop-blur-xl px-6 animate-fade-in">
-      <Card className="glass glow-pink w-full max-w-sm p-6 text-center border-accent/40">
-        <div className="mx-auto mb-5 h-14 w-14 rounded-2xl bg-accent/20 flex items-center justify-center text-2xl">🔔</div>
-        <p className="text-xs uppercase tracking-[0.3em] text-accent mb-3">Reminder</p>
-        <h2 className="text-2xl font-bold text-foreground mb-8">{title}</h2>
+      <Card className={`glass w-full max-w-sm p-6 text-center border-primary/40 ${strong ? "animate-pulse-glow" : ""}`}>
+        {thumb && (
+          <img src={thumb} alt="" className="w-full h-40 object-cover rounded-lg mb-4" />
+        )}
+        <div className="mx-auto mb-4 h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center text-2xl">🔔</div>
+        <p className="text-[10px] uppercase tracking-[0.3em] text-primary mb-2">{strong ? "Alarm" : "Reminder"}</p>
+        <h2 className="text-xl font-bold text-foreground mb-6 whitespace-pre-wrap">{title}</h2>
         <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            onClick={async () => {
-              await snoozeReminder(reminder);
-              setReminder(null);
-            }}
-          >
-            Snooze
-          </Button>
-          <Button
-            className="glow-pink"
-            onClick={async () => {
-              await completeReminder(reminder);
-              setReminder(null);
-            }}
-          >
-            Complete
-          </Button>
+          <Button variant="outline" onClick={async () => { await snoozeReminder(reminder); setReminder(null); }}>Snooze</Button>
+          <Button onClick={async () => { await completeReminder(reminder); setReminder(null); }}>Complete</Button>
         </div>
       </Card>
     </div>
   );
 };
+
 
 const App = () => {
   // Splash & app lock only on TRUE cold-start within a session — never re-trigger on navigation.
