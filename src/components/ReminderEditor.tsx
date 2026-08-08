@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Star, Camera, ListChecks, Clock, Repeat as RepeatIcon, AlarmClock, Volume2, Mic, Tag, X, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Star, Camera, ListChecks, Clock, Repeat as RepeatIcon, AlarmClock, Volume2, Mic, Tag, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,12 +9,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import type { AlertLevel, ChecklistItem, DurationType, ReminderSound, RepeatUnit, Task } from "@/lib/storage";
+import type { AlertLevel, ChecklistItem, DurationType, ReminderSound, RepeatUnit, Task, TaskLocation } from "@/lib/storage";
 import { haptics } from "@/lib/haptics";
 import { REMINDER_CATEGORIES, REMINDER_COLORS } from "@/lib/reminder-constants";
 import { reminderImages } from "@/lib/reminder-images";
 import ImageStrip from "@/components/reminders/ImageStrip";
 import ImagePickerSheet from "@/components/reminders/ImagePickerSheet";
+import LocationPanel from "@/components/reminders/LocationPanel";
+import RichTextToolbar from "@/components/reminders/RichTextToolbar";
+import { plainText } from "@/lib/rich-text";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 const REPEAT_UNITS: { value: RepeatUnit; label: string }[] = [
