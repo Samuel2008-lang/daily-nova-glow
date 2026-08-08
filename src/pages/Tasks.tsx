@@ -54,6 +54,12 @@ const Tasks = () => {
 
   useEffect(() => { setTasks(storage.getTasks()); }, []);
 
+  // Keep the home-screen widget and offline geofences in sync with reminders.
+  useEffect(() => {
+    syncWidget();
+    restartGeofenceEngine();
+  }, [tasks]);
+
   // Preload first thumbnail per task
   useEffect(() => {
     const ids = tasks.map((t) => t.imageIds?.[0]).filter((id): id is string => !!id && !thumbCache[id]);
