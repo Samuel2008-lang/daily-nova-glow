@@ -34,6 +34,8 @@ const ANDROID_PERMISSIONS = [
   'android.permission.CAMERA',
   'android.permission.READ_MEDIA_IMAGES',
   'android.permission.READ_EXTERNAL_STORAGE',
+  'android.permission.ACCESS_COARSE_LOCATION',
+  'android.permission.ACCESS_FINE_LOCATION',
   'com.google.android.gms.permission.AD_ID',
 ];
 
@@ -170,6 +172,190 @@ function patchNotificationPlugin() {
   return changed;
 }
 
+/**
+ * Generates a native Android home-screen widget that renders the next
+ * reminders straight from Capacitor Preferences (fully offline).
+ */
+function generateAndroidWidget() {
+  const androidMain = join(ROOT, 'android', 'app', 'src', 'main');
+  if (!existsSync(androidMain)) return false;
+
+  const gradlePath = join(ROOT, 'android', 'app', 'build.gradle');
+  let appId = 'app.lovable.dailynova';
+  if (existsSync(gradlePath)) {
+    const m = readFileSync(gradlePath, 'utf8').match(/applicationId\s+["']([^"']+)["']/);
+    if (m) appId = m[1];
+  }
+  const pkgPath = appId.split('.').join('/');
+  const javaDir = join(androidMain, 'java', ...appId.split('.'));
+  mkdirSync(javaDir, { recursive: true });
+  mkdirSync(join(androidMain, 'res', 'layout'), { recursive: true });
+  mkdirSync(join(androidMain, 'res', 'xml'), { recursive: true });
+  mkdirSync(join(androidMain, 'res', 'drawable'), { recursive: true });
+
+  const provider = `package ${appId};
+
+import android.app.PendingIntent;
+import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProvider;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.view.View;
+import android.widget.RemoteViews;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+/** DN_WIDGET: renders upcoming Daily Nova reminders from Capacitor Preferences. */
+public class DailyNovaWidgetProvider extends AppWidgetProvider {
+
+    private static final int[] ROW_TEXT = { R.id.dn_row1_text, R.id.dn_row2_text, R.id.dn_row3_text, R.id.dn_row4_text };
+    private static final int[] ROW_TIME = { R.id.dn_row1_time, R.id.dn_row2_time, R.id.dn_row3_time, R.id.dn_row4_time };
+    private static final int[] ROW = { R.id.dn_row1, R.id.dn_row2, R.id.dn_row3, R.id.dn_row4 };
+
+    @Override
+    public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
+        for (int id : ids) render(context, manager, id);
+    }
+
+    private void render(Context context, AppWidgetManager manager, int widgetId) {
+        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.dailynova_widget);
+        SharedPreferences prefs = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
+        String raw = prefs.getString("dn_widget_reminders", null);
+
+        int shown = 0;
+        try {
+            if (raw != null) {
+                JSONArray items = new JSONObject(raw).optJSONArray("items");
+                if (items != null) {
+                    for (int i = 0; i < items.length() && i < ROW.length; i++) {
+                        JSONObject item = items.getJSONObject(i);
+                        views.setTextViewText(ROW_TEXT[i], item.optString("text", ""));
+                        views.setTextViewText(ROW_TIME[i], item.optString("when", ""));
+                        views.setViewVisibility(ROW[i], View.VISIBLE);
+                        shown++;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        for (int i = shown; i < ROW.length; i++) views.setViewVisibility(ROW[i], View.GONE);
+        views.setViewVisibility(R.id.dn_empty, shown == 0 ? View.VISIBLE : View.GONE);
+
+        Intent open = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+        if (open != null) {
+            PendingIntent pi = PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            views.setOnClickPendingIntent(R.id.dn_widget_root, pi);
+        }
+        manager.updateAppWidget(widgetId, views);
+    }
+}
+`;
+
+  const row = (n) => `
+        <LinearLayout
+            android:id="@+id/dn_row${n}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingTop="6dp"
+            android:visibility="gone">
+            <TextView
+                android:id="@+id/dn_row${n}_text"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="#F5F5FF"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/dn_row${n}_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="8dp"
+                android:textColor="#FF69B4"
+                android:textSize="12sp" />
+        </LinearLayout>`;
+
+  const layout = `<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dn_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/dailynova_widget_bg"
+    android:padding="14dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Daily Nova"
+        android:textColor="#FF69B4"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+${[1, 2, 3, 4].map(row).join('\n')}
+
+    <TextView
+        android:id="@+id/dn_empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:text="No upcoming reminders"
+        android:textColor="#9AA0B5"
+        android:textSize="12sp"
+        android:visibility="gone" />
+</LinearLayout>
+`;
+
+  const bg = `<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#0A0A0F" />
+    <corners android:radius="20dp" />
+    <stroke android:width="1dp" android:color="#33FF69B4" />
+</shape>
+`;
+
+  const info = `<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/dailynova_widget"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen|keyguard" />
+`;
+
+  writeFileSync(join(javaDir, 'DailyNovaWidgetProvider.java'), provider, 'utf8');
+  writeFileSync(join(androidMain, 'res', 'layout', 'dailynova_widget.xml'), layout, 'utf8');
+  writeFileSync(join(androidMain, 'res', 'drawable', 'dailynova_widget_bg.xml'), bg, 'utf8');
+  writeFileSync(join(androidMain, 'res', 'xml', 'dailynova_widget_info.xml'), info, 'utf8');
+
+  // Register the provider in the manifest.
+  const manifestPath = join(androidMain, 'AndroidManifest.xml');
+  if (existsSync(manifestPath)) {
+    let xml = readFileSync(manifestPath, 'utf8');
+    if (!xml.includes('DailyNovaWidgetProvider')) {
+      const receiver = `
+        <receiver
+            android:name=".DailyNovaWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dailynova_widget_info" />
+        </receiver>
+    `;
+      xml = xml.replace(/(<\/application>)/, `${receiver}$1`);
+      writeFileSync(manifestPath, xml, 'utf8');
+    }
+  }
+  console.log(`✓ Generated Android home-screen widget (${pkgPath})`);
+  return true;
+}
+
 function generateAppAssets() {
   const sourceIcon = join(ROOT, 'public', 'app-icon.png');
   const sourceForeground = join(ROOT, 'public', 'app-icon-foreground.png');
@@ -214,6 +400,7 @@ try {
   const a = patchAndroidManifest();
   const i = patchIosInfoPlist();
   patchNotificationPlugin();
+  generateAndroidWidget();
   generateAppAssets();
   if (!a && !i) console.log('✓ Native files already up to date (or platforms not added yet).');
 } catch (err) {

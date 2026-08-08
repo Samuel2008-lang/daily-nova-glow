@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Bell, Repeat as RepeatIcon, Star, Search, ListChecks, Image as ImageIcon, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Bell, Repeat as RepeatIcon, Star, Search, ListChecks, Image as ImageIcon, RotateCcw, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,9 @@ import { haptics } from "@/lib/haptics";
 import { cancelTaskNotifications, scheduleTaskNotifications } from "@/lib/task-reminders";
 import { reminderImages, StoredImage } from "@/lib/reminder-images";
 import { colorValue } from "@/lib/reminder-constants";
+import { restartGeofenceEngine } from "@/lib/geo-reminders";
+import { syncWidget } from "@/lib/widget-sync";
+import { RichText, plainText } from "@/lib/rich-text";
 import ReminderEditor, { type ReminderEditorPayload } from "@/components/ReminderEditor";
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -50,6 +53,12 @@ const Tasks = () => {
   const { toast } = useToast();
 
   useEffect(() => { setTasks(storage.getTasks()); }, []);
+
+  // Keep the home-screen widget and offline geofences in sync with reminders.
+  useEffect(() => {
+    syncWidget();
+    restartGeofenceEngine();
+  }, [tasks]);
 
   // Preload first thumbnail per task
   useEffect(() => {
@@ -153,8 +162,9 @@ const Tasks = () => {
     const q = search.trim().toLowerCase();
     return q
       ? tasks.filter((t) =>
-          (t.memo || t.title || "").toLowerCase().includes(q) ||
-          (t.category || "").toLowerCase().includes(q)
+          plainText(t.memo || t.title || "").toLowerCase().includes(q) ||
+          (t.category || "").toLowerCase().includes(q) ||
+          (t.location?.label || "").toLowerCase().includes(q)
         )
       : tasks;
   }, [tasks, search]);
@@ -197,9 +207,11 @@ const Tasks = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start gap-2">
-                  <p className={`font-medium leading-snug flex-1 whitespace-pre-wrap ${task.completed ? "line-through opacity-60" : "text-foreground"}`}>
-                    {task.memo || task.title}
-                  </p>
+                  <RichText
+                    text={task.memo || task.title}
+                    className={`font-medium flex-1 min-w-0 ${task.completed ? "line-through opacity-60" : "text-foreground"}`}
+                  />
+
                   {thumb && (
                     <img src={thumb} alt="" className="w-12 h-12 rounded-md object-cover shrink-0" />
                   )}
@@ -214,6 +226,12 @@ const Tasks = () => {
                   {repeatLabel(task) && (
                     <span className="flex items-center gap-1 text-secondary">
                       <RepeatIcon className="w-3 h-3" /> {repeatLabel(task)}
+                    </span>
+                  )}
+                  {task.location && (
+                    <span className="flex items-center gap-1 text-primary">
+                      <MapPin className="w-3 h-3" />
+                      {task.location.trigger === "arrive" ? "Arrive" : "Leave"} · {task.location.label || "place"}
                     </span>
                   )}
                   {task.category && (

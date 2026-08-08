@@ -161,6 +161,8 @@ const App = () => {
     if (storage.isFirstLaunch()) setShowWelcome(true);
     notificationService.setupDailyReminders();
     rescheduleAllTaskNotifications();
+    import("./lib/geo-reminders").then(({ startGeofenceEngine }) => startGeofenceEngine());
+    import("./lib/widget-sync").then(({ syncWidget }) => syncWidget());
   }, []);
 
   useEffect(() => {

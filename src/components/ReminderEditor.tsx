@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Star, Camera, ListChecks, Clock, Repeat as RepeatIcon, AlarmClock, Volume2, Mic, Tag, X, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Star, Camera, ListChecks, Clock, Repeat as RepeatIcon, AlarmClock, Volume2, Mic, Tag, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,12 +9,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import type { AlertLevel, ChecklistItem, DurationType, ReminderSound, RepeatUnit, Task } from "@/lib/storage";
+import type { AlertLevel, ChecklistItem, DurationType, ReminderSound, RepeatUnit, Task, TaskLocation } from "@/lib/storage";
 import { haptics } from "@/lib/haptics";
 import { REMINDER_CATEGORIES, REMINDER_COLORS } from "@/lib/reminder-constants";
 import { reminderImages } from "@/lib/reminder-images";
 import ImageStrip from "@/components/reminders/ImageStrip";
 import ImagePickerSheet from "@/components/reminders/ImagePickerSheet";
+import LocationPanel from "@/components/reminders/LocationPanel";
+import RichTextToolbar from "@/components/reminders/RichTextToolbar";
+import { plainText } from "@/lib/rich-text";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 
 const REPEAT_UNITS: { value: RepeatUnit; label: string }[] = [
@@ -49,6 +52,7 @@ export interface ReminderEditorPayload {
   category?: string;
   checklist?: ChecklistItem[];
   imageIds: string[];
+  location?: TaskLocation;
   dueDate?: string;
   dueTime?: string;
   repeat: { unit: RepeatUnit; every: number };
@@ -77,6 +81,8 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
   const [showChecklist, setShowChecklist] = useState((initialTask?.checklist?.length || 0) > 0);
   const [imageIds, setImageIds] = useState<string[]>(initialTask?.imageIds || []);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [location, setLocation] = useState<TaskLocation | undefined>(initialTask?.location);
+  const memoRef = useRef<HTMLTextAreaElement>(null);
 
   const [timeEnabled, setTimeEnabled] = useState(!!initialTask?.dueDate);
   const [date, setDate] = useState(initialTask?.dueDate || toDateStr(now));
@@ -135,13 +141,14 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
     if (!memo.trim()) return;
     haptics.success();
     const payload: ReminderEditorPayload = {
-      title: memo.trim().split("\n")[0].slice(0, 200),
+      title: plainText(memo.trim()).split("\n")[0].slice(0, 200),
       memo: memo.trim(),
       important,
       color,
       category: category || undefined,
       checklist: checklist.filter((c) => c.text.trim()),
       imageIds,
+      location,
       dueDate: timeEnabled ? date : undefined,
       dueTime: timeEnabled ? `${pad(parseInt(hour, 10))}:${pad(parseInt(minute, 10))}` : undefined,
       repeat: { unit: repeatUnit, every: Math.max(1, repeatEvery) },
@@ -190,6 +197,7 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
             <div className="relative">
               <Textarea
                 autoFocus
+                ref={memoRef}
                 placeholder="What do you want to remember?"
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
@@ -207,6 +215,9 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
                 </Button>
               )}
             </div>
+
+            <RichTextToolbar targetRef={memoRef} value={memo} onChange={setMemo} />
+
 
             {/* Attachments row */}
             <div className="flex items-center gap-2 mt-3">
@@ -404,6 +415,11 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
               </>
             )}
           </section>
+
+          {/* Place (offline geofence) */}
+          <LocationPanel value={location} onChange={setLocation} />
+
+
 
           {/* Alert style */}
           <section>
