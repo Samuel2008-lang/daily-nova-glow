@@ -81,6 +81,8 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
   const [showChecklist, setShowChecklist] = useState((initialTask?.checklist?.length || 0) > 0);
   const [imageIds, setImageIds] = useState<string[]>(initialTask?.imageIds || []);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [location, setLocation] = useState<TaskLocation | undefined>(initialTask?.location);
+  const memoRef = useRef<HTMLTextAreaElement>(null);
 
   const [timeEnabled, setTimeEnabled] = useState(!!initialTask?.dueDate);
   const [date, setDate] = useState(initialTask?.dueDate || toDateStr(now));
