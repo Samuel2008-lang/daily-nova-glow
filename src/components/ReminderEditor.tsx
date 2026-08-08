@@ -197,6 +197,7 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
             <div className="relative">
               <Textarea
                 autoFocus
+                ref={memoRef}
                 placeholder="What do you want to remember?"
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
@@ -214,6 +215,9 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
                 </Button>
               )}
             </div>
+
+            <RichTextToolbar targetRef={memoRef} value={memo} onChange={setMemo} />
+
 
             {/* Attachments row */}
             <div className="flex items-center gap-2 mt-3">
