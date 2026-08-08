@@ -19,6 +19,18 @@ export interface TaskDuration { type: DurationType; count?: number; until?: stri
 
 export interface ChecklistItem { id: string; text: string; done: boolean }
 
+/** Offline, device-GPS-only geofence trigger. Coordinates never leave the device. */
+export interface TaskLocation {
+  lat: number;
+  lng: number;
+  /** Trigger radius in meters. */
+  radius: number;
+  trigger: 'arrive' | 'leave';
+  label?: string;
+  /** true = repeat every time; false = fire once then complete. */
+  everyTime?: boolean;
+}
+
 export interface Task {
   id: string;
   /** Primary reminder text. `title` is kept in sync for backward compatibility. */
