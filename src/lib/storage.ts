@@ -45,6 +45,8 @@ export interface Task {
   checklist?: ChecklistItem[];
   /** IDs of images stored in IndexedDB via `reminder-images.ts`. */
   imageIds?: string[];
+  /** Offline geofence trigger (device GPS only). */
+  location?: TaskLocation;
   dueDate?: string;
   dueTime?: string;
   reminderBefore?: number;
