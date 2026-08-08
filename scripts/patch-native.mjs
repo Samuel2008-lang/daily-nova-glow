@@ -400,6 +400,7 @@ try {
   const a = patchAndroidManifest();
   const i = patchIosInfoPlist();
   patchNotificationPlugin();
+  generateAndroidWidget();
   generateAppAssets();
   if (!a && !i) console.log('✓ Native files already up to date (or platforms not added yet).');
 } catch (err) {
