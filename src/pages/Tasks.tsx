@@ -162,8 +162,9 @@ const Tasks = () => {
     const q = search.trim().toLowerCase();
     return q
       ? tasks.filter((t) =>
-          (t.memo || t.title || "").toLowerCase().includes(q) ||
-          (t.category || "").toLowerCase().includes(q)
+          plainText(t.memo || t.title || "").toLowerCase().includes(q) ||
+          (t.category || "").toLowerCase().includes(q) ||
+          (t.location?.label || "").toLowerCase().includes(q)
         )
       : tasks;
   }, [tasks, search]);
