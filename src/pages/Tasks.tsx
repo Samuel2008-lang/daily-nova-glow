@@ -207,9 +207,11 @@ const Tasks = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start gap-2">
-                  <p className={`font-medium leading-snug flex-1 whitespace-pre-wrap ${task.completed ? "line-through opacity-60" : "text-foreground"}`}>
-                    {task.memo || task.title}
-                  </p>
+                  <RichText
+                    text={task.memo || task.title}
+                    className={`font-medium flex-1 min-w-0 ${task.completed ? "line-through opacity-60" : "text-foreground"}`}
+                  />
+
                   {thumb && (
                     <img src={thumb} alt="" className="w-12 h-12 rounded-md object-cover shrink-0" />
                   )}
