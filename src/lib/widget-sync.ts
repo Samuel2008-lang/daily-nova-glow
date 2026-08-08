@@ -45,8 +45,5 @@ export const syncWidget = async () => {
     if (!Capacitor.isNativePlatform()) return;
     const { Preferences } = await import("@capacitor/preferences");
     await Preferences.set({ key: WIDGET_KEY, value: snapshot });
-    // Nudge the widget provider to redraw.
-    const { App } = await import("@capacitor/app");
-    void App;
   } catch { /* widget sync is best-effort */ }
 };
