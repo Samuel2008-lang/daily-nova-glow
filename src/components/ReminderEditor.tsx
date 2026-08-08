@@ -141,13 +141,14 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
     if (!memo.trim()) return;
     haptics.success();
     const payload: ReminderEditorPayload = {
-      title: memo.trim().split("\n")[0].slice(0, 200),
+      title: plainText(memo.trim()).split("\n")[0].slice(0, 200),
       memo: memo.trim(),
       important,
       color,
       category: category || undefined,
       checklist: checklist.filter((c) => c.text.trim()),
       imageIds,
+      location,
       dueDate: timeEnabled ? date : undefined,
       dueTime: timeEnabled ? `${pad(parseInt(hour, 10))}:${pad(parseInt(minute, 10))}` : undefined,
       repeat: { unit: repeatUnit, every: Math.max(1, repeatEvery) },
