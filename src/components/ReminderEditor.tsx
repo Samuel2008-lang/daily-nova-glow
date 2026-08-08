@@ -52,6 +52,7 @@ export interface ReminderEditorPayload {
   category?: string;
   checklist?: ChecklistItem[];
   imageIds: string[];
+  location?: TaskLocation;
   dueDate?: string;
   dueTime?: string;
   repeat: { unit: RepeatUnit; every: number };
