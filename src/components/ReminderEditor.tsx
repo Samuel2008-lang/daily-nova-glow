@@ -416,6 +416,11 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
             )}
           </section>
 
+          {/* Place (offline geofence) */}
+          <LocationPanel value={location} onChange={setLocation} />
+
+
+
           {/* Alert style */}
           <section>
             <div className="flex items-center gap-2 text-sm font-medium mb-2">
