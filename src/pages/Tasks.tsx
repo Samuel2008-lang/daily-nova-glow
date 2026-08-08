@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Bell, Repeat as RepeatIcon, Star, Search, ListChecks, Image as ImageIcon, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Bell, Repeat as RepeatIcon, Star, Search, ListChecks, Image as ImageIcon, RotateCcw, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,9 @@ import { haptics } from "@/lib/haptics";
 import { cancelTaskNotifications, scheduleTaskNotifications } from "@/lib/task-reminders";
 import { reminderImages, StoredImage } from "@/lib/reminder-images";
 import { colorValue } from "@/lib/reminder-constants";
+import { restartGeofenceEngine } from "@/lib/geo-reminders";
+import { syncWidget } from "@/lib/widget-sync";
+import { RichText, plainText } from "@/lib/rich-text";
 import ReminderEditor, { type ReminderEditorPayload } from "@/components/ReminderEditor";
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
