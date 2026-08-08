@@ -228,6 +228,12 @@ const Tasks = () => {
                       <RepeatIcon className="w-3 h-3" /> {repeatLabel(task)}
                     </span>
                   )}
+                  {task.location && (
+                    <span className="flex items-center gap-1 text-primary">
+                      <MapPin className="w-3 h-3" />
+                      {task.location.trigger === "arrive" ? "Arrive" : "Leave"} · {task.location.label || "place"}
+                    </span>
+                  )}
                   {task.category && (
                     <span className="px-1.5 py-0.5 rounded-full bg-muted/60 text-[10px]">{task.category}</span>
                   )}
