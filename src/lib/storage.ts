@@ -12,7 +12,16 @@ export interface Note {
 export type RepeatUnit = 'none' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
 export type AlertLevel = 'light' | 'medium' | 'strong';
 export type DurationType = 'forever' | 'count' | 'until';
-export type ReminderSound = 'gentle' | 'classic';
+/**
+ * App sounds ship with the build; `system_*` values use the phone's own
+ * notification / ringtone / alarm tones (resolved natively on Android).
+ */
+export type ReminderSound =
+  | 'gentle'
+  | 'classic'
+  | 'system_notification'
+  | 'system_ringtone'
+  | 'system_alarm';
 
 export interface TaskRepeat { unit: RepeatUnit; every: number }
 export interface TaskDuration { type: DurationType; count?: number; until?: string }
@@ -64,6 +73,7 @@ export interface Habit {
   id: string;
   name: string;
   description?: string;
+  category?: string;
   completedDates: string[];
   lastMarkedDate?: string;
   streak: number;
