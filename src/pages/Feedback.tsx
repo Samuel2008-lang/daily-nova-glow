@@ -1,56 +1,38 @@
 import { useState } from "react";
-import { MessageCircle, Send, ArrowLeft, Mail } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, ShieldCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { haptics } from "@/lib/haptics";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-
-const DEVELOPER_EMAIL = "hopeegbon28@gmail.com";
+import { sendFeedback } from "@/lib/feedback";
 
 const Feedback = () => {
   const [feedbackText, setFeedbackText] = useState("");
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [sending, setSending] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const openConfirm = () => {
-    if (!feedbackText.trim()) return;
-    haptics.light();
-    setConfirmOpen(true);
-  };
-
-  const sendFeedback = () => {
+  const submit = async () => {
     const text = feedbackText.trim();
-    if (!text) return;
-    haptics.success();
-
-    const subject = encodeURIComponent("DailyNova Feedback");
-    const body = encodeURIComponent(text);
-    const mailto = `mailto:${DEVELOPER_EMAIL}?subject=${subject}&body=${body}`;
-
+    if (!text || sending) return;
+    haptics.light();
+    setSending(true);
     try {
-      window.location.href = mailto;
+      const result = await sendFeedback(text);
+      haptics.success();
+      setFeedbackText("");
+      toast(
+        result === "sent"
+          ? { title: "Feedback sent. Thank you!" }
+          : { title: "Saved offline", description: "We'll deliver it as soon as you're back online." }
+      );
     } catch {
-      toast({
-        title: "Couldn't open email app",
-        description: `Please email ${DEVELOPER_EMAIL} directly.`,
-        variant: "destructive",
-      });
+      toast({ title: "Couldn't send", description: "Please try again in a moment.", variant: "destructive" });
+    } finally {
+      setSending(false);
     }
-    setConfirmOpen(false);
-    setFeedbackText("");
   };
 
   return (
@@ -74,34 +56,18 @@ const Feedback = () => {
             placeholder="Tell us what you think…"
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
-            className="min-h-[140px] bg-background/50 border-border/50 focus:border-accent"
+            className="min-h-[160px] bg-background/50 border-border/50"
           />
-          <Button onClick={openConfirm} disabled={!feedbackText.trim()} className="w-full gap-2">
-            <Send className="w-4 h-4" />
-            Send Feedback
+          <Button onClick={submit} disabled={!feedbackText.trim() || sending} className="w-full gap-2">
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {sending ? "Sending…" : "Submit"}
           </Button>
           <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
-            <Mail className="w-3 h-3" />
-            Your feedback will open your email app and be sent to the developer.
+            <ShieldCheck className="w-3 h-3" />
+            Sent privately to the developer. No email app opens.
           </p>
         </Card>
       </div>
-
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Send via email?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your feedback will be sent via email to the developer at <strong>{DEVELOPER_EMAIL}</strong>.
-              Your default mail app will open with the message pre-filled. You can review it before sending.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={sendFeedback}>Open Email</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

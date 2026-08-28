@@ -75,15 +75,6 @@ const makeImageBlob = async (note: NoteExportData): Promise<Blob> => {
 const blobFor = async (note: NoteExportData, format: NoteExportFormat) => format === "pdf" ? makePdfBlob(note) : format === "image" ? makeImageBlob(note) : makeTextBlob(note);
 const extFor = (format: NoteExportFormat) => format === "pdf" ? "pdf" : format === "image" ? "png" : "txt";
 
-export const askNoteFormat = (): NoteExportFormat | null => {
-  const answer = window.prompt("Choose format: PDF, Text, or Image", "PDF")?.trim().toLowerCase();
-  if (!answer) return null;
-  if (answer.startsWith("p")) return "pdf";
-  if (answer.startsWith("i")) return "image";
-  if (answer.startsWith("t")) return "text";
-  return null;
-};
-
 export const saveNoteFile = async (note: NoteExportData, format: NoteExportFormat) => {
   const blob = await blobFor(note, format);
   const ext = extFor(format);

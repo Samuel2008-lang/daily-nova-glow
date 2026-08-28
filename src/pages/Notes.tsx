@@ -13,7 +13,8 @@ import { format, isFuture, startOfDay, isToday } from "date-fns";
 import NoteItem from "@/components/NoteItem";
 import { BannerAd } from "@/components/BannerAd";
 import { haptics } from "@/lib/haptics";
-import { askNoteFormat, saveNoteFile, shareNoteFile } from "@/lib/note-export";
+import { saveNoteFile, shareNoteFile, type NoteExportFormat } from "@/lib/note-export";
+import { pickFormat } from "@/components/FormatPicker";
 
 const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -175,7 +176,7 @@ const Notes = () => {
   };
 
   const shareNote = async () => {
-    const chosen = askNoteFormat();
+    const chosen = (await pickFormat(["pdf", "text", "image"], "Share note as")) as NoteExportFormat | null;
     if (!chosen) return;
     try {
       const result = await shareNoteFile({ topic: noteTopic, content: noteContent, dateLabel: format(selectedDate, "MMMM d, yyyy"), fileBaseName: `${noteTopic}-${format(selectedDate, "yyyy-MM-dd")}` }, chosen);
@@ -188,7 +189,7 @@ const Notes = () => {
   };
 
   const saveToFile = async () => {
-    const chosen = askNoteFormat();
+    const chosen = (await pickFormat(["pdf", "text", "image"], "Save note as")) as NoteExportFormat | null;
     if (!chosen) return;
     await saveNoteFile({ topic: noteTopic, content: noteContent, dateLabel: format(selectedDate, "MMMM d, yyyy"), fileBaseName: `${noteTopic}-${format(selectedDate, "yyyy-MM-dd")}` }, chosen);
     toast({ title: "Saved", description: "Note saved to your device." });

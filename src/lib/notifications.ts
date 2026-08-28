@@ -6,11 +6,45 @@ const isNative = Capacitor.isNativePlatform();
 
 type AlertLevel = "light" | "medium" | "strong";
 
-const soundFileFor = (sound: ReminderSound = "gentle") =>
-  sound === "classic" ? "dailynova_alarm_classic.wav" : "dailynova_alarm_short.wav";
+/**
+ * Resolves the sound resource for a channel.
+ * `system_*` names are translated natively into the phone's own
+ * notification / ringtone / alarm tones (see scripts/patch-native.mjs).
+ */
+const soundFileFor = (sound: ReminderSound = "gentle") => {
+  switch (sound) {
+    case "classic": return "dailynova_alarm_classic.wav";
+    case "system_notification": return "system_notification";
+    case "system_ringtone": return "system_ringtone";
+    case "system_alarm": return "system_alarm";
+    default: return "dailynova_alarm_short.wav";
+  }
+};
+
+export const REMINDER_SOUNDS: ReminderSound[] = [
+  "gentle",
+  "classic",
+  "system_notification",
+  "system_ringtone",
+  "system_alarm",
+];
 
 const channelForAlert = (level: AlertLevel, sound: ReminderSound = "gentle"): string => {
-  return `dailynova-reminders-${level}-${sound}-pink-v2`;
+  return `dailynova-reminders-${level}-${sound}-pink-v3`;
+};
+
+/**
+ * Master reminder switches from Settings. A category that is switched OFF must
+ * never fire, no matter what individual items are configured with.
+ * Absent key = enabled (existing users keep their reminders).
+ */
+export type ReminderChannelKey = "diary" | "journal" | "habits" | "tasks";
+
+export const isReminderChannelEnabled = (key: ReminderChannelKey): boolean =>
+  localStorage.getItem(`dailynova_notify_${key}`) !== "false";
+
+export const setReminderChannelEnabled = (key: ReminderChannelKey, enabled: boolean) => {
+  localStorage.setItem(`dailynova_notify_${key}`, String(enabled));
 };
 
 export const notificationService = {
@@ -81,6 +115,7 @@ export const notificationService = {
     route?: string;
   }) {
     if (!isNative) return;
+    if (!isReminderChannelEnabled("tasks")) return;
     const alertLevel = config.alertLevel || "light";
     const notificationSound = config.notificationSound || "gentle";
     const channelId = channelForAlert(alertLevel, notificationSound);
@@ -180,7 +215,7 @@ export const notificationService = {
         ],
       });
 
-      for (const sound of ["gentle", "classic"] as ReminderSound[]) {
+      for (const sound of REMINDER_SOUNDS) {
         await LocalNotifications.createChannel?.({
           id: channelForAlert("light", sound),
           name: `Reminders Light (${sound})`,
@@ -258,7 +293,7 @@ export const notificationService = {
     if (!granted) return;
     await this.cancelNotification(1001);
     await this.cancelNotification(1011);
-    const enabled = localStorage.getItem("dailynova_notify_diary") === "true";
+    const enabled = isReminderChannelEnabled("diary");
     if (!enabled) return;
     const hour = parseInt(localStorage.getItem("dailynova_diary_hour") || "21", 10);
     const minute = parseInt(localStorage.getItem("dailynova_diary_minute") || "0", 10);
@@ -273,7 +308,7 @@ export const notificationService = {
     if (!granted) return;
     await this.cancelNotification(1002);
     await this.cancelNotification(1012);
-    const enabled = localStorage.getItem("dailynova_notify_journal") === "true";
+    const enabled = isReminderChannelEnabled("journal");
     if (!enabled) return;
     const hour = parseInt(localStorage.getItem("dailynova_journal_hour") || "21", 10);
     const minute = parseInt(localStorage.getItem("dailynova_journal_minute") || "0", 10);
@@ -289,6 +324,7 @@ export const notificationService = {
     const idNum = Math.abs(hashCode(habitId)) % 50000;
     await this.cancelNotification(5000 + idNum);
     await this.cancelNotification(5500 + idNum);
+    if (!isReminderChannelEnabled("habits")) return;
     await this.scheduleDailyReminder({ id: 5000 + idNum, title: `🌱 Habit: ${habitName}`, body: `Time to complete: ${habitName}`, hour, minute });
     const followHour = (hour + 3) % 24;
     await this.scheduleDailyReminder({ id: 5500 + idNum, title: `🌱 Habit Reminder: ${habitName}`, body: `Did you complete "${habitName}" today?`, hour: followHour, minute });
@@ -301,9 +337,26 @@ export const notificationService = {
     await this.cancelNotification(5500 + idNum);
   },
 
+  /**
+   * Android 13+ downgrades alarms to inexact (which fires reminders up to a
+   * few minutes late) unless exact scheduling is allowed. Ask once.
+   */
+  async ensureExactAlarms() {
+    if (!isNative) return;
+    try {
+      const check = await (LocalNotifications as any).checkExactNotificationSetting?.();
+      if (check && check.exact_alarm !== "granted") {
+        if (localStorage.getItem("dailynova_exact_alarm_asked") === "true") return;
+        localStorage.setItem("dailynova_exact_alarm_asked", "true");
+        await (LocalNotifications as any).changeExactNotificationSetting?.();
+      }
+    } catch {}
+  },
+
   async setupDailyReminders() {
     if (!isNative) return;
     await this.ensureAlarmsChannel();
+    await this.ensureExactAlarms();
     await this.setupDiaryReminder();
     await this.setupJournalReminder();
     const granted = await this.requestPermission();
@@ -312,8 +365,8 @@ export const notificationService = {
     await this.cancelNotification(1004);
     const hour = parseInt(localStorage.getItem("dailynova_notify_hour") || "20", 10);
     const minute = parseInt(localStorage.getItem("dailynova_notify_minute") || "0", 10);
-    const habitsEnabled = localStorage.getItem("dailynova_notify_habits") === "true";
-    const tasksEnabled = localStorage.getItem("dailynova_notify_tasks") === "true";
+    const habitsEnabled = isReminderChannelEnabled("habits");
+    const tasksEnabled = isReminderChannelEnabled("tasks");
     if (habitsEnabled) {
       await this.scheduleDailyReminder({ id: 1003, title: "🎯 Track Your Habits", body: "Have you completed your habits today? Check them off!", hour, minute: Math.min(minute + 10, 59) });
     }
