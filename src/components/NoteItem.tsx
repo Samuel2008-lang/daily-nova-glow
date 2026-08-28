@@ -21,7 +21,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Note } from "@/lib/storage";
 import { format } from "date-fns";
-import { askNoteFormat, saveNoteFile, shareNoteFile } from "@/lib/note-export";
+import { saveNoteFile, shareNoteFile, type NoteExportFormat } from "@/lib/note-export";
+import { pickFormat } from "@/components/FormatPicker";
 
 interface NoteItemProps {
   note: Note;
@@ -43,7 +44,7 @@ const NoteItem = ({ note, onView, onDelete }: NoteItemProps) => {
   };
 
   const handleShare = async () => {
-    const chosen = askNoteFormat();
+    const chosen = (await pickFormat(["pdf", "text", "image"], "Share note as")) as NoteExportFormat | null;
     if (!chosen) return;
     try {
       const result = await shareNoteFile({ topic: note.topic, content: note.content, dateLabel: format(new Date(note.createdAt), "MMMM d, yyyy"), fileBaseName: note.topic }, chosen);
@@ -56,7 +57,7 @@ const NoteItem = ({ note, onView, onDelete }: NoteItemProps) => {
   };
 
   const handleSaveToPhone = async () => {
-    const chosen = askNoteFormat();
+    const chosen = (await pickFormat(["pdf", "text", "image"], "Save note as")) as NoteExportFormat | null;
     if (!chosen) return;
     await saveNoteFile({ topic: note.topic, content: note.content, dateLabel: format(new Date(note.createdAt), "MMMM d, yyyy"), fileBaseName: note.topic }, chosen);
     toast({ title: "Saved", description: "Note saved to your device." });
