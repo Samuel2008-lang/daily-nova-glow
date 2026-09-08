@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Home, FileText, CheckSquare, Target, Clock, MoreHorizontal, BookOpen, BookMarked, Sparkles, Settings, X } from "lucide-react";
+import { Home, FileText, CheckSquare, Target, Clock, MoreHorizontal, BookOpen, BookMarked, Sparkles, Settings, X, Tags } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { NavLink } from "./NavLink";
 
@@ -27,6 +27,7 @@ const Navigation = () => {
     { to: "/diary", icon: BookOpen, label: "Diary" },
     { to: "/journal", icon: BookMarked, label: "Journal" },
     { to: "/quotes", icon: Sparkles, label: "Quotes" },
+    { to: "/tags", icon: Tags, label: "Tags" },
     { to: "/settings", icon: Settings, label: "Settings" },
   ];
 

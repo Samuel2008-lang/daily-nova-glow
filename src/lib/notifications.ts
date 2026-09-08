@@ -337,6 +337,14 @@ export const notificationService = {
     await this.cancelNotification(5500 + idNum);
   },
 
+  async cancelAllHabitReminders() {
+    if (!isNative) return;
+    const habits = JSON.parse(localStorage.getItem("dailynova_habits") || "[]") as { id?: string }[];
+    for (const habit of habits) {
+      if (habit.id) await this.cancelHabitReminder(habit.id);
+    }
+  },
+
   /**
    * Android 13+ downgrades alarms to inexact (which fires reminders up to a
    * few minutes late) unless exact scheduling is allowed. Ask once.

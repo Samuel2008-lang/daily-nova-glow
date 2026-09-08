@@ -39,6 +39,9 @@ const ALERT_LEVELS: { value: AlertLevel; label: string; desc: string }[] = [
 const SOUND_OPTIONS: { value: ReminderSound; label: string }[] = [
   { value: "gentle", label: "Nova (soft)" },
   { value: "classic", label: "Classic (bright)" },
+  { value: "system_notification", label: "Phone notification" },
+  { value: "system_ringtone", label: "Phone ringtone" },
+  { value: "system_alarm", label: "Phone alarm" },
 ];
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -109,13 +112,6 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
     onResult: (t) => setMemo((prev) => (prev ? prev + " " + t : t)),
   });
-
-  useEffect(() => {
-    // Prevent body scroll while modal-style editor is open
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, []);
 
   const applyPreset = (preset: "1h" | "07" | "12" | "18" | "22") => {
     haptics.light();
