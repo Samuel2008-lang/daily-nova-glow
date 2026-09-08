@@ -133,3 +133,7 @@ export const rescheduleAllTaskNotifications = async () => {
     await scheduleTaskNotifications(task);
   }
 };
+
+export const cancelAllTaskNotifications = async () => {
+  for (const task of storage.getTasks()) await cancelTaskNotifications(task);
+};

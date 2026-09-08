@@ -15,6 +15,7 @@ import Premium from "./pages/Premium";
 import Settings from "./pages/Settings";
 import Timeline from "./pages/Timeline";
 import Feedback from "./pages/Feedback";
+import Tags from "./pages/Tags";
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
 import QuickCapture from "./components/QuickCapture";
@@ -31,6 +32,7 @@ import { completeReminder, snoozeReminder } from "./lib/reminder-actions";
 import type { ReminderActionPayload } from "./lib/reminder-actions";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
+import FormatPickerHost from "./components/FormatPicker";
 
 const queryClient = new QueryClient();
 
@@ -215,6 +217,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+            <FormatPickerHost />
           <Navigation />
           <NotificationRouter />
           <FullScreenReminderOverlay />
@@ -233,6 +236,7 @@ const App = () => {
             <Route path="/premium" element={<Premium />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/feedback" element={<Feedback />} />
+            <Route path="/tags" element={<Tags />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

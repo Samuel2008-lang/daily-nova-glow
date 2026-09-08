@@ -26,7 +26,7 @@ const LocationPanel = ({ value, onChange }: Props) => {
     const pos = await getCurrentPosition();
     setLoading(false);
     if (!pos) {
-      toast({ title: "Location unavailable", description: "Allow location access to use place reminders.", variant: "destructive" });
+      toast({ title: "Location permission needed", description: "Allow location access, then tap Add place again." });
       return;
     }
     haptics.success();
