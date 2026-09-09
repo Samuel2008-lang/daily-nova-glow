@@ -94,9 +94,9 @@ const Settings = () => {
         tasks: storage.getTasks(),
         exportedAt: new Date().toISOString(),
       };
-      const format = await pickFormat(["pdf", "text", "json"], "Export all data");
-      if (!format) return;
-      await exportData(data, format, `dailynova-backup-${new Date().toISOString().split("T")[0]}`);
+      const selectedFormat = await pickFormat(["pdf", "text", "json"], "Export all data");
+      if (!selectedFormat || selectedFormat === "image") return;
+      await exportData(data, selectedFormat, `dailynova-backup-${new Date().toISOString().split("T")[0]}`);
       toast({ title: "Export successful", description: "Your data has been exported." });
     } catch {
       toast({ title: "Export failed", description: "Could not export data.", variant: "destructive" });
@@ -111,7 +111,7 @@ const Settings = () => {
       .map((e) => `--- ${format(new Date(e.date), "MMMM d, yyyy")} ---\n\n${e.content}`)
       .join("\n\n\n");
     const exportFormat = await pickFormat(["pdf", "text", "json"], "Export diary");
-    if (!exportFormat) return;
+    if (!exportFormat || exportFormat === "image") return;
     await exportData(exportFormat === "json" ? entries : content, exportFormat, `diary-export-${format(new Date(), "yyyy-MM-dd")}`);
     toast({ title: "Diary exported", description: `${entries.length} entries saved.` });
   };
@@ -124,7 +124,7 @@ const Settings = () => {
       .map((e) => `--- ${format(new Date(e.createdAt), "MMMM d, yyyy")} ---\n\n${e.content}`)
       .join("\n\n\n");
     const exportFormat = await pickFormat(["pdf", "text", "json"], "Export journal");
-    if (!exportFormat) return;
+    if (!exportFormat || exportFormat === "image") return;
     await exportData(exportFormat === "json" ? entries : content, exportFormat, `journal-export-${format(new Date(), "yyyy-MM-dd")}`);
     toast({ title: "Journal exported", description: `${entries.length} entries saved.` });
   };
