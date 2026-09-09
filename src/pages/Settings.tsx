@@ -20,8 +20,11 @@ import {
 import { biometricService } from "@/lib/biometric";
 import PinSetup from "@/components/PinSetup";
 import { notificationService } from "@/lib/notifications";
+import { isReminderChannelEnabled, setReminderChannelEnabled } from "@/lib/notifications";
+import { cancelAllTaskNotifications, rescheduleAllTaskNotifications } from "@/lib/task-reminders";
+import { exportData } from "@/lib/data-export";
+import { pickFormat } from "@/components/FormatPicker";
 import { AmPmTimePicker } from "@/components/AmPmTimePicker";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -45,18 +48,16 @@ import { haptics } from "@/lib/haptics";
 
 const Settings = () => {
   const navigate = useNavigate();
-  const [notifyDiary, setNotifyDiary] = useState(localStorage.getItem("dailynova_notify_diary") === "true");
-  const [notifyJournal, setNotifyJournal] = useState(localStorage.getItem("dailynova_notify_journal") === "true");
-  const [notifyHabits, setNotifyHabits] = useState(localStorage.getItem("dailynova_notify_habits") === "true");
-  const [notifyTasks, setNotifyTasks] = useState(localStorage.getItem("dailynova_notify_tasks") === "true");
+  const [notifyDiary, setNotifyDiary] = useState(isReminderChannelEnabled("diary"));
+  const [notifyJournal, setNotifyJournal] = useState(isReminderChannelEnabled("journal"));
+  const [notifyHabits, setNotifyHabits] = useState(isReminderChannelEnabled("habits"));
+  const [notifyTasks, setNotifyTasks] = useState(isReminderChannelEnabled("tasks"));
   const [diaryHour, setDiaryHour] = useState(localStorage.getItem("dailynova_diary_hour") || "21");
   const [diaryMinute, setDiaryMinute] = useState(localStorage.getItem("dailynova_diary_minute") || "0");
   const [journalHour, setJournalHour] = useState(localStorage.getItem("dailynova_journal_hour") || "21");
   const [journalMinute, setJournalMinute] = useState(localStorage.getItem("dailynova_journal_minute") || "0");
   const [diaryTimeOpen, setDiaryTimeOpen] = useState(false);
   const [journalTimeOpen, setJournalTimeOpen] = useState(false);
-  const [feedbackText, setFeedbackText] = useState("");
-  const [feedbackSent, setFeedbackSent] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(localStorage.getItem("dailynova_lock_enabled") === "true");
   const [diaryLock, setDiaryLock] = useState(localStorage.getItem("dailynova_diary_lock") === "true");
   const [journalLock, setJournalLock] = useState(localStorage.getItem("dailynova_journal_lock") === "true");
@@ -83,25 +84,7 @@ const Settings = () => {
     });
   }, [biometricEnabled]);
 
-  const sendFeedback = () => {
-    if (!feedbackText.trim()) return;
-    // Opens user's default mail app (Gmail, Outlook, Apple Mail, etc.)
-    const subject = encodeURIComponent("Daily Nova — App Feedback");
-    const body = encodeURIComponent(feedbackText.trim());
-    try {
-      window.location.href = `mailto:hopeegbon28@gmail.com?subject=${subject}&body=${body}`;
-    } catch {
-      /* ignore */
-    }
-    setFeedbackSent(true);
-    toast({ title: "Opening your mail app…", description: "Send the email to deliver your feedback." });
-    setTimeout(() => {
-      setFeedbackSent(false);
-      setFeedbackText("");
-    }, 3000);
-  };
-
-  const exportAllData = () => {
+  const exportAllData = async () => {
     try {
       const data = {
         notes: storage.getNotes(),
@@ -111,45 +94,62 @@ const Settings = () => {
         tasks: storage.getTasks(),
         exportedAt: new Date().toISOString(),
       };
-      downloadFile(JSON.stringify(data, null, 2), `dailynova-backup-${new Date().toISOString().split("T")[0]}.json`, "application/json");
+      const selectedFormat = await pickFormat(["pdf", "text", "json"], "Export all data");
+      if (!selectedFormat || selectedFormat === "image") return;
+      await exportData(data, selectedFormat, `dailynova-backup-${new Date().toISOString().split("T")[0]}`);
       toast({ title: "Export successful", description: "Your data has been exported." });
     } catch {
       toast({ title: "Export failed", description: "Could not export data.", variant: "destructive" });
     }
   };
 
-  const exportDiary = () => {
+  const exportDiary = async () => {
     const entries = storage.getDiaryEntries();
     if (!entries.length) { toast({ title: "No diary entries" }); return; }
     const content = entries
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map((e) => `--- ${format(new Date(e.date), "MMMM d, yyyy")} ---\n\n${e.content}`)
       .join("\n\n\n");
-    downloadFile(content, `diary-export-${format(new Date(), "yyyy-MM-dd")}.txt`, "text/plain");
+    const exportFormat = await pickFormat(["pdf", "text", "json"], "Export diary");
+    if (!exportFormat || exportFormat === "image") return;
+    await exportData(exportFormat === "json" ? entries : content, exportFormat, `diary-export-${format(new Date(), "yyyy-MM-dd")}`);
     toast({ title: "Diary exported", description: `${entries.length} entries saved.` });
   };
 
-  const exportJournal = () => {
+  const exportJournal = async () => {
     const entries = storage.getJournalEntries();
     if (!entries.length) { toast({ title: "No journal entries" }); return; }
     const content = entries
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       .map((e) => `--- ${format(new Date(e.createdAt), "MMMM d, yyyy")} ---\n\n${e.content}`)
       .join("\n\n\n");
-    downloadFile(content, `journal-export-${format(new Date(), "yyyy-MM-dd")}.txt`, "text/plain");
+    const exportFormat = await pickFormat(["pdf", "text", "json"], "Export journal");
+    if (!exportFormat || exportFormat === "image") return;
+    await exportData(exportFormat === "json" ? entries : content, exportFormat, `journal-export-${format(new Date(), "yyyy-MM-dd")}`);
     toast({ title: "Journal exported", description: `${entries.length} entries saved.` });
   };
 
-  const downloadFile = (content: string, filename: string, type: string) => {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const updateChannel = async (key: "diary" | "journal" | "habits" | "tasks", enabled: boolean) => {
+    setReminderChannelEnabled(key, enabled);
+    if (key === "diary") {
+      setNotifyDiary(enabled);
+      await notificationService.setupDiaryReminder();
+    } else if (key === "journal") {
+      setNotifyJournal(enabled);
+      await notificationService.setupJournalReminder();
+    } else if (key === "habits") {
+      setNotifyHabits(enabled);
+      if (!enabled) await notificationService.cancelAllHabitReminders();
+      else {
+        for (const habit of storage.getHabits()) {
+          if (habit.reminderEnabled) await notificationService.scheduleHabitReminder(habit.id, habit.name, habit.reminderHour ?? 8, habit.reminderMinute ?? 0);
+        }
+      }
+    } else {
+      setNotifyTasks(enabled);
+      if (enabled) await rescheduleAllTaskNotifications();
+      else await cancelAllTaskNotifications();
+    }
   };
 
   const clearAllData = () => {
@@ -213,8 +213,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <Label htmlFor="notify-diary" className="cursor-pointer text-sm font-medium">📖 Diary</Label>
                     <Switch id="notify-diary" checked={notifyDiary} onCheckedChange={(v) => {
-                      localStorage.setItem("dailynova_notify_diary", String(v));
-                      setNotifyDiary(v);
+                      void updateChannel("diary", v);
                       if (v) setDiaryTimeOpen(true);
                       notificationService.setupDiaryReminder();
                     }} />
@@ -245,8 +244,7 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <Label htmlFor="notify-journal" className="cursor-pointer text-sm font-medium">✍️ Journal</Label>
                     <Switch id="notify-journal" checked={notifyJournal} onCheckedChange={(v) => {
-                      localStorage.setItem("dailynova_notify_journal", String(v));
-                      setNotifyJournal(v);
+                      void updateChannel("journal", v);
                       if (v) setJournalTimeOpen(true);
                       notificationService.setupJournalReminder();
                     }} />
@@ -276,9 +274,7 @@ const Settings = () => {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="notify-habits" className="cursor-pointer text-sm font-medium">🎯 Habits</Label>
                   <Switch id="notify-habits" checked={notifyHabits} onCheckedChange={(v) => {
-                    localStorage.setItem("dailynova_notify_habits", String(v));
-                    setNotifyHabits(v);
-                    notificationService.setupDailyReminders();
+                     void updateChannel("habits", v);
                   }} />
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">Per-habit times set in Habit Tracker.</p>
@@ -289,9 +285,7 @@ const Settings = () => {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="notify-tasks" className="cursor-pointer text-sm font-medium">✅ Tasks</Label>
                   <Switch id="notify-tasks" checked={notifyTasks} onCheckedChange={(v) => {
-                    localStorage.setItem("dailynova_notify_tasks", String(v));
-                    setNotifyTasks(v);
-                    notificationService.setupDailyReminders();
+                     void updateChannel("tasks", v);
                   }} />
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">Per-task alarms set when creating tasks.</p>
