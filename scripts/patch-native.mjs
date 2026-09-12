@@ -126,12 +126,31 @@ function writeWav(file, seconds, frequency = 880) {
 
 function patchNotificationPlugin() {
   const managerPath = join(ROOT, 'node_modules', '@capacitor', 'local-notifications', 'android', 'src', 'main', 'java', 'com', 'capacitorjs', 'plugins', 'localnotifications', 'LocalNotificationManager.java');
+  const channelManagerPath = join(ROOT, 'node_modules', '@capacitor', 'local-notifications', 'android', 'src', 'main', 'java', 'com', 'capacitorjs', 'plugins', 'localnotifications', 'NotificationChannelManager.java');
   const publisherPath = join(ROOT, 'node_modules', '@capacitor', 'local-notifications', 'android', 'src', 'main', 'java', 'com', 'capacitorjs', 'plugins', 'localnotifications', 'TimedNotificationPublisher.java');
   let changed = false;
+
+  if (existsSync(channelManagerPath)) {
+    let java = readFileSync(channelManagerPath, 'utf8');
+    if (!java.includes('DN_SYSTEM_SOUND_PATCH')) {
+      java = java.replace('import android.media.AudioAttributes;\n', 'import android.media.AudioAttributes;\nimport android.media.RingtoneManager;\nimport android.provider.Settings;\n');
+      java = java.replace(
+        `            String sound = channel.getString(CHANNEL_SOUND, null);\n            if (sound != null && !sound.isEmpty()) {\n                if (sound.contains(".")) {\n                    sound = sound.substring(0, sound.lastIndexOf('.'));\n                }\n                AudioAttributes audioAttributes = new AudioAttributes.Builder()\n                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)\n                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)\n                    .build();\n                Uri soundUri = Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + context.getPackageName() + "/raw/" + sound);\n                notificationChannel.setSound(soundUri, audioAttributes);\n            }`,
+        `            // DN_SYSTEM_SOUND_PATCH: resolve system_* names to the phone's actual tones.\n            String sound = channel.getString(CHANNEL_SOUND, null);\n            if (sound != null && !sound.isEmpty()) {\n                AudioAttributes audioAttributes = new AudioAttributes.Builder()\n                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)\n                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)\n                    .build();\n                Uri soundUri;\n                if ("system_notification".equals(sound)) {\n                    soundUri = Settings.System.DEFAULT_NOTIFICATION_URI;\n                } else if ("system_ringtone".equals(sound)) {\n                    soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);\n                } else if ("system_alarm".equals(sound)) {\n                    soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);\n                } else {\n                    if (sound.contains(".")) sound = sound.substring(0, sound.lastIndexOf('.'));\n                    soundUri = Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + context.getPackageName() + "/raw/" + sound);\n                }\n                notificationChannel.setSound(soundUri, audioAttributes);\n            }`
+      );
+      writeFileSync(channelManagerPath, java, 'utf8');
+      changed = true;
+    }
+  }
 
   if (existsSync(managerPath)) {
     let java = readFileSync(managerPath, 'utf8');
     if (!java.includes('DN_FULLSCREEN_PATCH')) {
+      java = java.replace('import android.media.AudioAttributes;\n', 'import android.media.AudioAttributes;\nimport android.media.RingtoneManager;\nimport android.provider.Settings;\n');
+      java = java.replace(
+        '        String sound = localNotification.getSound(context, getDefaultSound(context));\n        if (sound != null) {',
+        `        String sound = localNotification.getSound(context, getDefaultSound(context));\n        // DN_SYSTEM_SOUND_PATCH: use the real system tone selected by the phone.\n        if ("system_notification".equals(sound)) sound = Settings.System.DEFAULT_NOTIFICATION_URI.toString();\n        else if ("system_ringtone".equals(sound)) sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE).toString();\n        else if ("system_alarm".equals(sound)) sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM).toString();\n        if (sound != null) {`
+      );
       java = java.replace(
         '        createActionIntents(localNotification, mBuilder);',
         `        createActionIntents(localNotification, mBuilder);\n        // DN_FULLSCREEN_PATCH: Samsung-style Daily Nova reminder behavior.\n        JSObject dnExtra = localNotification.getExtra();\n        if (dnExtra != null) {\n            Boolean dnFullScreen = dnExtra.getBoolean("fullScreen", false);\n            Boolean dnInsistent = dnExtra.getBoolean("insistent", false);\n            Integer dnImportance = dnExtra.getInteger("importance", 3);\n            Integer dnTimeout = dnExtra.getInteger("timeoutAfterMs", null);\n            if (dnImportance != null && dnImportance >= 5) {\n                mBuilder.setPriority(NotificationCompat.PRIORITY_MAX);\n                mBuilder.setCategory(NotificationCompat.CATEGORY_ALARM);\n            } else if (dnImportance != null && dnImportance >= 4) {\n                mBuilder.setPriority(NotificationCompat.PRIORITY_HIGH);\n            }\n            if (dnTimeout != null && dnTimeout > 0) {\n                mBuilder.setTimeoutAfter(dnTimeout.longValue());\n            }\n            if (Boolean.TRUE.equals(dnInsistent)) {\n                mBuilder.setOnlyAlertOnce(false);\n            }\n            if (Boolean.TRUE.equals(dnFullScreen)) {\n                Intent fsIntent = buildIntent(localNotification, DEFAULT_PRESS_ACTION);\n                PendingIntent fsPendingIntent = PendingIntent.getActivity(context, localNotification.getId() + 900000, fsIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);\n                mBuilder.setFullScreenIntent(fsPendingIntent, true);\n            }\n        }`

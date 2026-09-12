@@ -22,11 +22,12 @@ const LocationPanel = ({ value, onChange }: Props) => {
   const enabled = !!value;
 
   const useCurrent = async () => {
+    if (loading) return;
     setLoading(true);
     const pos = await getCurrentPosition();
     setLoading(false);
     if (!pos) {
-      toast({ title: "Location permission needed", description: "Allow location access, then tap Add place again." });
+      toast({ title: "Location permission needed", description: "Allow location access in your phone or browser, then try again." });
       return;
     }
     haptics.success();
@@ -56,21 +57,21 @@ const LocationPanel = ({ value, onChange }: Props) => {
         </button>
       </div>
 
-      {enabled && (
+      {enabled && value && (
         <div className="space-y-4 rounded-lg border border-border/40 p-3">
           <div>
             <Label className="text-xs text-muted-foreground">Place name</Label>
             <Input
-              value={value!.label || ""}
+              value={value.label || ""}
               placeholder="Home, Office, Gym…"
-              onChange={(e) => onChange({ ...value!, label: e.target.value })}
+              onChange={(e) => onChange({ ...value, label: e.target.value })}
               className="bg-background border-border/40 text-sm"
             />
           </div>
 
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
-              {value!.lat.toFixed(5)}, {value!.lng.toFixed(5)}
+              {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
             </p>
             <Button size="sm" variant="outline" className="gap-1 h-8" onClick={useCurrent} disabled={loading}>
               {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <LocateFixed className="w-3 h-3" />}
@@ -83,9 +84,9 @@ const LocationPanel = ({ value, onChange }: Props) => {
               <button
                 key={t}
                 type="button"
-                onClick={() => onChange({ ...value!, trigger: t })}
+                  onClick={() => onChange({ ...value, trigger: t })}
                 className={`py-2 rounded-lg text-xs border transition-colors ${
-                  value!.trigger === t ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                  value.trigger === t ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
                 }`}
               >
                 {t === "arrive" ? "When I arrive" : "When I leave"}
@@ -99,11 +100,11 @@ const LocationPanel = ({ value, onChange }: Props) => {
               <span className="text-xs text-foreground">{value!.radius} m</span>
             </div>
             <Slider
-              value={[value!.radius]}
+              value={[value.radius]}
               min={50}
               max={1000}
               step={50}
-              onValueChange={([v]) => onChange({ ...value!, radius: v })}
+              onValueChange={([v]) => onChange({ ...value, radius: v })}
             />
           </div>
 
@@ -113,8 +114,8 @@ const LocationPanel = ({ value, onChange }: Props) => {
               <p className="text-xs text-muted-foreground">Off = remind once, then complete</p>
             </div>
             <Switch
-              checked={value!.everyTime !== false}
-              onCheckedChange={(v) => onChange({ ...value!, everyTime: v })}
+               checked={value.everyTime !== false}
+               onCheckedChange={(v) => onChange({ ...value, everyTime: v })}
             />
           </div>
 

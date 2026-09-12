@@ -75,7 +75,7 @@ export const notificationService = {
             id: config.id,
             title: config.title,
             body: config.body,
-            schedule: {
+         schedule: {
               on: { hour: config.hour, minute: config.minute },
               allowWhileIdle: true,
             },
