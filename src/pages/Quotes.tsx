@@ -17,6 +17,16 @@ const fallbackQuotes: Quote[] = [
   { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
   { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
   { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
+  { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
+  { text: "Act as if what you do makes a difference. It does.", author: "William James" },
+  { text: "The future depends on what you do today.", author: "Mahatma Gandhi" },
+  { text: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
+  { text: "Great things are done by a series of small things brought together.", author: "Vincent van Gogh" },
+  { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
+  { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+  { text: "Difficult roads often lead to beautiful destinations.", author: "Zig Ziglar" },
+  { text: "What you do every day matters more than what you do once in a while.", author: "Gretchen Rubin" },
+  { text: "Keep your face always toward the sunshine, and shadows will fall behind you.", author: "Walt Whitman" },
 ];
 
 const ALL_QUOTES_KEY = "daily-quotes-all";
@@ -125,6 +135,19 @@ const Quotes = () => {
     return result;
   };
 
+  /** Always returns one quote that is not already visible today. */
+  const getOfflineBonusQuote = (existing: Quote[]): Quote => {
+    const existingTexts = new Set(existing.map((quote) => quote.text));
+    const available = fallbackQuotes.filter((quote) => !existingTexts.has(quote.text));
+    if (available.length > 0) {
+      return available[existing.length % available.length];
+    }
+    return {
+      text: `A fresh beginning can start with one small step today — ${existing.length + 1}.`,
+      author: "DailyNova",
+    };
+  };
+
   const checkAndFetchDailyQuotes = async () => {
     const today = new Date().toDateString();
     const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
@@ -213,12 +236,14 @@ const Quotes = () => {
     setShowNavigation(true);
     const remaining = SESSION_CAP - allQuotes.length;
     const want = Math.min(REWARDED_QUOTE_COUNT, remaining);
-    const success = await fetchNewQuotes(want, false);
+    // A rewarded ad is one point, so this path appends exactly one quote.
+    // Network fetching gets one fast attempt; the local quote guarantees the reward offline.
+    const success = await fetchNewQuotes(want, false, 0);
     if (!success) {
-      const bonus = fallbackQuotes[(Date.now() + allQuotes.length) % fallbackQuotes.length];
-      const final = enforceStorageLimit([...allQuotes, bonus].filter((q, i, arr) => arr.findIndex(x => x.text === q.text) === i));
-      setAllQuotes(final);
+      const bonus = getOfflineBonusQuote(allQuotes);
+      const final = enforceStorageLimit([...allQuotes, bonus]);
       const nextIndex = final.length - 1;
+      setAllQuotes(final);
       setCurrentIndex(nextIndex);
       localStorage.setItem(QUOTE_INDEX_KEY, String(nextIndex));
       toast({ title: "Quote unlocked", description: "A bonus quote is ready." });
