@@ -20,20 +20,15 @@ export const useAdMob = () => {
   useEffect(() => {
     const initAdMob = async () => {
       if (!isNative()) {
-        console.log("AdMob: Not running in native environment, skipping initialization");
         return;
       }
 
       try {
         const { AdMob } = await import("@capacitor-community/admob");
         await AdMob.initialize({
-          testingDevices: ['CF4709BF-3238-466B-9A7A-CF622DB060C2'],
-          initializeForTesting: true,
+          initializeForTesting: false,
         });
-        console.log("AdMob initialized successfully");
-      } catch (error) {
-        console.error("AdMob initialization error:", error);
-      }
+      } catch {}
     };
 
     initAdMob();
@@ -85,7 +80,6 @@ export const useAdMob = () => {
       }, 5000);
       return true;
     } catch (error) {
-      console.error("Banner ad error:", error);
       onFailed?.();
       return false;
     }
@@ -97,9 +91,7 @@ export const useAdMob = () => {
     try {
       const { AdMob } = await import("@capacitor-community/admob");
       await AdMob.hideBanner();
-    } catch (error) {
-      console.error("Hide banner error:", error);
-    }
+    } catch {}
   }, []);
 
   const showInterstitial = useCallback(async () => {
@@ -109,9 +101,7 @@ export const useAdMob = () => {
       const { AdMob } = await import("@capacitor-community/admob");
       await AdMob.prepareInterstitial({ adId: AD_CONFIG.interstitial });
       await AdMob.showInterstitial();
-    } catch (error) {
-      console.error("Interstitial ad error:", error);
-    }
+    } catch {}
   }, []);
 
   const showRewarded = useCallback(async (): Promise<"rewarded" | "dismissed" | "failed"> => {
@@ -171,13 +161,11 @@ export const useAdMob = () => {
             resolve("rewarded");
           }
         } catch (error) {
-          console.error("Rewarded ad error:", error);
           cleanup([rewardListener, dismissListener, failedLoadListener, failedShowListener]);
           resolve("failed");
         }
       });
     } catch (error) {
-      console.error("Rewarded ad error:", error);
       return "failed";
     }
   }, []);
@@ -189,9 +177,7 @@ export const useAdMob = () => {
       const { AdMob } = await import("@capacitor-community/admob");
       await AdMob.prepareInterstitial({ adId: AD_CONFIG.appOpen });
       await AdMob.showInterstitial();
-    } catch (error) {
-      console.error("App open ad error:", error);
-    }
+    } catch {}
   }, []);
 
   return {

@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
     AdMob: {
       androidAppId: 'ca-app-pub-1017007756363897~9648031243',
       iosAppId: 'ca-app-pub-1017007756363897~9648031243',
-      initializeForTesting: true,
+      initializeForTesting: false,
     },
     LocalNotifications: {
       smallIcon: 'ic_stat_icon_config_sample',

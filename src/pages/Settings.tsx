@@ -507,8 +507,11 @@ const Settings = () => {
             <div className="space-y-1 text-sm text-muted-foreground">
               <p><strong>DailyNova</strong> v1.0.0</p>
               <p>Your personal life system — Notes, Tasks, Habits, Diary, Journal & more.</p>
-              <p className="pt-1">© 2024 DailyNova. All rights reserved.</p>
+              <p className="pt-1">© 2026 DailyNova. All rights reserved.</p>
             </div>
+            <Button variant="outline" className="mt-4 w-full justify-start gap-2" onClick={() => navigate("/privacy-policy")}>
+              <ShieldCheck className="w-4 h-4" /> Privacy Policy
+            </Button>
           </Card>
         </div>
       </div>
