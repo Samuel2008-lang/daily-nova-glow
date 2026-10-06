@@ -15,6 +15,7 @@ import { restartGeofenceEngine } from "@/lib/geo-reminders";
 import { syncWidget } from "@/lib/widget-sync";
 import { RichText, plainText } from "@/lib/rich-text";
 import ReminderEditor, { type ReminderEditorPayload } from "@/components/ReminderEditor";
+import DeleteConfirmation from "@/components/DeleteConfirmation";
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -43,7 +44,8 @@ const sortNewest = (items: Task[]) =>
   [...items].sort((a, b) => new Date(b.completedAt || b.createdAt).getTime() - new Date(a.completedAt || a.createdAt).getTime());
 
 const Tasks = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[]>(() => storage.getTasks());
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [initialTitle, setInitialTitle] = useState("");
@@ -51,8 +53,6 @@ const Tasks = () => {
   const [tab, setTab] = useState("today");
   const [thumbCache, setThumbCache] = useState<Record<string, string>>({});
   const { toast } = useToast();
-
-  useEffect(() => { setTasks(storage.getTasks()); }, []);
 
   // Keep the home-screen widget and offline geofences in sync with reminders.
   useEffect(() => {
@@ -174,6 +174,8 @@ const Tasks = () => {
     const active = filtered.filter((t) => !t.completed);
     return {
       today: sortByDue(active.filter((t) => t.dueDate === today)),
+      overdue: sortByDue(active.filter((t) => t.dueDate && t.dueDate < today)),
+      all: sortByDue(filtered),
       scheduled: sortByDue(active.filter((t) => t.dueDate && t.dueDate > today)),
       noDate: sortNewest(active.filter((t) => !t.dueDate)),
       important: sortByDue(active.filter((t) => t.important)),
@@ -273,7 +275,7 @@ const Tasks = () => {
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => deleteTask(task.id)}
+                    onClick={() => setDeleteId(task.id)}
                     className="text-muted-foreground hover:text-destructive"
                     aria-label="Delete"
                   >
@@ -327,17 +329,20 @@ const Tasks = () => {
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-5 w-full h-auto">
+            <TabsTrigger value="all" className="px-1 text-xs sm:text-sm">All</TabsTrigger>
             <TabsTrigger value="today">Today</TabsTrigger>
-            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
-            <TabsTrigger value="important">Important</TabsTrigger>
+            <TabsTrigger value="scheduled" className="px-1 text-xs sm:text-sm">Scheduled</TabsTrigger>
+            <TabsTrigger value="important" className="px-1 text-xs sm:text-sm">Important</TabsTrigger>
             <TabsTrigger value="completed">Done</TabsTrigger>
           </TabsList>
 
           <TabsContent value="today" className="mt-4 space-y-6">
+            {groups.overdue.length > 0 && <Section label="Overdue" items={groups.overdue} empty="" />}
             <Section label="Today" items={groups.today} empty="No reminders for today. Enjoy the calm." />
             {groups.noDate.length > 0 && <Section label="No date" items={groups.noDate} empty="" />}
           </TabsContent>
+          <TabsContent value="all" className="mt-4"><Section label="" items={groups.all} empty="No reminders yet." /></TabsContent>
           <TabsContent value="scheduled" className="mt-4">
             <Section label="" items={groups.scheduled} empty="Nothing scheduled ahead." />
           </TabsContent>
@@ -350,6 +355,7 @@ const Tasks = () => {
         </Tabs>
       </div>
 
+      <DeleteConfirmation open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }} onConfirm={async () => { if (deleteId) await deleteTask(deleteId); setDeleteId(null); }} />
       {editorOpen && (
         <ReminderEditor
           initialTitle={initialTitle}

@@ -43,7 +43,6 @@ export const RewardedAdButton = ({ onReward, onUnavailable, label = "Watch Ad fo
         onUnavailable?.();
       }
     } catch (error) {
-      console.error("RewardedAdButton error:", error);
       onUnavailable?.();
     } finally {
       setIsLoading(false);

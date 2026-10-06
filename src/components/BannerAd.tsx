@@ -30,7 +30,6 @@ export const BannerAd = ({ position = "bottom" }: BannerAdProps) => {
         );
         if (!shown && !cancelled) setIsVisible(false);
       } catch (err) {
-        console.error("BannerAd: Failed to load", err);
         if (!cancelled) setIsVisible(false);
       }
       if (cancelled) hideBanner();

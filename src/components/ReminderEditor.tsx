@@ -19,6 +19,7 @@ import LocationPanel from "@/components/reminders/LocationPanel";
 import RichTextToolbar from "@/components/reminders/RichTextToolbar";
 import { plainText } from "@/lib/rich-text";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { useToast } from "@/hooks/use-toast";
 
 const REPEAT_UNITS: { value: RepeatUnit; label: string }[] = [
   { value: "none", label: "Don't repeat" },
@@ -74,6 +75,7 @@ interface Props {
 
 const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSave }: Props) => {
   const isEdit = !!initialTask;
+  const { toast } = useToast();
   const now = new Date();
 
   const [memo, setMemo] = useState(initialTask?.memo || initialTask?.title || initialTitle);
@@ -106,7 +108,7 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
   );
 
   const [alertLevel, setAlertLevel] = useState<AlertLevel>(initialTask?.alertLevel || "light");
-  const [notificationSound, setNotificationSound] = useState<ReminderSound>(initialTask?.notificationSound || "gentle");
+  const [notificationSound, setNotificationSound] = useState<ReminderSound>(initialTask?.notificationSound || "system_notification");
   const [snoozeMinutes, setSnoozeMinutes] = useState(initialTask?.snoozeMinutes || 10);
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
@@ -135,6 +137,13 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
 
   const handleSave = async () => {
     if (!memo.trim()) return;
+    if (timeEnabled) {
+      const selected = new Date(`${date}T${pad(Number(hour))}:${pad(Number(minute))}:00`);
+      if (!Number.isFinite(selected.getTime()) || selected.getTime() <= Date.now()) {
+        toast({ title: "This time has already passed. Please select a future time.", variant: "destructive" });
+        return;
+      }
+    }
     haptics.success();
     const payload: ReminderEditorPayload = {
       title: plainText(memo.trim()).split("\n")[0].slice(0, 200),
