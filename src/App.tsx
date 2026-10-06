@@ -1,21 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
-import Notes from "./pages/Notes";
-import Tasks from "./pages/Tasks";
-import Habits from "./pages/Habits";
-import Diary from "./pages/Diary";
-import Journal from "./pages/Journal";
-import Quotes from "./pages/Quotes";
-import Premium from "./pages/Premium";
-import Settings from "./pages/Settings";
-import Timeline from "./pages/Timeline";
-import Feedback from "./pages/Feedback";
-import Tags from "./pages/Tags";
+const Notes = lazy(() => import("./pages/Notes"));
+const Tasks = lazy(() => import("./pages/Tasks"));
+const Habits = lazy(() => import("./pages/Habits"));
+const Diary = lazy(() => import("./pages/Diary"));
+const Journal = lazy(() => import("./pages/Journal"));
+const Quotes = lazy(() => import("./pages/Quotes"));
+const Premium = lazy(() => import("./pages/Premium"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Timeline = lazy(() => import("./pages/Timeline"));
+const Feedback = lazy(() => import("./pages/Feedback"));
+const Tags = lazy(() => import("./pages/Tags"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 import NotFound from "./pages/NotFound";
 import Navigation from "./components/Navigation";
 import QuickCapture from "./components/QuickCapture";
@@ -224,7 +225,8 @@ const App = () => {
           <InterstitialAdManager />
           <QuickCapture />
           <DailyReset />
-          <Routes>
+           <Suspense fallback={<div className="container mx-auto px-4 py-8 md:pt-24" role="status"><p className="text-muted-foreground">Loading…</p></div>}>
+           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/tasks" element={<Tasks />} />
@@ -237,8 +239,10 @@ const App = () => {
             <Route path="/settings" element={<Settings />} />
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/tags" element={<Tags />} />
+             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+           </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
