@@ -8,3 +8,6 @@
 - [ ] Finish advertising cleanup and verify navigation performance (test initialization removed; secondary screens now lazy-loaded)
 - [x] Add in-app and standalone privacy policy; update copyright year
 - [ ] Verify browser behavior and report Android-only checks that require a device build
+- [ ] Replace the support contact everywhere with dailynovasupport@gmail.com and align the privacy exports
+- [ ] Finish remaining content, quote, habit restore, tags, transcription, and import/export fixes
+- [ ] Prepare release metadata and advertising configuration; do not publish without an explicit request
