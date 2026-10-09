@@ -18,8 +18,8 @@ export const RewardedAdButton = ({ onReward, onUnavailable, label = "Watch Ad fo
 
   const handleClick = async () => {
     if (!isNative) {
-      toast({ title: "Reward unlocked!", description: "Ads only work in the native app." });
-      onReward();
+      toast({ title: "Rewarded ads unavailable", description: "Watch a completed ad in the native app to unlock a quote." });
+      onUnavailable?.();
       return;
     }
 
