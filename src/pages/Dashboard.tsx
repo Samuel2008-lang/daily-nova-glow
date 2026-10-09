@@ -4,8 +4,9 @@ import { FileText, CheckSquare, Target, BookOpen, Sparkles, BookMarked } from "l
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { storage } from "@/lib/storage";
+import { getDailyFallbackQuote, QUOTE_STATE_EVENT, readActiveQuote, type Quote } from "@/lib/quote-state";
 
-const FALLBACK_QUOTE = { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" };
+const FALLBACK_QUOTE = getDailyFallbackQuote();
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -14,7 +15,7 @@ const Dashboard = () => {
     habitsCompleted: 0,
     totalHabits: 0,
   });
-  const [quote, setQuote] = useState(FALLBACK_QUOTE);
+  const [quote, setQuote] = useState<Quote>(FALLBACK_QUOTE);
 
   useEffect(() => {
     const now = new Date();
@@ -42,28 +43,18 @@ const Dashboard = () => {
       totalHabits: habits.length,
     });
 
-    // Sync Quote of the Day with the Quotes page (same localStorage source).
     const loadQuote = () => {
-      try {
-        const raw = localStorage.getItem("daily-quotes-all");
-        const idxRaw = localStorage.getItem("daily-quote-index");
-        if (raw) {
-          const arr = JSON.parse(raw);
-          if (Array.isArray(arr) && arr.length > 0) {
-            const idx = Math.min(parseInt(idxRaw || "0", 10) || 0, arr.length - 1);
-            const q = arr[idx];
-            if (q && q.text) {
-              setQuote({ text: q.text, author: q.author || "Unknown" });
-              return;
-            }
-          }
-        }
-      } catch {}
-      setQuote(FALLBACK_QUOTE);
+      setQuote(readActiveQuote());
     };
     loadQuote();
     window.addEventListener("focus", loadQuote);
-    return () => window.removeEventListener("focus", loadQuote);
+    window.addEventListener("storage", loadQuote);
+    window.addEventListener(QUOTE_STATE_EVENT, loadQuote);
+    return () => {
+      window.removeEventListener("focus", loadQuote);
+      window.removeEventListener("storage", loadQuote);
+      window.removeEventListener(QUOTE_STATE_EVENT, loadQuote);
+    };
   }, []);
 
   // Stable Quick Actions — same all day, every day
@@ -175,6 +166,9 @@ const Dashboard = () => {
               "{quote.text}"
             </p>
             <p className="text-sm text-muted-foreground">— {quote.author}</p>
+            <span className="mt-3 inline-flex items-center rounded-full border border-accent/40 px-3 py-1 text-xs font-medium text-accent">
+              {quote.category || "Inspiration"}
+            </span>
             <p className="text-xs text-primary mt-4">Click for more inspiration →</p>
           </Card>
         </Link>

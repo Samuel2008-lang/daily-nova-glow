@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sparkles, RefreshCw, Wifi, WifiOff, Share2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,31 +7,19 @@ import { RewardedAdButton } from "@/components/RewardedAdButton";
 import { BannerAd } from "@/components/BannerAd";
 import { useQuoteShareImage } from "@/components/QuoteShareImage";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  ALL_QUOTES_KEY,
+  QUOTES_DATE_KEY,
+  QUOTE_INDEX_KEY,
+  QUOTE_DAILY_FETCHED_KEY,
+  appendSingleBonusQuote,
+  fallbackQuotes,
+  getDailyFallbackQuote,
+  getTodayKey,
+  saveQuoteState,
+  type Quote,
+} from "@/lib/quote-state";
 
-interface Quote {
-  text: string;
-  author: string;
-}
-
-const fallbackQuotes: Quote[] = [
-  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
-  { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
-  { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
-  { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
-  { text: "Act as if what you do makes a difference. It does.", author: "William James" },
-  { text: "The future depends on what you do today.", author: "Mahatma Gandhi" },
-  { text: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
-  { text: "Great things are done by a series of small things brought together.", author: "Vincent van Gogh" },
-  { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
-  { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
-  { text: "Difficult roads often lead to beautiful destinations.", author: "Zig Ziglar" },
-  { text: "What you do every day matters more than what you do once in a while.", author: "Gretchen Rubin" },
-  { text: "Keep your face always toward the sunshine, and shadows will fall behind you.", author: "Walt Whitman" },
-];
-
-const ALL_QUOTES_KEY = "daily-quotes-all";
-const QUOTES_DATE_KEY = "daily-quotes-date";
-const QUOTE_INDEX_KEY = "daily-quote-index";
 const SEEN_QUOTES_KEY = "daily-quotes-seen"; // tracks deleted quote texts to prevent re-appearance
 const DAILY_QUOTE_LIMIT = 1;
 const REWARDED_QUOTE_COUNT = 1; // 1 ad = 1 quote point
@@ -48,6 +36,7 @@ const Quotes = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showNavigation, setShowNavigation] = useState(false);
   const [dailyQuotesFetched, setDailyQuotesFetched] = useState(false);
+  const rewardInProgress = useRef(false);
   const { toast } = useToast();
   const { shareAsImage } = useQuoteShareImage();
 
@@ -74,18 +63,21 @@ const Quotes = () => {
 
   const loadQuotes = () => {
     try {
-      const today = new Date().toDateString();
+      const today = getTodayKey();
       const savedAllQuotes = localStorage.getItem(ALL_QUOTES_KEY);
       const savedIndex = localStorage.getItem(QUOTE_INDEX_KEY);
       const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
-      let loadedQuotes = [fallbackQuotes[new Date().getDate() % fallbackQuotes.length]];
+      let loadedQuotes: Quote[] = [getDailyFallbackQuote()];
       if (savedAllQuotes) {
         const parsed = JSON.parse(savedAllQuotes);
         if (Array.isArray(parsed) && parsed.length > 0 && lastFetchDate === today) loadedQuotes = parsed;
       }
       setAllQuotes(loadedQuotes);
-      if (savedIndex) setCurrentIndex(Math.min(parseInt(savedIndex, 10), loadedQuotes.length - 1));
-      if (lastFetchDate === today) setDailyQuotesFetched(true);
+      const loadedIndex = savedIndex ? Math.min(parseInt(savedIndex, 10) || 0, loadedQuotes.length - 1) : 0;
+      setCurrentIndex(loadedIndex);
+      saveQuoteState(loadedQuotes, loadedIndex);
+      const fetchedDate = localStorage.getItem(QUOTE_DAILY_FETCHED_KEY);
+      setDailyQuotesFetched(fetchedDate === today || (!fetchedDate && lastFetchDate === today));
     } catch (error) {
       console.error("Error loading quotes:", error);
     }
@@ -149,15 +141,15 @@ const Quotes = () => {
   };
 
   const checkAndFetchDailyQuotes = async () => {
-    const today = new Date().toDateString();
-    const lastFetchDate = localStorage.getItem(QUOTES_DATE_KEY);
+    const today = getTodayKey();
+    const lastFetchDate = localStorage.getItem(QUOTE_DAILY_FETCHED_KEY);
     if (lastFetchDate !== today) {
       const success = await fetchNewQuotes(DAILY_QUOTE_LIMIT, true);
       if (success) {
-        localStorage.setItem(QUOTES_DATE_KEY, today);
+        localStorage.setItem(QUOTE_DAILY_FETCHED_KEY, today);
         setDailyQuotesFetched(true);
         setCurrentIndex(0);
-        localStorage.setItem(QUOTE_INDEX_KEY, "0");
+        saveQuoteState(JSON.parse(localStorage.getItem(ALL_QUOTES_KEY) || "[]"), 0);
       }
     }
   };
@@ -187,6 +179,7 @@ const Quotes = () => {
         const newQuotes: Quote[] = data.quotes.map((q: any) => ({
           text: q.text || q.q || "",
           author: q.author || q.a || "Unknown",
+          category: q.category || q.type || "Inspiration",
         })).filter((q: Quote) => q.text && !seen.has(q.text)); // filter out previously-seen quotes
 
         const pickedQuotes = newQuotes.slice(0, count);
@@ -197,10 +190,9 @@ const Quotes = () => {
           const unique = merged.filter((q, i, arr) => arr.findIndex(x => x.text === q.text) === i);
           const final = enforceStorageLimit(unique);
           setAllQuotes(final);
-          localStorage.setItem(ALL_QUOTES_KEY, JSON.stringify(final));
           const nextIndex = replaceToday ? 0 : Math.max(0, final.length - pickedQuotes.length);
           setCurrentIndex(nextIndex);
-          localStorage.setItem(QUOTE_INDEX_KEY, String(nextIndex));
+          saveQuoteState(final, nextIndex);
           toast({ title: "New quotes loaded!", description: `${pickedQuotes.length} fresh quote${pickedQuotes.length === 1 ? "" : "s"} ready.` });
           return true;
         }
@@ -227,8 +219,10 @@ const Quotes = () => {
     return false;
   };
 
-  const AD_FREEBIE_KEY = "daily-quote-ad-freebie-date";
   const handleBonusQuoteReward = async () => {
+    if (rewardInProgress.current) return;
+    rewardInProgress.current = true;
+    try {
     if (allQuotes.length >= SESSION_CAP) {
       toast({ title: "Daily limit reached", description: `You've unlocked all ${SESSION_CAP} quotes for today. Come back tomorrow!` });
       return;
@@ -241,27 +235,20 @@ const Quotes = () => {
     const success = await fetchNewQuotes(want, false, 0);
     if (!success) {
       const bonus = getOfflineBonusQuote(allQuotes);
-      const final = enforceStorageLimit([...allQuotes, bonus]);
+      const final = enforceStorageLimit(appendSingleBonusQuote(allQuotes, bonus));
       const nextIndex = final.length - 1;
       setAllQuotes(final);
       setCurrentIndex(nextIndex);
-      localStorage.setItem(QUOTE_INDEX_KEY, String(nextIndex));
+      saveQuoteState(final, nextIndex);
       toast({ title: "Quote unlocked", description: "A bonus quote is ready." });
+    }
+    } finally {
+      rewardInProgress.current = false;
     }
   };
 
-  // Called when the rewarded ad couldn't play (no fill / dismissed early).
-  // First time per day: grant one free quote so the user isn't blocked.
-  // Subsequent times: silently return to the quote screen — no scary toast.
-  const handleAdUnavailable = async () => {
-    if (!navigator.onLine) return; // offline path is handled by RewardedAdButton
-    const today = new Date().toDateString();
-    const usedFreebie = localStorage.getItem(AD_FREEBIE_KEY);
-    if (usedFreebie !== today && allQuotes.length < SESSION_CAP) {
-      localStorage.setItem(AD_FREEBIE_KEY, today);
-      await fetchNewQuotes(1, false);
-    }
-    // Otherwise: stay on the quote screen quietly.
+  const handleAdUnavailable = () => {
+    toast({ title: "No bonus quote added", description: "Finish a rewarded ad to unlock one quote." });
   };
 
   const seeMoreQuotes = () => setShowNavigation(true);
@@ -276,7 +263,7 @@ const Quotes = () => {
       }
     } else {
       setCurrentIndex(nextIdx);
-      localStorage.setItem(QUOTE_INDEX_KEY, nextIdx.toString());
+      saveQuoteState(allQuotes, nextIdx);
     }
   };
 
@@ -284,13 +271,13 @@ const Quotes = () => {
     if (currentIndex > 0) {
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
-      localStorage.setItem(QUOTE_INDEX_KEY, newIndex.toString());
+      saveQuoteState(allQuotes, newIndex);
     }
   };
 
   const handleShare = async () => {
     const currentQuote = allQuotes[currentIndex] || allQuotes[0];
-    await shareAsImage(currentQuote.text, currentQuote.author);
+    await shareAsImage(currentQuote.text, currentQuote.author, currentQuote.category || "Inspiration");
   };
 
   const currentQuote = allQuotes[currentIndex] || allQuotes[0];
@@ -325,6 +312,9 @@ const Quotes = () => {
                 "{currentQuote.text}"
               </p>
               <p className="text-lg text-accent font-medium">— {currentQuote.author}</p>
+              <span className="mt-4 mx-auto inline-flex w-fit items-center rounded-full border border-accent/40 px-3 py-1 text-xs font-medium text-accent">
+                {currentQuote.category || "Inspiration"}
+              </span>
             </>
           )}
         </Card>

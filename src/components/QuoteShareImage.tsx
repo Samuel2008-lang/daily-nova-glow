@@ -7,7 +7,7 @@ import { Filesystem, Directory } from "@capacitor/filesystem";
 export const useQuoteShareImage = () => {
   const { toast } = useToast();
 
-  const generateImage = useCallback(async (text: string, author: string): Promise<Blob | null> => {
+  const generateImage = useCallback(async (text: string, author: string, category: string): Promise<Blob | null> => {
     const canvas = document.createElement("canvas");
     const size = 1080;
     canvas.width = size;
@@ -82,6 +82,24 @@ export const useQuoteShareImage = () => {
     ctx.textBaseline = "alphabetic";
     ctx.fillText(`— ${author}`, size / 2, startY + blockHeight + 120);
 
+    const badgeText = category || "Inspiration";
+    ctx.font = "500 24px 'Segoe UI', Arial, sans-serif";
+    const badgeWidth = Math.min(ctx.measureText(badgeText).width + 44, contentWidth);
+    const badgeX = (size - badgeWidth) / 2;
+    const badgeY = startY + blockHeight + 150;
+    ctx.fillStyle = "rgba(139, 109, 255, 0.18)";
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeWidth, 42, 21);
+    ctx.fill();
+    ctx.strokeStyle = PURPLE;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "500 24px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(badgeText, size / 2, badgeY + 21, badgeWidth - 24);
+
     // Branding (well above bottom border)
     const brandY = size - PAD - 10;
     ctx.fillStyle = PURPLE;
@@ -108,8 +126,8 @@ export const useQuoteShareImage = () => {
     });
   };
 
-  const shareAsImage = useCallback(async (text: string, author: string) => {
-    const blob = await generateImage(text, author);
+  const shareAsImage = useCallback(async (text: string, author: string, category: string) => {
+    const blob = await generateImage(text, author, category);
     if (!blob) {
       toast({ title: "Error", description: "Could not generate image.", variant: "destructive" });
       return;
