@@ -33,7 +33,7 @@ When online quote retrieval is used, a quote service and the service hosting the
 7. Feedback and contact
 When you submit feedback in the app, the message is sent to our hosted feedback service when a connection is available. The submission may include your device platform and app version. A local copy or pending submission may remain on your device so failed submissions can be retried.
 Please do not include passwords or sensitive personal information in feedback. If you contact us by email, we receive the email address and information you choose to send. Submitted feedback and contact messages are used to respond to requests, investigate problems, and improve the app.
-Contact: hopeeghbon28@gmail.com.
+Contact: dailynovasupport@gmail.com.
 
 8. Sharing and sale of information
 Daily Nova does not sell your notes, diary entries, journal entries, tasks, habits, or attachments. Information may be processed by service providers for advertising, online speech recognition, quote retrieval, or feedback submission, as described in this policy. Information may also be disclosed when legally required.
@@ -55,4 +55,4 @@ We may update this policy when features, services, or legal requirements change.
 13. Contact
 For privacy questions or requests, contact:
 Daily Nova
-hopeeghbon28@gmail.com
+dailynovasupport@gmail.com
