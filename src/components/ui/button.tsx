@@ -40,7 +40,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, onPointerUp, onMouseUp, onTouchEnd, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
     const clearPressedState = (event: React.SyntheticEvent<HTMLButtonElement>) => {
-      window.setTimeout(() => event.currentTarget.blur(), 0);
+      const target = event.currentTarget;
+      if (!target) return;
+      window.setTimeout(() => {
+        if (target.isConnected && typeof target.blur === "function") target.blur();
+      }, 0);
     };
     return (
       <Comp
