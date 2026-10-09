@@ -171,8 +171,10 @@ const App = () => {
   useEffect(() => {
     const clearTapFocus = () => {
       const active = document.activeElement as HTMLElement | null;
-      if (active?.matches?.('button, a, [role="button"], [data-radix-collection-item]')) {
-        window.setTimeout(() => active.blur(), 0);
+      if (active && typeof active.blur === "function" && active.matches?.('button, a, [role="button"], [data-radix-collection-item]')) {
+        window.setTimeout(() => {
+          if (active && active.isConnected && typeof active.blur === "function") active.blur();
+        }, 0);
       }
     };
     window.addEventListener("pointerup", clearTapFocus, true);
