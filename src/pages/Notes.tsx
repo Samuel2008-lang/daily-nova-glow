@@ -154,6 +154,7 @@ const Notes = () => {
 
   const viewNote = (note: Note) => {
     setSelectedNote(note);
+    setSelectedDate(new Date(note.createdAt));
     setNoteTopic(note.topic);
     setNoteContent(note.content);
     setViewMode('read');
@@ -244,20 +245,29 @@ const Notes = () => {
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 shrink-0">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigateDay('prev')}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h1 className="text-base font-semibold text-primary">
-              {format(selectedDate, "MMM d, yyyy")}
-            </h1>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigateDay('next')}
-              disabled={isToday(selectedDate)}
-            >
-              <ArrowRight className="w-5 h-5" />
-            </Button>
+            {selectedNote ? (
+              // Editing an existing note — date is locked to its original creation date
+              <h1 className="text-base font-semibold text-primary">
+                {format(new Date(selectedNote.createdAt), "MMM d, yyyy")}
+              </h1>
+            ) : (
+              <>
+                <Button variant="ghost" size="icon" onClick={() => navigateDay('prev')}>
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+                <h1 className="text-base font-semibold text-primary">
+                  {format(selectedDate, "MMM d, yyyy")}
+                </h1>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigateDay('next')}
+                  disabled={isToday(selectedDate)}
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </>
+            )}
           </div>
           {isSupported && (
             <Button

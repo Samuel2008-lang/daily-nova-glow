@@ -34,7 +34,9 @@ const makePdfBlob = (note: NoteExportData) => {
     for (let i = 0; i < line.length; i += 74) chunks.push(line.slice(i, i + 74));
     return chunks.length ? chunks : [""];
   }).slice(0, 46);
-  const stream = [`BT`, `/F1 16 Tf`, `50 780 Td`, `22 TL`, ...lines.map((l) => `(${esc(l)}) Tj T*`), `ET`].join("\n");
+  // 50pt top padding (y=730 on a 792pt page) so the title is never cut off;
+  // 46 lines * 15pt leading = 690pt, which fits within the page.
+  const stream = [`BT`, `/F1 16 Tf`, `50 730 Td`, `15 TL`, ...lines.map((l) => `(${esc(l)}) Tj T*`), `ET`].join("\n");
   const objects = [
     `1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj`,
     `2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj`,
@@ -54,9 +56,7 @@ const makeImageBlob = async (note: NoteExportData): Promise<Blob> => {
   const canvas = document.createElement("canvas");
   canvas.width = 1080; canvas.height = 1350;
   const ctx = canvas.getContext("2d")!;
-  const grad = ctx.createLinearGradient(0, 0, 1080, 1350);
-  grad.addColorStop(0, "#020617"); grad.addColorStop(0.55, "#09113a"); grad.addColorStop(1, "#12041f");
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, 1080, 1350);
+  ctx.fillStyle = "#1a1a2e"; ctx.fillRect(0, 0, 1080, 1350);
   ctx.strokeStyle = "#ff69b4"; ctx.lineWidth = 5; ctx.strokeRect(54, 54, 972, 1242);
   ctx.fillStyle = "#f8fbff"; ctx.font = "700 58px Arial"; ctx.textAlign = "left";
   ctx.fillText(note.topic || "Note", 110, 150);
