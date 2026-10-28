@@ -10,6 +10,8 @@ import android.view.View;
 import android.widget.RemoteViews;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import com.forgexdigital.dailynova.R;
+import com.forgexdigital.dailynova.R;
 
 /** DN_WIDGET: renders upcoming Daily Nova reminders from Capacitor Preferences. */
 public class DailyNovaWidgetProvider extends AppWidgetProvider {
