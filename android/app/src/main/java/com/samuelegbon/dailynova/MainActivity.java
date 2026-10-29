@@ -1,4 +1,4 @@
-package com.samuelegbon.dailynova;
+package com.forgexdigital.dailynova;
 
 import com.getcapacitor.BridgeActivity;
 

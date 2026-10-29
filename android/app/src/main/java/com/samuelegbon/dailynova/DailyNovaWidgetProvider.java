@@ -1,4 +1,4 @@
-package com.samuelegbon.dailynova;
+package com.forgexdigital.dailynova;
 
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
@@ -10,7 +10,6 @@ import android.view.View;
 import android.widget.RemoteViews;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import com.forgexdigital.dailynova.R;
 import com.forgexdigital.dailynova.R;
 
 /** DN_WIDGET: renders upcoming Daily Nova reminders from Capacitor Preferences. */
