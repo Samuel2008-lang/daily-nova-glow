@@ -2,8 +2,8 @@
 
 # North star
 
-People keep a lasting record of their days in their own words.
+People manage their entire personal life in one place.
 
 ## Metric
 
-People who save a diary entry each day
+People who complete actions in at least two features each day
