@@ -137,6 +137,7 @@ const Quotes = () => {
     return {
       text: `A fresh beginning can start with one small step today — ${existing.length + 1}.`,
       author: "DailyNova",
+      category: "Inspiration",
     };
   };
 
