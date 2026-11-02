@@ -28,7 +28,7 @@ const deliver = async (entry: FeedbackEntry) => {
   const { error } = await supabase.from("feedback").insert({
     message: entry.message,
     platform: Capacitor.getPlatform(),
-    app_version: "1.0.0",
+    app_version: "1.2.0",
   });
   return !error;
 };

@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Daily Nova</string>
     <string name="title_activity_main">Daily Nova</string>
-    <string name="package_name">com.samuelegbon.dailynova</string>
-    <string name="custom_url_scheme">com.samuelegbon.dailynova</string>
+    <string name="package_name">com.forgexdigital.dailynova</string>
+    <string name="custom_url_scheme">com.forgexdigital.dailynova</string>
 </resources>

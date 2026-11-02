@@ -505,7 +505,7 @@ const Settings = () => {
               <h2 className="text-lg font-semibold">About</h2>
             </div>
             <div className="space-y-1 text-sm text-muted-foreground">
-              <p><strong>DailyNova</strong> v1.0.0</p>
+              <p><strong>DailyNova</strong> v1.2.0</p>
               <p>Your personal life system — Notes, Tasks, Habits, Diary, Journal & more.</p>
               <p className="pt-1">© 2026 DailyNova. All rights reserved.</p>
             </div>

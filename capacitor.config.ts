@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.samuelegbon.dailynova',
+  appId: 'com.forgexdigital.dailynova',
   appName: 'Daily Nova',
   webDir: 'dist',
   server: {
