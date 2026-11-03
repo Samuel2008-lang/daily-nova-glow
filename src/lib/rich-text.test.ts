@@ -46,7 +46,7 @@ describe("continueListOnEnter", () => {
   test("numbered item increments to 2.", () => {
     const res = continueListOnEnter("1. first item", 13, 13);
     expect(res!.text).toBe("1. first item\n2. ");
-    expect(res!.caret).toBe(18);
+    expect(res!.caret).toBe(17);
   });
 
   test("numbered item mid-list increments correctly", () => {

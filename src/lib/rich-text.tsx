@@ -168,9 +168,19 @@ export const activeRichActions = (value: string, selStart: number, selEnd: numbe
   const lineStart = value.lastIndexOf("\n", Math.max(start - 1, 0)) + 1;
   const currentLine = value.slice(lineStart, value.indexOf("\n", lineStart) === -1 ? value.length : value.indexOf("\n", lineStart));
   const active: RichAction[] = [];
-  if (value.slice(start - 2, start) === "**" && value.slice(end, end + 2) === "**") active.push("bold");
-  if (value.slice(start - 1, start) === "_" && value.slice(end, end + 1) === "_" && end > start) active.push("italic");
-  if (value.slice(start - 2, start) === "~~" && value.slice(end, end + 2) === "~~") active.push("strike");
+  // Caret/selection sits anywhere inside a marked span on the current line.
+  const inside = (re: RegExp) => {
+    const lineEnd = lineStart + currentLine.length;
+    for (const m of currentLine.matchAll(re)) {
+      const s = lineStart + (m.index ?? 0);
+      const e = s + m[0].length;
+      if (start > s && end < e && end <= lineEnd) return true;
+    }
+    return false;
+  };
+  if (inside(/\*\*[^*\n]+\*\*/g)) active.push("bold");
+  if (inside(/(?<!\w)_(?!\s)[^_\n]+?(?<!\s)_(?!\w)/g)) active.push("italic");
+  if (inside(/~~[^~\n]+~~/g)) active.push("strike");
   if (currentLine.startsWith("# ")) active.push("heading");
   if (/^[-*]\s/.test(currentLine)) active.push("bullet");
   if (/^\d+\.\s/.test(currentLine)) active.push("number");
