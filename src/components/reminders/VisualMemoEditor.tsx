@@ -105,7 +105,7 @@ const VisualMemoEditor = ({ value, onChange, placeholder, autoFocus, className =
     refreshActive();
   };
 
-  const applyList = (style: ListStyle) => {
+  const applyList = (style: ListStyle | "none") => {
     setListOpen(false);
     const sel = restoreSelection();
     if (!sel) return;
@@ -121,18 +121,73 @@ const VisualMemoEditor = ({ value, onChange, placeholder, autoFocus, className =
     };
     let list = findList();
     const wantTag = ordered ? "OL" : "UL";
-    if (list && list.nodeName === wantTag && list.dataset.style === style) {
-      // Same style tapped again: remove the list.
-      document.execCommand(ordered ? "insertOrderedList" : "insertUnorderedList");
+    const removeCurrent = () => {
+      if (!list) return;
+      document.execCommand(list.nodeName === "OL" ? "insertOrderedList" : "insertUnorderedList");
+    };
+    if (style === "none") {
+      removeCurrent();
+    } else if (list && list.nodeName === wantTag && list.dataset.style === style) {
+      // Same style tapped again: remove the list for these lines.
+      removeCurrent();
     } else {
-      if (!list || list.nodeName !== wantTag) {
-        document.execCommand(ordered ? "insertOrderedList" : "insertUnorderedList");
-        list = findList();
-      }
+      // Different style: take these lines out of the old list, then start a new one,
+      // so other lines keep their own bullet style.
+      if (list) removeCurrent();
+      document.execCommand(ordered ? "insertOrderedList" : "insertUnorderedList");
+      list = findList();
       if (list) list.dataset.style = style;
     }
     emit();
     refreshActive();
+  };
+
+  /** Turn the current list item into a normal line (stops the bullets). */
+  const exitListItem = (li: HTMLElement) => {
+    const list = li.parentElement!;
+    const div = document.createElement("div");
+    div.innerHTML = li.innerHTML.trim() ? li.innerHTML : "<br>";
+    const after = Array.from(list.children).slice(Array.from(list.children).indexOf(li) + 1);
+    if (after.length) {
+      const tail = list.cloneNode(false) as HTMLElement;
+      after.forEach((n) => tail.appendChild(n));
+      list.after(tail);
+    }
+    list.after(div);
+    li.remove();
+    if (!list.children.length) list.remove();
+    const r = document.createRange();
+    r.setStart(div, 0);
+    r.collapse(true);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(r);
+    emit();
+    refreshActive();
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter" && e.key !== "Backspace") return;
+    if (e.shiftKey) return;
+    const sel = window.getSelection();
+    if (!sel || !sel.isCollapsed) return;
+    let n: Node | null = sel.anchorNode;
+    while (n && n !== ref.current && n.nodeName !== "LI") n = n.parentNode;
+    if (!n || n.nodeName !== "LI") return;
+    const li = n as HTMLElement;
+    const empty = !(li.textContent || "").replace(/\u00a0/g, "").trim();
+    if (e.key === "Enter" && empty) {
+      e.preventDefault();
+      exitListItem(li);
+    } else if (e.key === "Backspace") {
+      const r = sel.getRangeAt(0).cloneRange();
+      r.selectNodeContents(li);
+      r.setEnd(sel.anchorNode!, sel.anchorOffset);
+      if (!r.toString().length) {
+        e.preventDefault();
+        exitListItem(li);
+      }
+    }
   };
 
   const btn = (on: boolean | undefined) =>
@@ -149,6 +204,7 @@ const VisualMemoEditor = ({ value, onChange, placeholder, autoFocus, className =
         aria-multiline="true"
         data-placeholder={placeholder}
         onInput={emit}
+        onKeyDown={onKeyDown}
         onKeyUp={refreshActive}
         onMouseUp={refreshActive}
         onTouchEnd={refreshActive}
@@ -178,6 +234,15 @@ const VisualMemoEditor = ({ value, onChange, placeholder, autoFocus, className =
                 <span>{o.label}</span>
               </button>
             ))}
+            <button
+              type="button"
+              onMouseDown={keep}
+              onClick={() => applyList("none")}
+              className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 border-t border-border/40 mt-1"
+            >
+              <span className="w-5 text-center">✕</span>
+              <span>No list</span>
+            </button>
           </PopoverContent>
         </Popover>
       </div>
