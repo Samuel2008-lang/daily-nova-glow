@@ -40,7 +40,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         phase === 'logo' ? 'scale-50 opacity-0' : 'scale-100 opacity-100'
       }`}>
         <div className="relative mb-6">
-          <div className="w-24 h-24 rounded-2xl bg-primary flex items-center justify-center">
+          <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary via-secondary to-accent flex items-center justify-center animate-pulse-glow">
             <Sparkles className="w-12 h-12 text-background" />
           </div>
         </div>
