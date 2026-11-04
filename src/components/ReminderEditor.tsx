@@ -16,8 +16,8 @@ import { reminderImages } from "@/lib/reminder-images";
 import ImageStrip from "@/components/reminders/ImageStrip";
 import ImagePickerSheet from "@/components/reminders/ImagePickerSheet";
 import LocationPanel from "@/components/reminders/LocationPanel";
-import RichTextToolbar from "@/components/reminders/RichTextToolbar";
-import { plainText, RichText, continueListOnEnter } from "@/lib/rich-text";
+import VisualMemoEditor from "@/components/reminders/VisualMemoEditor";
+import { plainText } from "@/lib/rich-text";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useToast } from "@/hooks/use-toast";
 
@@ -87,8 +87,6 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
   const [imageIds, setImageIds] = useState<string[]>(initialTask?.imageIds || []);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [location, setLocation] = useState<TaskLocation | undefined>(initialTask?.location);
-  const memoRef = useRef<HTMLTextAreaElement>(null);
-  const [caret, setCaret] = useState<[number, number]>([memo.length, memo.length]);
 
   const [timeEnabled, setTimeEnabled] = useState(!!initialTask?.dueDate);
   const [date, setDate] = useState(initialTask?.dueDate || toDateStr(now));
@@ -201,24 +199,11 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
           {/* Memo */}
           <section>
             <div className="relative">
-              <Textarea
+              <VisualMemoEditor
                 autoFocus
-                ref={memoRef}
-                placeholder="What do you want to remember?"
                 value={memo}
-                onChange={(e) => { setMemo(e.target.value); setCaret([e.target.selectionStart, e.target.selectionEnd]); }}
-                onSelect={(e) => { const t = e.currentTarget; setCaret([t.selectionStart, t.selectionEnd]); }}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter" || e.shiftKey) return;
-                  const t = e.currentTarget;
-                  const res = continueListOnEnter(memo, t.selectionStart, t.selectionEnd);
-                  if (!res) return;
-                  e.preventDefault();
-                  setMemo(res.text);
-                  setCaret([res.caret, res.caret]);
-                  requestAnimationFrame(() => memoRef.current?.setSelectionRange(res.caret, res.caret));
-                }}
-                className="min-h-[110px] text-lg leading-relaxed bg-background border-border/40 focus-visible:ring-1 pr-12"
+                onChange={setMemo}
+                placeholder="What do you want to remember?"
               />
               {isSupported && (
                 <Button
@@ -233,20 +218,6 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
               )}
             </div>
 
-            <RichTextToolbar
-              targetRef={memoRef}
-              value={memo}
-              onChange={setMemo}
-              caret={caret}
-              onCaretChange={(s, e) => setCaret([s, e])}
-            />
-
-            {/(\*\*|~~|_|^#\s|^[-*]\s|^\d+\.\s)/m.test(memo) && (
-              <div className="mt-2 rounded-lg border border-border/30 bg-muted/20 p-3 text-sm">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Preview</p>
-                <RichText text={memo} />
-              </div>
-            )}
 
 
             {/* Attachments row */}
