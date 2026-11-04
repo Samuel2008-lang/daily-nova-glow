@@ -35,7 +35,16 @@ export const RichText = ({ text, className = "" }: { text: string; className?: s
             </p>
           );
         }
-        const numbered = line.match(/^(\d+)\.\s+(.*)$/);
+        const dashed = line.match(/^–\s+(.*)$/);
+        if (dashed) {
+          return (
+            <p key={i} className="flex gap-2 leading-snug">
+              <span className="text-primary">–</span>
+              <span>{renderInline(dashed[1], `d${i}`)}</span>
+            </p>
+          );
+        }
+        const numbered = line.match(/^(\d+|[a-z])\.\s+(.*)$/);
         if (numbered) {
           return (
             <p key={i} className="flex gap-2 leading-snug">
