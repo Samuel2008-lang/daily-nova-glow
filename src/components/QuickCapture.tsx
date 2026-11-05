@@ -73,6 +73,7 @@ const QuickCapture = () => {
     setAutoDetected(true);
   };
   const speech = useSpeechRecognition({ onResult: handleSpeechResult });
+  const { learnCorrections } = speech;
 
   useEffect(() => {
     if (isOpen && textareaRef.current) textareaRef.current.focus();
@@ -116,6 +117,7 @@ const QuickCapture = () => {
 
   const handleSave = async () => {
     if (!text.trim()) return;
+    void learnCorrections(text);
     // Fire haptic immediately so the user feels the action even if storage is slow
     haptics.success();
     if (predictedType && predictedType !== selectedType) {

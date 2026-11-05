@@ -110,7 +110,7 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
   const [notificationSound, setNotificationSound] = useState<ReminderSound>(initialTask?.notificationSound || "system_notification");
   const [snoozeMinutes, setSnoozeMinutes] = useState(initialTask?.snoozeMinutes || 10);
 
-  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
+  const { isListening, isSupported, startListening, stopListening, learnCorrections } = useSpeechRecognition({
     onResult: (t) => setMemo((prev) => (prev ? prev + " " + t : t)),
   });
 
@@ -136,6 +136,7 @@ const ReminderEditor = ({ initialTitle = "", initialTask = null, onCancel, onSav
 
   const handleSave = async () => {
     if (!memo.trim()) return;
+    void learnCorrections(memo);
     if (timeEnabled) {
       const selected = new Date(`${date}T${pad(Number(hour))}:${pad(Number(minute))}:00`);
       if (!Number.isFinite(selected.getTime()) || selected.getTime() <= Date.now()) {

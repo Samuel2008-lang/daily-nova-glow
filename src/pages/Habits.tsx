@@ -17,7 +17,7 @@ const Habits = () => {
   const [newHabit, setNewHabit] = useState("");
   const { toast } = useToast();
 
-  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
+  const { isListening, isSupported, startListening, stopListening, learnCorrections } = useSpeechRecognition({
     onResult: (transcript) => {
       setNewHabit((prev) => (prev ? (prev + " " + transcript).trim() : transcript));
     },
@@ -42,6 +42,7 @@ const Habits = () => {
 
   const addHabit = () => {
     if (!newHabit.trim()) return;
+    void learnCorrections(newHabit);
     haptics.success();
     const habit: Habit = {
       id: Date.now().toString(),

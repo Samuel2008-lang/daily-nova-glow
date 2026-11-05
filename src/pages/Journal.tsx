@@ -20,7 +20,7 @@ const Journal = () => {
   const [viewMode, setViewMode] = useState<"closed" | "write" | "read">("closed");
   const { toast } = useToast();
 
-  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
+  const { isListening, isSupported, startListening, stopListening, learnCorrections } = useSpeechRecognition({
     onResult: (transcript) => setCurrentEntry((prev) => (prev ? `${prev} ${transcript}` : transcript)),
   });
 
@@ -33,6 +33,7 @@ const Journal = () => {
 
   const saveEntry = () => {
     if (!currentEntry.trim()) return;
+    void learnCorrections(currentEntry);
     haptics.success();
     const existing = entries.find((e) => sameDay(new Date(e.createdAt), currentDate));
     const now = new Date().toISOString();

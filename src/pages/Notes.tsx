@@ -28,7 +28,7 @@ const Notes = () => {
   const [emptyDatePromptOpen, setEmptyDatePromptOpen] = useState(false);
   const { toast } = useToast();
 
-  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
+  const { isListening, isSupported, startListening, stopListening, learnCorrections } = useSpeechRecognition({
     onResult: (transcript) => {
       setNoteContent((prev) => (prev ? prev + " " + transcript : transcript));
     },
@@ -51,6 +51,7 @@ const Notes = () => {
 
   const saveNote = () => {
     if (!noteContent.trim()) return;
+    void learnCorrections(noteContent);
     haptics.success();
 
     const topic = noteTopic.trim() || `Note - ${format(selectedDate, "MMM d, yyyy")}`;

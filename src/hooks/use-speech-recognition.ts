@@ -2,32 +2,16 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Capacitor } from "@capacitor/core";
 import { recordingState } from "@/lib/recording-state";
+import { formatVoiceText } from "@/lib/speech-format";
+import { applySpeechCorrections, extractCorrections, recordSpeechCorrection } from "@/lib/speech-corrections";
+
+export { formatVoiceText } from "@/lib/speech-format";
 
 interface UseSpeechRecognitionProps {
   onResult: (transcript: string) => void;
   continuous?: boolean;
   autoEnhance?: boolean;
   context?: string;
-}
-
-/**
- * Lightweight, 100% offline text formatter.
- */
-export function formatVoiceText(input: string): string {
-  if (!input) return input;
-  let t = input.trim();
-  if (!t) return t;
-
-  t = t.replace(/\s+/g, " ");
-  t = t.replace(/\s+([,.!?;:])/g, "$1");
-  t = t.replace(/([,.!?;:])(?=[^\s])/g, "$1 ");
-  t = t.charAt(0).toUpperCase() + t.slice(1);
-  t = t.replace(/([.!?]\s+)([a-z])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
-  t = t.replace(/\bi\b/g, "I");
-  t = t.replace(/\bi'(m|ve|ll|d|re)\b/gi, (_m, suf) => "I'" + suf.toLowerCase());
-  if (/[A-Za-z0-9]$/.test(t)) t += ".";
-
-  return t;
 }
 
 /**
@@ -38,10 +22,23 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const accumulatedRef = useRef<string>("");
+  const emittedRef = useRef<string[]>([]);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
   const stopFallbackRef = useRef<number | null>(null);
   const stoppedRef = useRef(false);
   const finalizedRef = useRef(false);
+
+  // Compare what the mic produced with what the user finally saved, so the
+  // personal corrections dictionary learns their own names, slang and spelling.
+  const learnCorrections = useCallback(async (finalText: string) => {
+    const segments = emittedRef.current;
+    emittedRef.current = [];
+    for (const segment of segments) {
+      for (const fix of extractCorrections(segment, finalText)) {
+        await recordSpeechCorrection(fix.heard, fix.corrected);
+      }
+    }
+  }, []);
 
   const finalize = useCallback(async () => {
     if (finalizedRef.current) return;
@@ -54,7 +51,10 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
     accumulatedRef.current = "";
     recordingState.set(false);
     if (raw) {
-      onResult(formatVoiceText(raw));
+      const formatted = formatVoiceText(raw);
+      const corrected = await applySpeechCorrections(formatted);
+      emittedRef.current.push(corrected);
+      onResult(corrected);
     }
     setIsListening(false);
     setIsProcessing(false);
@@ -80,6 +80,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
       }
 
       accumulatedRef.current = "";
+      emittedRef.current = [];
       stoppedRef.current = false;
       finalizedRef.current = false;
       if (stopFallbackRef.current) window.clearTimeout(stopFallbackRef.current);
@@ -147,7 +148,7 @@ const useNativeSpeechRecognition = (onResult: (text: string) => void) => {
     })();
   }, []);
 
-  return { isListening, isProcessing, isSupported: true, startListening, stopListening };
+  return { isListening, isProcessing, isSupported: true, startListening, stopListening, learnCorrections };
 };
 
 const useWebSpeechRecognition = (onResult: (text: string) => void) => {
@@ -165,6 +166,19 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
   const fullTranscriptRef = useRef<string>("");
   const latestInterimRef = useRef<string>("");
   const capturedIndicesRef = useRef<Set<number>>(new Set());
+  const emittedRef = useRef<string[]>([]);
+
+  // Compare what the mic produced with what the user finally saved, so the
+  // personal corrections dictionary learns their own names, slang and spelling.
+  const learnCorrections = useCallback(async (finalText: string) => {
+    const segments = emittedRef.current;
+    emittedRef.current = [];
+    for (const segment of segments) {
+      for (const fix of extractCorrections(segment, finalText)) {
+        await recordSpeechCorrection(fix.heard, fix.corrected);
+      }
+    }
+  }, []);
 
   const emitAndReset = useCallback(async () => {
     if (processedRef.current) return;
@@ -184,7 +198,9 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
       return;
     }
     setIsProcessing(false);
-    onResult(formatVoiceText(text));
+    const finalText = await applySpeechCorrections(formatVoiceText(text));
+    emittedRef.current.push(finalText);
+    onResult(finalText);
   }, [onResult]);
 
   const startListening = useCallback(async (_autoEnhance: boolean = false, _context?: string) => {
@@ -196,6 +212,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     fullTranscriptRef.current = "";
     latestInterimRef.current = "";
     capturedIndicesRef.current.clear();
+    emittedRef.current = [];
     processedRef.current = false;
     stoppedByUserRef.current = false;
 
@@ -290,7 +307,7 @@ const useWebSpeechRecognition = (onResult: (text: string) => void) => {
     }
   }, []);
 
-  return { isListening, isProcessing, isSupported, startListening, stopListening };
+  return { isListening, isProcessing, isSupported, startListening, stopListening, learnCorrections };
 };
 
 export const useSpeechRecognition = ({ onResult }: UseSpeechRecognitionProps) => {
