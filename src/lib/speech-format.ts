@@ -39,6 +39,9 @@ export function formatVoiceText(input: string): string {
   t = t.replace(/\bi\b/g, "I");
   t = t.replace(/\bi'(m|ve|ll|d|re)\b/gi, (_m, suf) => "I'" + suf.toLowerCase());
 
+  // Close a sentence before a spoken paragraph break.
+  t = t.replace(/([A-Za-z0-9])\n\n/g, "$1.\n\n");
+
   // Step 5b — end punctuation: close bare sentences, never duplicate.
   if (/[A-Za-z0-9]$/.test(t)) t += ".";
 

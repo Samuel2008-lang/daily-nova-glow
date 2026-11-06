@@ -144,13 +144,19 @@ export function applyCorrectionsToText(text: string, corrections: SpeechCorrecti
     if (lenDiff !== 0) return lenDiff;
     return b.count - a.count;
   });
-  let out = text;
-  for (const c of sorted) {
-    if (!c.heard_phrase) continue;
-    const re = new RegExp(`(?<![\\w'’])${escapeRegex(c.heard_phrase)}(?![\\w'’])`, "gi");
-    out = out.replace(re, c.corrected_phrase);
+  const valid = sorted.filter((c) => c.heard_phrase);
+  if (valid.length === 0) return text;
+  const map = new Map<string, string>();
+  for (const c of valid) {
+    const k = c.heard_phrase.toLowerCase();
+    if (!map.has(k)) map.set(k, c.corrected_phrase);
   }
-  return out;
+  // Single pass so a replacement is never re-matched by a shorter phrase.
+  const re = new RegExp(
+    `(?<![\\w'’])(${valid.map((c) => escapeRegex(c.heard_phrase)).join("|")})(?![\\w'’])`,
+    "gi"
+  );
+  return text.replace(re, (m) => map.get(m.toLowerCase()) ?? m);
 }
 
 /**
@@ -203,6 +209,13 @@ export function extractCorrections(
   while (i < m && j < n) {
     if (micN[i] === editN[j]) {
       flush(runMi, runMj);
+      // Same word, different casing mid-sentence → personal name/brand.
+      const heardW = mic[i].replace(/^[^\w'’]+|[^\w'’]+$/g, "");
+      const corrW = edit[j].replace(/^[^\w'’]+|[^\w'’]+$/g, "");
+      const sentenceStart = j === 0 || /[.!?]$/.test(edit[j - 1]);
+      if (heardW && heardW !== corrW && !(sentenceStart && isTrivialCaseFix(heardW, corrW))) {
+        out.push({ heard: heardW, corrected: corrW });
+      }
       i++;
       j++;
       runMi = i;
