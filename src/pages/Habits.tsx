@@ -11,10 +11,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { notificationService } from "@/lib/notifications";
 import { haptics } from "@/lib/haptics";
+import { habitTrash, softDelete, restore, purge, DeletedHabit, PERMANENT_HABIT_DELETE_MESSAGE } from "@/lib/habit-trash";
+import DeleteConfirmation from "@/components/DeleteConfirmation";
+import { RotateCcw } from "lucide-react";
 
 const Habits = () => {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [newHabit, setNewHabit] = useState("");
+  const [trash, setTrash] = useState<DeletedHabit[]>(() => habitTrash.get());
+  const [showTrash, setShowTrash] = useState(false);
+  const [purgeId, setPurgeId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { isListening, isSupported, startListening, stopListening, learnCorrections } = useSpeechRecognition({
@@ -93,11 +99,36 @@ const Habits = () => {
 
   const deleteHabit = async (id: string) => {
     await notificationService.cancelHabitReminder(id);
-    const updatedHabits = habits.filter((habit) => habit.id !== id);
-    setHabits(updatedHabits);
-    storage.saveHabits(updatedHabits);
+    const r = softDelete(habits, trash, id);
+    setHabits(r.active);
+    setTrash(r.trash);
+    storage.saveHabits(r.active);
+    habitTrash.save(r.trash);
     haptics.warning();
-    toast({ title: "Habit deleted", description: "Your habit has been removed." });
+    toast({ title: "Moved to Recently Deleted", description: "You can restore it anytime." });
+  };
+
+  const restoreHabit = async (id: string) => {
+    const r = restore(habits, trash, id);
+    setHabits(r.active);
+    setTrash(r.trash);
+    storage.saveHabits(r.active);
+    habitTrash.save(r.trash);
+    if (r.restored?.reminderEnabled) {
+      await notificationService.scheduleHabitReminder(r.restored.id, r.restored.name, r.restored.reminderHour ?? 8, r.restored.reminderMinute ?? 0);
+    }
+    haptics.success();
+    toast({ title: "Habit restored" });
+  };
+
+  const deleteForever = () => {
+    if (!purgeId) return;
+    const next = purge(trash, purgeId);
+    setTrash(next);
+    habitTrash.save(next);
+    setPurgeId(null);
+    haptics.warning();
+    toast({ title: "Habit permanently deleted" });
   };
 
   const toggleHabitReminder = async (id: string, enabled: boolean) => {
@@ -285,7 +316,8 @@ const Habits = () => {
                       size="icon"
                       variant="ghost"
                       onClick={() => deleteHabit(habit.id)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                      aria-label="Delete habit"
+                      className="text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -295,6 +327,42 @@ const Habits = () => {
             })
           )}
         </div>
+
+        {/* Recently Deleted */}
+        {trash.length > 0 && (
+          <div className="mt-8">
+            <Button variant="ghost" onClick={() => setShowTrash((v) => !v)} className="w-full justify-between text-muted-foreground">
+              <span>Recently Deleted ({trash.length})</span>
+              <span>{showTrash ? "▴" : "▾"}</span>
+            </Button>
+            {showTrash && (
+              <div className="space-y-3 mt-3">
+                {trash.map((habit) => (
+                  <Card key={habit.id} className="glass p-4 flex items-center gap-3 opacity-80">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-foreground truncate">{habit.name}</h3>
+                      <span className="text-xs text-muted-foreground">Deleted {new Date(habit.deletedAt).toLocaleDateString()}</span>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => restoreHabit(habit.id)}>
+                      <RotateCcw className="w-4 h-4 mr-1" /> Restore
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setPurgeId(habit.id)}>
+                      Delete Forever
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <DeleteConfirmation
+          open={purgeId !== null}
+          onOpenChange={(o) => { if (!o) setPurgeId(null); }}
+          onConfirm={deleteForever}
+          title="Delete habit forever?"
+          description={PERMANENT_HABIT_DELETE_MESSAGE}
+        />
       </div>
     </div>
   );

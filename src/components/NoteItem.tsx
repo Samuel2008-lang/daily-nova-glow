@@ -126,7 +126,7 @@ const NoteItem = ({ note, onView, onDelete }: NoteItemProps) => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Note</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{note.topic || "this note"}"? This action cannot be undone.
+              Are you sure you want to delete this? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
