@@ -259,7 +259,7 @@ const Habits = () => {
               return (
                 <Card
                   key={habit.id}
-                  className={`glass p-6 group transition-all duration-300 ${isCompletedToday ? "glow-pink border-accent/50" : ""}`}
+                  className={`glass p-6 group transition-all duration-300 ${isCompletedToday ? "border-success/30" : ""}`}
                 >
                   <div className="flex items-center gap-4">
                     <Button
@@ -267,7 +267,7 @@ const Habits = () => {
                       variant="ghost"
                       aria-label={isCompletedToday ? "Mark as not done today" : "Mark as done today"}
                       onClick={(e) => { toggleHabitToday(habit.id); e.currentTarget.blur(); }}
-                      className={`border transition-colors ${isCompletedToday ? "bg-accent text-accent-foreground border-accent hover:bg-accent hover:text-accent-foreground active:bg-accent" : "bg-transparent text-muted-foreground border-border/50 hover:bg-transparent hover:text-muted-foreground active:bg-transparent"}`}
+                      className={`border transition-colors bg-transparent hover:bg-transparent active:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 ${isCompletedToday ? "text-success border-success/60 hover:text-success" : "text-muted-foreground border-border/50 hover:text-muted-foreground"}`}
                     >
                       <Check className="w-4 h-4" />
                     </Button>

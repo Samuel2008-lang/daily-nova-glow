@@ -65,6 +65,12 @@ export interface Task {
   alertLevel?: AlertLevel;
   notificationSound?: ReminderSound;
   snoozeMinutes?: number;
+  /** Vibrate when the reminder fires (default true). */
+  vibrationEnabled?: boolean;
+  /** false = reminder kept but nothing is scheduled (default true). */
+  enabled?: boolean;
+  /** Last time the reminder actually fired. */
+  lastTriggeredAt?: string;
   createdAt: string;
 }
 
