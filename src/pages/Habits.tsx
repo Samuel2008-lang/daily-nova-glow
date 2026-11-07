@@ -14,6 +14,7 @@ import { haptics } from "@/lib/haptics";
 import { habitTrash, softDelete, restore, purge, DeletedHabit, PERMANENT_HABIT_DELETE_MESSAGE } from "@/lib/habit-trash";
 import DeleteConfirmation from "@/components/DeleteConfirmation";
 import { RotateCcw } from "lucide-react";
+import { HabitStreakCalendar } from "@/components/HabitStreakCalendar";
 
 const Habits = () => {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -263,9 +264,10 @@ const Habits = () => {
                   <div className="flex items-center gap-4">
                     <Button
                       size="icon"
-                      variant={isCompletedToday ? "default" : "outline"}
-                      onClick={() => toggleHabitToday(habit.id)}
-                      className={`${isCompletedToday ? "bg-accent text-accent-foreground" : "border-border/50"} transition-all duration-300`}
+                      variant="ghost"
+                      aria-label={isCompletedToday ? "Mark as not done today" : "Mark as done today"}
+                      onClick={(e) => { toggleHabitToday(habit.id); e.currentTarget.blur(); }}
+                      className={`border transition-colors ${isCompletedToday ? "bg-accent text-accent-foreground border-accent hover:bg-accent hover:text-accent-foreground active:bg-accent" : "bg-transparent text-muted-foreground border-border/50 hover:bg-transparent hover:text-muted-foreground active:bg-transparent"}`}
                     >
                       <Check className="w-4 h-4" />
                     </Button>
@@ -273,8 +275,10 @@ const Habits = () => {
                     <div className="flex-1">
                       <h3 className="font-semibold text-foreground">{habit.name}</h3>
                       <div className="flex gap-4 mt-1">
-                        <span className="text-xs text-muted-foreground">{streak} day streak 🔥</span>
-                        <span className="text-xs text-muted-foreground">{habit.completedDates.length} total completions</span>
+                        <span className={`text-xs ${isCompletedToday ? "text-success font-medium" : "text-muted-foreground"}`}>
+                          {isCompletedToday ? "Done today" : "Due today"}
+                        </span>
+                        <HabitStreakCalendar streak={streak} completedDates={habit.completedDates} createdAt={(habit as any).createdAt} />
                       </div>
                       
                       {/* Per-habit reminder — collapsible */}

@@ -121,6 +121,14 @@ All colors MUST be HSL.
       filter: none !important;
     }
 
+    /* Stop outline/ghost buttons from staying pink/blue after a tap. */
+    button.hover\:bg-accent:hover:not(.bg-accent) {
+      background-color: transparent !important;
+    }
+    button.hover\:text-accent-foreground:hover:not(.bg-accent) {
+      color: inherit !important;
+    }
+
     button:focus, button:focus-visible,
     a:focus, a:focus-visible,
     [role="button"]:focus, [role="button"]:focus-visible,
